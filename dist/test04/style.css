@@ -364,6 +364,11 @@ select{font:inherit;color:var(--ink);border:1px solid #dce3d3;background:#fff;pa
 .ux-product>button{min-width:84px;min-height:44px;border-radius:12px;background:var(--chip);font-weight:600}
 .ux-product.is-locked .transport-icon{color:#c9cfc6}
 .ux-lock{color:#a58a63!important}
+.car-shop{margin-top:24px;padding-top:16px;border-top:1px solid var(--line)}
+.car-shop h3{margin:0 0 8px;font-size:15px}
+.car-shop-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.car-shop-grid .infra-card{margin:0}
+.car-shop-grid button{width:100%}
 .ux-links{margin-top:10px}
 .ux-links button{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px 12px;width:100%;min-height:56px;text-align:left;border-bottom:1px solid var(--line);border-radius:0;padding:0 4px}
 .ux-links button span{font-weight:600;font-size:13px}
@@ -486,7 +491,7 @@ select{font:inherit;color:var(--ink);border:1px solid #dce3d3;background:#fff;pa
   #speed{min-width:40px}
   #tasks,#fullscreen{display:none}
 
-  /* Dock: three equal buttons spanning the width. */
+  /* Dock: four equal buttons spanning the width. */
   footer{left:calc(var(--gutter) + var(--safe-l));right:calc(var(--gutter) + var(--safe-r))}
   .dock{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;margin:0}
   .dock-btn{flex-direction:column;gap:3px;padding:0 4px;font-size:12px;border-radius:14px}

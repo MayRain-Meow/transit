@@ -90,5 +90,17 @@ test('add-carriage button follows the balance on passive refreshes',()=>{
   run(`S.points=${price}-1;showDetails(false)`);assert.match(button(),/disabled/);
   run(`S.points=${price};showDetails(false)`);assert.doesNotMatch(button(),/disabled/);
 });
+test('UX shop keeps upstream train-car purchasing and refreshes its quote',()=>{
+  fresh();run('shop()');assert.match(node('modal-content').innerHTML,/暂无可扩容列车/);
+  run('S.unlocked=["bus","emu","rail"];S.limits.emu=S.limits.rail=2;S.points=20000;beginDraft("emu");draft.stops=[0,1];commitDraft(true);beginDraft("rail");draft.stops=[1,2];commitDraft(true);shop()');
+  const id=run('S.vehicles.find(v=>v.type==="emu").id'), before=run('S.points');
+  assert.match(node('modal-content').innerHTML,new RegExp(`purchaseTrainCar\\(${id},2\\)`));
+  assert.match(node('modal-content').innerHTML,/动车 \/ 高铁 · 增加车厢/);
+  run(`purchaseTrainCar(${id},2)`);
+  assert.equal(run('S.points'),before-70);assert.equal(run(`S.vehicles.find(v=>v.id===${id}).cars`),3);
+  assert.equal(run('S.vehicles.find(v=>v.type==="rail").cars'),2);
+  assert.match(node('modal-content').innerHTML,new RegExp(`purchaseTrainCar\\(${id},3\\)`));
+  assert.match(node('modal-content').innerHTML,/＋1节车厢 · ¥90/);
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
