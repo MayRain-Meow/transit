@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><meta name="theme-color" content="#fffef9"><title>交通线 · 城市成长测试版 0.4</title><link rel="stylesheet" href="style.css?v=6"></head>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><meta name="theme-color" content="#fffef9"><title>交通线 · 城市成长测试版 0.4</title><link rel="stylesheet" href="style.css?v=7"></head>
 <body><canvas id="map"></canvas>
 <header>
   <div class="brand"><span class="brand-symbol">↗</span><div><b>交通线<span>东岸</span></b><small>NETWORK WORLD / 0.4</small></div></div>
@@ -28,12 +28,17 @@
 <footer>
   <div class="legend"><span><i class="hill-dot"></i>丘陵减速</span><span><i class="mount-dot"></i>山地需隧道</span><span><i class="river-dot"></i>跨河需桥梁</span></div>
   <nav class="dock" aria-label="主要操作">
-    <button id="engineering" class="dock-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 17h20M4 17v-5M20 17v-5M2 12h20M6 12a6 6 0 0 1 12 0"/></svg><span class="dock-label">工程 / 天气</span></button>
-    <button id="operations" class="dock-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="dock-label">运营中心</span></button>
-    <button id="shop" class="dock-btn is-primary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg><span class="dock-label">交通采购</span><small id="next-supply">10日补给</small></button>
+    <button id="dock-tasks" class="dock-btn dock-tasks"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></svg><span class="dock-label">任务</span></button>
+    <button id="engineering" class="dock-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 17h20M4 17v-5M20 17v-5M2 12h20M6 12a6 6 0 0 1 12 0"/></svg><span class="dock-label">工程<span class="dock-more"> / 天气</span></span></button>
+    <button id="operations" class="dock-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="dock-label">运营<span class="dock-more">中心</span></span></button>
+    <button id="shop" class="dock-btn is-primary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg><span class="dock-label"><span class="dock-more">交通</span>采购</span><small id="next-supply">10日补给</small></button>
   </nav>
 </footer>
 <div id="delete-drop" hidden></div>
-<div id="drawbar" hidden><span id="drawtext"></span><button id="drawcancel">取消</button><button id="drawdone" class="primary">完成线路</button></div>
+<div id="drawbar" hidden>
+  <div id="db-types" class="db-types" role="group" aria-label="交通方式" hidden></div>
+  <div class="db-info"><span id="drawtext"></span><div id="db-cost" class="db-cost" hidden></div></div>
+  <div class="db-actions"><button id="drawundo" title="撤销上一站" aria-label="撤销上一站" hidden>↶</button><button id="drawcancel">取消</button><button id="drawdone" class="primary">完成线路</button></div>
+</div>
 <div id="modal" class="overlay" hidden><section id="modal-content" class="modal"></section></div>
-<script src="game.js?v=6"></script><script src="progression.js?v=6"></script><script src="world.js?v=6"></script><script src="economy.js?v=6"></script></body></html>
+<script src="game.js?v=7"></script><script src="progression.js?v=7"></script><script src="world.js?v=7"></script><script src="economy.js?v=7"></script><script src="ux.js?v=7"></script></body></html>

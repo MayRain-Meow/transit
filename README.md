@@ -45,7 +45,7 @@ python -m http.server 8000 --directory dist
 | `dist/updates/` | 网页与TXT更新说明 |
 | `tests/` | 纯Node.js功能测试 |
 
-0.4脚本按 `game.js` → `progression.js` → `world.js` → `economy.js` 顺序加载。当前为原生HTML/CSS/JavaScript项目。
+0.4脚本按 `game.js` → `progression.js` → `world.js` → `economy.js` → `ux.js` 顺序加载；`ux.js` 是只负责界面与操作的体验层，不改经济参数与存档。当前为原生HTML/CSS/JavaScript项目。
 
 ## 验证
 
@@ -56,6 +56,7 @@ node tests/city-economy.cjs
 node tests/world03.cjs
 node tests/world04.cjs
 node tests/portrait-layout.cjs
+node tests/ux-layer.cjs
 ```
 
 测试覆盖经济任务、商演、桥梁复用与拆除、天气、运行方案、学校、服务降级恢复、维护结算和列车长短途速度差异。测试使用模拟浏览器环境；界面仍需通过浏览器试玩检查。
