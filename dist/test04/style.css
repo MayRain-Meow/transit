@@ -556,3 +556,5 @@ select{font:inherit;color:var(--ink);border:1px solid #dce3d3;background:#fff;pa
 
 @keyframes ux-sheet-up{from{transform:translateY(48px);opacity:.5}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.modal{animation:none}}
+
+.undo-build{position:fixed;z-index:45;right:16px;top:90px;padding:10px 14px;background:#fff5dd;border:1px solid #d3b78b;border-radius:10px;color:#70562f;box-shadow:0 3px 12px #243d4420}@media(max-width:600px){.undo-build{top:72px;right:12px;font-size:11px;max-width:85vw}}

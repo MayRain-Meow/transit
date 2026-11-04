@@ -71,12 +71,12 @@ function uxDismissModal() {
 
 /* ---------- welcome & help ---------- */
 welcome = function (hasSave) {
-  openModal(`<div class="ux-hero"><span class="eyebrow">东岸 · 0.4.2 修复版</span><h1>从一条线，带动一座城。</h1>
+  openModal(`<div class="ux-hero"><span class="eyebrow">东岸 · 0.4.3 经营调整版</span><h1>从一条线，带动一座城。</h1>
 <p class="ux-lead">从一座城市拖向另一座，修出线路、派出车辆，把乘客送到与他们标记同色同形的城市。完成城市任务拿奖金，看小镇长大。</p></div>
 <ul class="ux-points">
 <li><i>¥</i><span><b>起步 ¥500</b>大巴 ¥180，拉线另计建设费，报价就在底栏</span></li>
 <li><i>↗</i><span><b>任务推动繁荣</b>点城市或「任务」查看阶段目标，奖金自动到账</span></li>
-<li><i>♥</i><span><b>别让乘客久等</b>候车超过 180 秒会失去一条生命</span></li>
+<li><i>♥</i><span><b>别让乘客久等</b>候客厅持续满员才会失去生命</span></li>
 </ul>
 <div class="ux-actions"><button class="primary ux-wide" onclick="startGame()">${hasSave ? '继续游戏' : '开始游戏'}</button>${hasSave ? '<button id="ux-new" class="ux-ghost" onclick="uxConfirmNew(this)">重新开始</button>' : ''}</div>
 <p class="ux-foot">独立测试存档，不影响正式版 · 每游戏日 12 秒 · <a href="../updates/index.html">更新说明</a> · <a href="../">正式版</a></p>`);
@@ -99,14 +99,15 @@ ${sec('基本操作', [
     '<b>电脑</b>：空格暂停，滚轮缩放，Esc 取消或关闭。'], true)}
 ${sec('乘客与任务', [
     '乘客头上的小方块是目的地：<b>颜色＋形状</b>相同的城市都能接收。点城市候车列表可在地图标出目标。',
-    '候车超过 180 秒会失去一条生命，之后有 45 秒保护。',
+    '候客厅满员累计180秒才扣生命，最后8秒警告；低于容量逐渐恢复，降到80%以下加快恢复。个人等待只影响服务质量。',
     '每座城市有 6 个阶段任务，奖金自动到账；连续类任务中断只重置天数，不扣钱。',
     '新城镇需要拉线接通才会产生乘客，接通后有 45 秒宽限。'])}
 ${sec('资金与车辆', [
     '大巴 ¥180 · 动车 ¥560 · 高铁 ¥900 · 飞机 ¥1600。新车进库存，在线路详情里点「＋」加车（没有库存会直接购买）。',
     '票款按起终点距离 1 / 2 / 3，乘坐方式加权：动车 ×1.4，高铁 ×1.8，飞机 ×3。',
     '每 10 天补助 ¥100；道路月底收维护费，账本里可看预计支出、拆除闲置道路。',
-    '动车、高铁可加车厢（最多 8 节）；车辆可回收后改派其他线路。'])}
+    '动车、高铁可加车厢（最多8节），回库存后保留编组。取消线路可保留资产，或回收闲置道路50%、车辆车厢70%。',
+    '刚完成建线、改线、建桥或升级后，8秒内可点右上「撤回」全额退款；已载客、被共用或开始后续付费建设时不适用。'])}
 ${sec('工程与天气', [
     '<b>桥梁</b>：工程 → 拉建公路桥 / 铁路桥，从一岸拖到对岸。',
     '<b>道路升级</b>：线路详情 → 道路升级，施工期间该路段减速 30%。',
@@ -241,15 +242,12 @@ ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不�
 <div class="ux-route">${stops.map(id => `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`).join('<i>→</i>')}</div>
 <p class="ux-hint">拖端点城市可延长；拖线段经过城市可挂站、摘站。</p>
 ${vs.length ? `<div class="ux-list"><div class="ux-list-title">车辆与运行方案</div>${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${v.people.length}/${vehCap(v)} 人${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
-<div class="ux-actions-row">${l.type !== 'air' ? `<button onclick="openInfrastructure(${l.id})">道路升级</button>` : ''}<button class="ux-danger" onclick="uxDeleteLine(${l.id})">${uxArmedDelete?.id === l.id && uxArmedDelete.until > performance.now() ? '再点一次确认撤销' : '撤销线路'}</button></div>`;
+<div class="ux-actions-row">${l.type !== 'air' ? `<button onclick="openInfrastructure(${l.id})">道路升级</button>` : ''}<button class="ux-danger" onclick="uxDeleteLine(${l.id})">${uxArmedDelete?.id === l.id && uxArmedDelete.until > performance.now() ? '再点一次确认撤销' : '取消线路'}</button></div>`;
 }
-// Two-tap delete instead of the browser's confirm(); the armed state survives sheet refreshes.
+// Cancellation opens an itemised recovery quote before any assets are retired.
 let uxArmedDelete = null;
-function uxDeleteLine(id) {
-  if (uxArmedDelete?.id === id && uxArmedDelete.until > performance.now()) { uxArmedDelete = null; deleteLine(id, true); haptic(20); showDetails(); return; }
-  uxArmedDelete = { id, until: performance.now() + 4000 }; haptic(); showDetails();
-  setTimeout(() => { if (selected?.type === 'line' && selected.id === id) showDetails(); }, 4100);
-}
+function uxDeleteLine(id) { showLineCancellation(id); }
+
 const uxShowDetails = showDetails;
 showDetails = function (rebuild = true) {
   if (selected?.type === 'line') return uxLineSheet(rebuild);
