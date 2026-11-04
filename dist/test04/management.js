@@ -1,9 +1,9 @@
 'use strict';
 // 0.4.3: station congestion, asset accounting, cancellation recovery and immediate construction undo.
-const CONGESTION_LIMIT=180,UNDO_SECONDS=8;
+const CONGESTION_LIMIT=180,UNDO_SECONDS=20;
 let constructionUndo=null,accountingDepth=0;
 const cashRound=n=>Math.round(Math.max(0,n)*100)/100;
-function updateCongestion(c,dt){let p=Math.max(0,c.congestionPressure||0),ratio=c.q.length/Math.max(1,capacity(c));if(c.grace>0||c.shield>0){c.warning=0;return;}if(ratio>=1)p=Math.min(CONGESTION_LIMIT,p+dt);else p=Math.max(0,p-dt*(ratio<=.8?2:1));c.congestionPressure=p;c.warning=ratio>=1&&p>=CONGESTION_LIMIT-8?CONGESTION_LIMIT-p:0;if(p>=CONGESTION_LIMIT){S.lives--;c.shield=45;c.congestionPressure=0;c.warning=0;toast(c.name+'候客厅持续满员，扣一条生命 · 本城保护45秒');}}
+function updateCongestion(c,dt){let p=Math.max(0,c.congestionPressure||0),limit=CONGESTION_LIMIT*(c.shape===1?1.25:1),ratio=c.q.filter(p=>!p.cardId).length/Math.max(1,capacity(c));if(c.grace>0||c.shield>0){c.warning=0;return;}if(ratio>=1)p=Math.min(limit,p+dt);else p=Math.max(0,p-dt*(ratio<=.8?2:1));c.congestionPressure=p;c.warning=ratio>=1&&p>=limit-8?limit-p:0;if(p>=limit){S.lives--;c.shield=45;c.congestionPressure=0;c.warning=0;toast(c.name+'候客厅持续满员，扣一条生命 · 本城保护45秒');}}
 function remoteCity(c){return !!c.remote||c.x<0||c.name?.endsWith('远城');}
 const rateBeforeRemote=passengerRate;passengerRate=function(c){let rate=rateBeforeRemote(c);if(!rate||!remoteCity(c))return rate;let stage=c.stage??c.size;return c.shape===1?.07*.75*Math.pow(1.2,stage)*Math.min(1,.3+Math.max(0,S.day-c.activatedDay)/5):.021*Math.pow(1.15,stage);};
 function assetState(){if(S.assetAccounting===1)return;S.stockAssets={};S.recoveryJobs??=[];S.ledger.refunds??=0;
@@ -44,3 +44,5 @@ for(let c of realCities()){c.warning=0;c.congestionPressure??=0;}
 function normalizeDormantRemoteCities(){if(S.remoteProgressVersion===1)return;let moved=false;for(let c of realCities()){if(!remoteCity(c)||!c.dormant||c.q.length||c.school||c.repairCenter||c.meteo||c.hub||S.lines.some(l=>l.stops.includes(c.id))||Object.values(S.infrastructure).some(x=>x.a===c.id||x.b===c.id))continue;let others=realCities().filter(x=>x.id!==c.id),active=others.filter(x=>!x.dormant),nearest=Math.min(...active.map(a=>Math.hypot(a.x-c.x,a.y-c.y)));if(nearest<=410)continue;let p=remoteSpawnPoint(others);if(p){c.x=p.x;c.y=p.y;c.remote=true;c.remoteStage=p.stage;moved=true;}}S.remoteProgressVersion=1;if(moved)fit();save();}
 const loadBeforeRemoteProgression=load;load=function(){let ok=loadBeforeRemoteProgression();if(ok)normalizeDormantRemoteCities();return ok;};
 normalizeDormantRemoteCities();
+
+function hubLimit(){return 3+(S.activityCards?.bonuses.hub||0);}
