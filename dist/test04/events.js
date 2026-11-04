@@ -62,3 +62,8 @@ $('help').onclick=()=>help();
 concertAvailable=function(){return S.day>=22;};
 const eventHistoryBeforeCards=showEventHistory;showEventHistory=function(){showActivityCards();};
 const drawMarkersBeforeCards=drawEventMarkers;drawEventMarkers=function(){drawMarkersBeforeCards();let e=activityState().active;if(!e)return;let c=S.cities[e.host];roundBody(c.x-48,c.y-113-c.size*9,96,21,6,'#fff4e5','#d2ad76',.9);text('★ '+(S.day<e.start?'准备':e.delivered+'/'+e.goal),c.x,c.y-99-c.size*9,10,'#a27145');};
+
+const loadBeforeCityOpening=load;load=function(){let ok=loadBeforeCityOpening();if(ok){initializeCityOpeningTimers();save();}return ok;};
+const uiBeforeCityOpening=updateUI;updateUI=function(){uiBeforeCityOpening();let urgent=realCities().filter(c=>c.dormant&&cityOpeningRemaining(c)<=10).sort((a,b)=>a.openingAt-b.openingAt)[0];if(urgent)$('notice').textContent=urgent.name+' · 即将开放 '+cityOpeningRemaining(urgent)+'s · 可暂停安排线路';};
+const helpBeforeCityOpening=help;help=function(){helpBeforeCityOpening();$('modal-content').innerHTML+='<p>0.5 新城开放：所有待接入城市（含远城、跨河城市）发现后30个游戏模拟秒自动开始产生游客，最后10秒显示橙色提醒。提前接通立即运营，客流逐渐增加；暂停、卡片、商店与拉线规划期间不计时。远城未接通前不会继续向更远方向刷新。</p>';};
+initializeCityOpeningTimers();save();
