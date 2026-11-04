@@ -18,7 +18,7 @@
 ## 验证
 
 - `node tests/world04.cjs`：18 项通过及 60 天开局模拟。
-- `node tests/portrait-layout.cjs`：8 项通过；`node tests/ux-layer.cjs`：10 项通过。
+- `node tests/portrait-layout.cjs`：8 项通过；`node tests/ux-layer.cjs`：12 项通过。
 - CDP 真实触摸（390×844、360×740）：建线 → 撤销 → 建设 → 延长 → 配车 → 贴边滚动 → 下滑关闭 → 双指缩放。
 - 浏览器 390×844 竖屏、844×390 横屏：长日期、五位资金和四线路场景无横向溢出。
 - 实测建线、取消、报价确认、延长线路、线路折叠、详情、调速、资金账本及底部三个入口。

@@ -74,5 +74,21 @@ test('tasks list every real city as a tappable row',()=>{
   fresh();run('showTasks()');
   assert.equal((node('modal-content').innerHTML.match(/class="ux-task( is-dormant)?"/g)||[]).length,run('realCities().length'));
 });
+test('bridge bar does not keep the previous route quote, types or undo',()=>{
+  fresh();run('S.unlocked=["bus","emu"];S.limits.emu=1;chooseType();draft.stops=[0,1];draftBar()');
+  assert.equal(node('db-cost').hidden,false);assert.equal(node('db-types').hidden,false);assert.equal(node('drawundo').hidden,false);
+  run('beginBridge("bus")');
+  assert.equal(node('db-cost').hidden,true);assert.equal(node('db-cost').innerHTML,'');assert.equal(node('db-types').hidden,true);
+  assert.equal(node('drawundo').hidden,true);assert.equal(node('drawbar').classList.contains('db-line'),false);
+  assert.equal(node('drawdone').textContent,'确认桥梁');
+  run('bridgeDraft=null;cancelDraft(false)');
+});
+test('add-carriage button follows the balance on passive refreshes',()=>{
+  fresh();run('S.unlocked=["bus","emu"];S.limits.emu=1;S.points=5000;S.inventory.emu=1;draft={type:"emu",name:"动车1线",color:"#4f86a8",stops:[0,1]};commitDraft(true);selectLine(S.lines.at(-1).id)');
+  const price=run('carPrice(S.vehicles.find(v=>v.type==="emu"))');
+  const button=()=>node('details').innerHTML.match(/<button onclick="upgradeCar\(\d+\)"([^>]*)>/)[1];
+  run(`S.points=${price}-1;showDetails(false)`);assert.match(button(),/disabled/);
+  run(`S.points=${price};showDetails(false)`);assert.doesNotMatch(button(),/disabled/);
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;

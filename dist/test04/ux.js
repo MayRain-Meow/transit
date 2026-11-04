@@ -142,7 +142,7 @@ draftBar = function () {
   uxDraftBar();
   const bar = uxEl('drawbar'), types = uxEl('db-types'), cost = uxEl('db-cost'), undo = uxEl('drawundo'), done = uxEl('drawdone');
   if (!bar) return;
-  if (bridgeDraft || !draft) { types.hidden = cost.hidden = undo.hidden = true; bar.classList.remove('db-line'); return; }
+  if (bridgeDraft || !draft) { uxResetDrawExtras(); return; }
   bar.classList.add('db-line');
   const c = draftCost(), isNew = !draft.original;
   const open = uxTypes().filter(t => S.unlocked.includes(t));
@@ -226,7 +226,7 @@ function uxLineSheet(rebuild) {
   const blocked = l.stops.some((id, i) => i && S.blockages[key(S.cities[l.stops[i - 1]], S.cities[id], l.type)]);
   const stops = l.stops.filter(id => S.cities[id] && !S.cities[id].removed && S.cities[id].kind !== 'bridgehead');
   const sig = JSON.stringify([l.id, l.name, l.color, l.stops, l.retiring, inv, S.points >= T.vehicle, blocked,
-    vs.map(v => [v.id, v.cars, v.people.length, uxServiceLabel(v)])]);
+    vs.map(v => [v.id, v.cars, v.people.length, uxServiceLabel(v), isTrain(v.type) && v.cars < 8 && S.points >= carPrice(v)])]);
   if (!rebuild && sig === uxLineSheet.sig && !el.hidden) return;
   uxLineSheet.sig = sig; el.hidden = false;
   const canAdd = !l.retiring && (inv > 0 || S.points >= T.vehicle);
@@ -292,8 +292,20 @@ uxEl('dock-tasks').onclick = () => showTasks();
 // game.js bound these by reference before this layer loaded.
 uxEl('tasks').onclick = () => showTasks();
 uxEl('newroute').onclick = () => chooseType();
+// Clear the line-only parts of the bar (types, quote, undo) whenever a line draft ends or a bridge draft starts,
+// so the bridge bar never shows a stale route quote.
+function uxResetDrawExtras() {
+  const bar = uxEl('drawbar'); if (!bar) return;
+  bar.classList.remove('db-line');
+  for (const id of ['db-types', 'db-cost']) { const e = uxEl(id); if (e) { e.hidden = true; e.innerHTML = ''; } }
+  const undo = uxEl('drawundo'); if (undo) undo.hidden = true;
+}
+const uxCancelDraft = cancelDraft;
+cancelDraft = function (...args) { uxCancelDraft(...args); uxResetDrawExtras(); };
+const uxBeginBridge = beginBridge;
+beginBridge = function (...args) { uxBeginBridge(...args); uxResetDrawExtras(); };
 const uxBridgeBar = updateBridgeBar;
-updateBridgeBar = function () { uxEl('drawbar')?.classList.remove('db-line'); uxBridgeBar(); };
+updateBridgeBar = function () { uxResetDrawExtras(); uxBridgeBar(); };
 // While drawing near a screen edge, scroll the map so far cities stay reachable on a phone.
 (function edgeScroll() {
   let ptr = null;
