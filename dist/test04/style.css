@@ -58,10 +58,9 @@ header>*{pointer-events:auto}
 .stat small{display:block;white-space:nowrap}
 .stat b{display:block;font-size:23px;font-weight:500;line-height:1.25;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
 .stat-delivered b{color:var(--ink)}
-.stat-money{position:relative;cursor:pointer}
-#finance{padding:0 4px;color:#997c54;font-size:11px;line-height:1.4}
-#finance::after{content:'';position:absolute;inset:-6px -8px;border-radius:10px}   /* whole money block opens the ledger */
-#finance:hover::after{background:#9f79480f}
+.stat-money{padding:0;text-align:left;cursor:pointer}
+#finance small>span{color:#997c54;font-size:11px}
+#finance:hover{background:#9f79480f}
 .stat-lives b{color:var(--accent);font-size:17px;letter-spacing:2px;line-height:1.7}
 
 .controls{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -361,25 +360,27 @@ select{font:inherit;color:var(--ink);border:1px solid #dce3d3;background:#fff;pa
   .fleet-grid{grid-template-columns:repeat(4,1fr)}
 }
 
-/* Phones in portrait: single-row header, full-width bottom sheets and dock. */
+/* Phones in portrait: two-row header, full-width bottom sheets and dock.
+   A single row clips help when the date and balance grow (see portrait acceptance note). */
 @media (orientation:portrait) and (max-width:820px){
-  :root{--gutter:12px;--hud-h:60px;--dock-btn-h:56px;--dock-bottom:calc(10px + var(--safe-b));--ctl:38px}
-  header{gap:10px;background:linear-gradient(#fffef9 82%,#fffef900)}
+  :root{--gutter:12px;--hud-h:112px;--dock-btn-h:56px;--dock-bottom:calc(10px + var(--safe-b));--ctl:44px}
+  header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:44px 44px;gap:8px 12px;padding-top:calc(8px + var(--safe-t));padding-bottom:8px;background:linear-gradient(#fffef9 82%,#fffef900)}
   .brand{display:none}
   .calendar{border-left:0;padding-left:0;min-width:0}
   .calendar #year{display:none}
-  .calendar #date{font-size:15px}
+  .calendar #date{font-size:16px}
   .calendar #date span{margin-left:4px;font-size:10px}
-  .stats{gap:10px}
-  .stat b{font-size:17px}
+  .stats{gap:12px;align-items:center}
+  .stat b{font-size:18px}
   .stat-money small:first-child{font-size:9px}
   #maintenance-estimate{font-size:9px}
   .stat-lives small{display:none}
-  .stat-lives b{font-size:12px;letter-spacing:0;line-height:1;margin-top:14px}
-  .controls{gap:5px}
-  .playback button{min-width:34px;padding:0 4px}
-  #speed{min-width:34px}
-  .ctl-text{padding:0 10px}
+  .stat-lives b{font-size:13px;letter-spacing:0;line-height:1;margin-top:0}
+  .controls{grid-column:1/-1;gap:8px;width:100%}
+  .playback{margin-right:auto}
+  .playback button{min-width:44px;padding:0 6px}
+  #speed{min-width:44px}
+  .ctl-text{padding:0 16px}
   #fullscreen{display:none}
 
   /* Dock: three equal buttons spanning the width. */
@@ -431,9 +432,6 @@ select{font:inherit;color:var(--ink);border:1px solid #dce3d3;background:#fff;pa
 }
 
 @media (orientation:portrait) and (max-width:370px){
-  :root{--ctl:36px}
-  header{gap:7px}
-  .calendar #date span{display:none}
   .stats{gap:7px}
   .stat b{font-size:15px}
   .ctl-text{padding:0 8px;font-size:12px}

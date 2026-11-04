@@ -64,7 +64,7 @@ function passengerRate(c){if(c.dormant)return 0;let ramp=Math.min(1,.3+Math.max(
 
 function settleCityGrowth(){/* Growth is awarded by city transport tasks. */}
 
-function minScale(){return Math.min(.35,Math.max(.12,(W-24)/1300))}
+function minScale(){return Math.min(.35,fitTarget().scale)}
 function syncOrientation(){let hint=$('orientation-hint');if(!hint)return;hint.hidden=!portraitMode||orientationHintDismissed;if(!hint.hidden&&!syncOrientation.t)syncOrientation.t=setTimeout(()=>{orientationHintDismissed=true;try{localStorage.setItem('transit04-hint-off','1')}catch{}syncOrientation()},9000);}
 async function enterLandscape(){let info=$('orientation-status');try{if(!document.fullscreenElement&&document.documentElement?.requestFullscreen)await document.documentElement.requestFullscreen();if(typeof screen!=='undefined'&&screen.orientation?.lock)await screen.orientation.lock('landscape');}catch{}resize();if(portraitMode&&info)info.textContent='也可继续竖屏游玩；想横屏时，请开启手机自动旋转。';}
 function capacity(c){return Math.round(c.capacity*(1+c.expand*.25)*(c.hub?2:1))}

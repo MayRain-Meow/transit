@@ -1,0 +1,34 @@
+[
+  {
+    "name": "opening cities fit above the route sheet",
+    "passed": true
+  },
+  {
+    "name": "portrait overview includes western and northern/southern far cities",
+    "passed": true
+  },
+  {
+    "name": "zoom-out floor permits the overview scale without changing the camera",
+    "passed": true
+  },
+  {
+    "name": "rotation fits the map above an open details sheet",
+    "passed": true
+  },
+  {
+    "name": "collapsed route sheet keeps new route available and exposes expanded state",
+    "passed": true
+  },
+  {
+    "name": "dismissed intro notice stays dismissed across UI updates",
+    "passed": true
+  },
+  {
+    "name": "empty-fleet route details do not append repeated service sections",
+    "passed": true
+  },
+  {
+    "name": "ledger is a real button containing the displayed balance",
+    "passed": true
+  }
+]

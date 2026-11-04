@@ -55,9 +55,12 @@ python -m http.server 8000 --directory dist
 node tests/city-economy.cjs
 node tests/world03.cjs
 node tests/world04.cjs
+node tests/portrait-layout.cjs
 ```
 
 测试覆盖经济任务、商演、桥梁复用与拆除、天气、运行方案、学校、服务降级恢复、维护结算和列车长短途速度差异。测试使用模拟浏览器环境；界面仍需通过浏览器试玩检查。
+
+0.4 竖屏界面的回归记录、已检查交互与截图见[竖屏验收说明](.agents/notes/implemented/bug-fix/2026-11-04-portrait-acceptance.md)。
 
 ## 版本与使用
 

@@ -1,0 +1,42 @@
+{
+  "passed": [
+    "manual bridge fixed endpoints, auto routing through heads, reuse after editing one bank",
+    "cross-river route without built bridge is rejected",
+    "bridge demolition drains in-flight vehicle then removes markers and blocks routing",
+    "bridge upgrade purchase charges once, slows construction, speeds completion",
+    "interval and express routing only serves assigned cities; disconnected fleet cannot serve other bank",
+    "fog/rain slow relevant vehicles; station halves loss without stacking; typhoon grounds new flights",
+    "hub purchase cap is three and no duplicate charge",
+    "quake closure drains traffic, preserves passengers, repair reopens",
+    "city spacing and far-city unlock",
+    "all 0.3 screens and render loops run",
+    "typhoon seasons contain 3–4 south-to-north circular storms only in late July–September",
+    "removing collinear B retains old-route ghost and undo restores the stop",
+    "school eligibility, single purchase, exact destinations and completed-trip return",
+    "maintenance charges shared infrastructure once, prorates, carries debt and repays without stopping roads",
+    "school subsidy is earned, service weighted, paid once and suspended on downgrade",
+    "service sample protection, warning, downgrade, school retention and restoration without repeat prizes",
+    "bus remains uniform; train slows at real stops, express skips and bridgeheads preserve speed",
+    "train simulation gives long journeys higher average speed than short stopping journeys"
+  ],
+  "opening": [
+    {
+      "day": 20,
+      "funds": 300,
+      "trips": 23,
+      "lives": 2
+    },
+    {
+      "day": 40,
+      "funds": 944.41,
+      "trips": 82,
+      "lives": 2
+    },
+    {
+      "day": 60,
+      "funds": 1749.41,
+      "trips": 154,
+      "lives": 2
+    }
+  ]
+}
