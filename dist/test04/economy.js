@@ -79,3 +79,8 @@ const roadInfoBeforeCenter=openInfrastructure;openInfrastructure=function(id){ro
 $('engineering').onclick=()=>showEngineering();
 
 resize();const hadSave=load();if(!hadSave)reset();updateUI();welcome(hadSave);requestAnimationFrame(frame);
+/* Top notice: closable; hints stay closed for good, live events stay closed until they end. */
+(function(){const KEY='transit04-notice-off',PERM={intro:1,dormant:1};let off={},session={},cur='';try{off=JSON.parse(localStorage.getItem(KEY)||'{}')}catch{}
+const cat=t=>t.startsWith('城市成长测试版')?'intro':t.startsWith('发现待接入')?'dormant':t.startsWith('♪')?'concert':t.startsWith('道路施工')?'construction':t.startsWith('受损')?'blockage':t.startsWith('区域')?'weather':t.slice(0,6);
+const base=updateUI;updateUI=function(){base();let el=$('notice');if(!el)return;let t=el.textContent||'';cur=t?cat(t):'';for(const k in session)if(k!==cur)delete session[k];if(cur&&(off[cur]||session[cur]))el.textContent='';};
+let btn=typeof document!=='undefined'&&document.getElementById?.('notice-close');if(btn)btn.onclick=()=>{if(!cur)return;if(PERM[cur]){off[cur]=1;try{localStorage.setItem(KEY,JSON.stringify(off))}catch{}}else session[cur]=1;$('notice').textContent='';};})();

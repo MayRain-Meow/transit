@@ -45,7 +45,7 @@ python -m http.server 8000 --directory dist
 | `dist/updates/` | 网页与TXT更新说明 |
 | `tests/` | 纯Node.js功能测试 |
 
-0.4脚本按 `game.js` → `progression.js` → `world.js` → `economy.js` 顺序加载。当前为原生HTML/CSS/JavaScript项目。
+0.4脚本按 `game.js` → `progression.js` → `world.js` → `economy.js` → `ux.js` 顺序加载；`ux.js` 是只负责界面与操作的体验层，不改经济参数与存档。当前为原生HTML/CSS/JavaScript项目。
 
 ## 验证
 
@@ -55,9 +55,13 @@ python -m http.server 8000 --directory dist
 node tests/city-economy.cjs
 node tests/world03.cjs
 node tests/world04.cjs
+node tests/portrait-layout.cjs
+node tests/ux-layer.cjs
 ```
 
 测试覆盖经济任务、商演、桥梁复用与拆除、天气、运行方案、学校、服务降级恢复、维护结算和列车长短途速度差异。测试使用模拟浏览器环境；界面仍需通过浏览器试玩检查。
+
+0.4 竖屏界面的回归记录、已检查交互与截图见[竖屏验收说明](.agents/notes/implemented/bug-fix/2026-11-04-portrait-acceptance.md)。
 
 ## 版本与使用
 
@@ -71,3 +75,15 @@ node tests/world04.cjs
 - 学校正常招生、城市服务评价为优或良时，连接本城的道路、铁路和桥隧维护费减免10%；两端学校不叠加，优惠按天累计。
 - 中大城市可建检修中心，每城1座、费用500、覆盖半径300。完全覆盖路段的新开工道路/铁路升级、桥面拓宽、灾后抢修工期减少30%；部分覆盖按长度折算，多中心不叠加，已开工项目保留原工期。
 - 城市详情和工程采购提供建设与范围预览；维护账本展示学校优惠。兼容已有0.4存档。
+
+
+## 0.4.1 界面整合版
+
+合并PR #1的手机竖屏布局与建线体验，并保留最新学校维护费减免、检修中心和商店加车厢。
+
+- 单行紧凑顶栏、底部任务/工程/运营/采购四按钮、底部线路与详情面板。
+- 新建线路直接拉线，底栏显示交通方式、途经站点、分项报价，支持撤销上一站并一键建设。
+- 配车步进器、站点胶囊摘站、两次点击撤线、可关闭提示；统一列表和底部弹窗。
+- 地图适应可用空间与远方城市，触屏扩大点击范围，拉线贴边时自动平移。
+- 学校10%维护减免、检修中心最多30%工期缩短、动车/高铁车厢扩容都保留。
+- 沿用 `/test04/` 入口和0.4存档；额外验证：`node tests/portrait-layout.cjs`、`node tests/ux-layer.cjs`。

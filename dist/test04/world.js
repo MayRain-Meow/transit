@@ -14,7 +14,37 @@ function bridgeFor(a,b){return S.bridges.find(x=>x.heads.includes(a.id)&&x.heads
 function bridgeForHead(id){return S.bridges.find(x=>x.heads.includes(id));}
 function bridgeCompatible(x,t){return x.type===physicalGroup(t);}
 function validBridgePair(a,b,t){let x=bridgeFor(a,b);return x&&bridgeCompatible(x,t)&&x.status==='open';}
-function fit(){let cs=typeof S!=='undefined'&&S?.cities?realCities():[],minX=Math.min(0,...cs.map(c=>c.x-110)),minY=Math.min(0,...cs.map(c=>c.y-110)),maxX=Math.max(1200,...cs.map(c=>c.x+140)),maxY=Math.max(710,...cs.map(c=>c.y+100));view.scale=Math.min((W-65)/(maxX-minX),(H-140)/(maxY-minY));view.x=(W-(maxX-minX)*view.scale)/2-minX*view.scale;view.y=80-minY*view.scale;}
+// Note: 竖屏边界与远城取景 — 见 .agents/notes/implemented/bug-fix/2026-11-04-portrait-acceptance.md
+function fitBand(){
+  let top=75,bottom=H-55,side=32;
+  const rect=selector=>{let el=document.querySelector?.(selector);return el?.getBoundingClientRect&&!el.hidden&&el.offsetParent!==null?el.getBoundingClientRect():null;};
+  const header=rect('header'),dock=rect('footer .dock');
+  if(header)top=header.bottom+6;
+  if(dock)bottom=dock.top-10;
+  if(portraitMode){
+    side=12;
+    for(const selector of ['#routes','#details']){const panel=rect(selector);if(panel)bottom=Math.min(bottom,panel.top-10);}
+  }
+  return {top,bottom:Math.max(top+120,bottom),side};
+}
+function fit(){
+  const cities=typeof S!=='undefined'&&S?.cities?realCities():[],band=fitBand();
+  const width=W-2*band.side,height=band.bottom-band.top;
+  let minX,minY,maxX,maxY;
+  if(portraitMode&&cities.length){
+    // Far cities extend west of x=0 and beyond the initial map's vertical range.
+    minX=Math.min(...cities.map(c=>c.x))-150;
+    maxX=Math.max(...cities.map(c=>c.x))+150;
+    minY=Math.min(...cities.map(c=>c.y))-140;
+    maxY=Math.max(...cities.map(c=>c.y))+110;
+  }else{
+    minX=Math.min(0,...cities.map(c=>c.x-110));minY=Math.min(0,...cities.map(c=>c.y-110));
+    maxX=Math.max(1200,...cities.map(c=>c.x+140));maxY=Math.max(710,...cities.map(c=>c.y+100));
+  }
+  view.scale=Math.min(width/(maxX-minX),height/(maxY-minY),portraitMode?1.2:9);
+  view.x=band.side+(width-(maxX-minX)*view.scale)/2-minX*view.scale;
+  view.y=band.top+(height-(maxY-minY)*view.scale)/2-minY*view.scale;
+}
 const cityArt02=drawCityArt;drawCityArt=function(c){if(c.kind!=='bridgehead')cityArt02(c);};
 const missionBadges02=drawMissionBadges;drawMissionBadges=function(){for(let c of realCities()){let spec=missionSpec(c);if(c.dormant)continue;let label=c.rewardUntil>S.day?'奖金已到账':spec?c.mission.progress+'/'+spec.goal:'繁荣';roundBody(c.x-28,c.y-85-c.size*9,56,17,5,'#fffdf6','#e1e6d8',.8);text(label,c.x,c.y-73-c.size*9,8,'#879274');}};
 spawnCity=function(){if(realCities().length>=24||realCities().filter(c=>c.dormant).length>=2)return;let far=S.unlocked.includes('rail')&&(!S.farOffered||Math.random()<.35);for(let n=0;n<350;n++){let x=far?rand(-700,-140):rand(100,Math.min(950,500+S.day*4)),y=far?rand(-220,930):rand(265,620);if(!cityBuildable(x,y)||realCities().some(c=>Math.hypot(c.x-x,c.y-y)<185||Math.abs(c.x-x)<190&&Math.abs(c.y-y)<145))continue;let c=makeCity(x,y,0,Math.floor(rand(0,4)),realCities().length%3);c.name=names[realCities().length%names.length]+(far?'远城':'');c.dormant=true;c.grace=45;S.cities.push(c);if(far){S.farOffered=true;fit();}toast('发现 '+c.name+' · 城市周围已预留成长与拉线空间');return;}};
@@ -76,7 +106,7 @@ function buildHub(id){let c=S.cities[id],price=350+S.hubCount*150;if(!c||c.kind=
 function confirmHub(id){let c=S.cities[id],price=350+S.hubCount*150;if(!c||c.hub||S.hubCount>=3||S.points<price)return;spend(price,'construction','建设交通枢纽');c.hub=true;S.hubCount++;save();closeModal();openCity(id);}
 function showEngineering(){openModal(`<div class="modal-head"><div><span class="eyebrow">ENGINEERING / 0.4</span><h2>工程采购与天气</h2></div><button class="close" onclick="closeModal()">×</button></div><div class="tabs"><button onclick="beginBridge('bus')">拉建公路桥</button><button onclick="beginBridge('track')">拉建铁路桥</button><button onclick="showWeather()">区域天气</button></div><p>桥头由你确定。公路桥150起、铁路桥260起；桥只付一次建设费。道路与桥面升级均有施工期，速度暂降30%。</p><h3>已有桥梁 · 拓宽 / 拆除</h3>${S.bridges.filter(x=>x.status!=='removed').map(x=>`<div class="quote-row"><span>${x.type==='bus'?'公路桥':'铁路桥'} #${x.id} · ${x.status==='open'?'正常':'待拆除'} · 桥面${x.level}级</span><button onclick="closeModal();openBridge(${x.id})">管理桥梁</button></div>`).join('')||'<p>还没有桥梁，选择上方建桥后在两岸拖动。</p>'}<h3>道路升级 / 铁路改造</h3><div class="tabs">${S.lines.filter(l=>l.type!=='air').map(l=>`<button onclick="openInfrastructure(${l.id})">${escapeHTML(l.name)}</button>`).join('')||'<small>先建立一条交通线路。</small>'}</div><h3>气象站与交通枢纽（${S.hubCount}/3）</h3><div class="task-cities">${realCities().filter(c=>!c.dormant).map(c=>`<section><b>${escapeHTML(c.name)}</b><p>气象站 ${c.meteo||0}/2级 · ${c.hub?'已建枢纽':'普通站'}</p><button onclick="buildMeteo(${c.id})" ${c.meteo>=2||S.points<stationQuote(c).price?'disabled':''}>${c.meteo?'升级':'建'}气象站 ¥${stationQuote(c).price}</button><button onclick="buildHub(${c.id})" ${c.hub||S.hubCount>=3||S.points<350+S.hubCount*150?'disabled':''}>枢纽 ¥${350+S.hubCount*150}</button></section>`).join('')}</div><h3>断线与维修</h3>${Object.entries(S.blockages).filter(([k,b])=>b.cause!=='demolish').map(([k,b])=>{let ids=k.split('-').slice(-2).map(Number),q=repairQuote(k);return `<div class="quote-row"><span>${escapeHTML(S.cities[ids[0]].name)}—${escapeHTML(S.cities[ids[1]].name)} · ${b.status==='pending'?'车辆清空中':b.status==='repairing'?'维修中':'已断线'}</span><button onclick="repairRoad('${k}')" ${b.status!=='broken'||S.points<q.price?'disabled':''}>维修 ¥${q.price} · ${q.days}天</button></div>`;}).join('')||'<p>暂无受损路段。</p>'}`);}
 function showWeather(){openModal(`<div class="modal-head"><h2>区域天气与预报</h2><button class="close" onclick="showEngineering()">×</button></div>${S.climate.events.map(e=>`<div class="infra-card"><b>${{fog:'雾天',rain:'雨天',typhoon:'台风'}[e.type]} ${e.strong?'强':''}</b><p>第${Math.floor(e.start)+1}天至第${Math.floor(e.end)+1}天 · ${S.day<e.start?'预报':'影响中'}<br>范围在地图标出。公交受雾雨影响较大，铁路影响较小；强台风区域机场暂停新航班。</p></div>`).join('')||'<p>目前天气平稳，后续预报将提前显示。</p>'}<p>气象站范围内，天气造成的减速损失减半。夏秋中后期可能出现移动台风；地震仅在第150天后、高铁开放且接入6城后有低概率出现。</p><button class="secondary" onclick="closeModal()">回地图查看范围</button>`);}
-const details02=showDetails;showDetails=function(rebuild=true){if(selected?.type==='bridge'){openBridge(selected.id);return;}if(selected&&(selected.type==='city'||selected.type==='stop')&&S.cities[selected.id]?.kind==='bridgehead'){openBridge(S.cities[selected.id].bridge);return;}details02(rebuild);if(selected?.type==='line'){let l=S.lines.find(x=>x.id===selected.id);if(!l)return;let el=$('details');if(!el.innerHTML.includes('setService(')){el.innerHTML+=`<div class="service-list"><b>车辆运行控制</b>${S.vehicles.filter(v=>v.line===l.id).map(v=>`<div class="quote-row"><span>#${v.id} · ${v.pendingService?'交接中':v.service?.mode==='interval'?'区间车':v.service?.mode==='express'?'快车':'全程'}${v.parked?' · 暂停在安全端':''}</span><button onclick="setService(${v.id})">设置方案</button></div>`).join('')}</div>`;}if(!el.innerHTML.includes('部分路段停止接入')&&l.stops.some((id,i)=>i&&S.blockages[key(S.cities[l.stops[i-1]],S.cities[id],l.type)]))el.innerHTML+='<p class="danger">部分路段停止接入，两侧车辆分段运行。可在工程采购中维修，或重新接桥改线。</p>';}else if(selected?.type==='city'&&!$('details').innerHTML.includes('buildMeteo(')){let c=S.cities[selected.id];$('details').innerHTML+=`<div class="detail-actions"><button onclick="buildMeteo(${c.id})">气象站 ${c.meteo||0}/2</button><button onclick="buildHub(${c.id})">交通枢纽 ${S.hubCount}/3</button></div>`;}};
+const details02=showDetails;showDetails=function(rebuild=true){if(selected?.type==='bridge'){openBridge(selected.id);return;}if(selected&&(selected.type==='city'||selected.type==='stop')&&S.cities[selected.id]?.kind==='bridgehead'){openBridge(S.cities[selected.id].bridge);return;}details02(rebuild);if(selected?.type==='line'){let l=S.lines.find(x=>x.id===selected.id);if(!l)return;let el=$('details');if(!el.innerHTML.includes('class="service-list"')){el.innerHTML+=`<div class="service-list"><b>车辆运行控制</b>${S.vehicles.filter(v=>v.line===l.id).map(v=>`<div class="quote-row"><span>#${v.id} · ${v.pendingService?'交接中':v.service?.mode==='interval'?'区间车':v.service?.mode==='express'?'快车':'全程'}${v.parked?' · 暂停在安全端':''}</span><button onclick="setService(${v.id})">设置方案</button></div>`).join('')}</div>`;}if(!el.innerHTML.includes('部分路段停止接入')&&l.stops.some((id,i)=>i&&S.blockages[key(S.cities[l.stops[i-1]],S.cities[id],l.type)]))el.innerHTML+='<p class="danger">部分路段停止接入，两侧车辆分段运行。可在工程采购中维修，或重新接桥改线。</p>';}else if(selected?.type==='city'&&!$('details').innerHTML.includes('buildMeteo(')){let c=S.cities[selected.id];$('details').innerHTML+=`<div class="detail-actions"><button onclick="buildMeteo(${c.id})">气象站 ${c.meteo||0}/2</button><button onclick="buildHub(${c.id})">交通枢纽 ${S.hubCount}/3</button></div>`;}};
 const shop02=shop;shop=function(){shop02();$('modal-content').innerHTML=$('modal-content').innerHTML.replace('TRANSPORT DEPOT / 0.2','TRANSPORT DEPOT / 0.4').replace('桥隧在建线时计价','桥梁独立建造，隧道在建线时计价');$('modal-content').innerHTML+='<button class="secondary" onclick="showEngineering()">桥面 / 道路升级 / 气象站 / 交通枢纽 →</button>';};
 lineStyle=function(l,alpha=1){ctx.globalAlpha=alpha;ctx.strokeStyle=l.color;ctx.lineWidth=l.type==='rail'?7:l.type==='emu'?4.5:l.type==='air'?2.8:3.7;ctx.setLineDash(l.type==='air'?[13,8]:[]);ctx.lineCap='round';ctx.lineJoin='round';};
 const segment03=drawSegment;drawSegment=function(a,b,l){if(S.blockages[key(a,b,l.type)]?.status==='broken'||S.blockages[key(a,b,l.type)]?.status==='repairing')return;if(l.type==='emu'){strokeLaneRange(a,b,l);ctx.stroke();ctx.save();ctx.strokeStyle='#516c6b';ctx.lineWidth=7;ctx.setLineDash([1.3,10]);ctx.stroke();ctx.restore();}else segment03(a,b,l);};
@@ -104,3 +134,20 @@ const undoBeforeGhost=undoStopRemoval;undoStopRemoval=function(){undoBeforeGhost
 $('engineering').onclick=showEngineering;
 const esc03=e=>{if(e.code==='Escape'&&bridgeDraft){bridgeDraft=null;engineeringPointer=null;$('drawbar').hidden=true;}};document.addEventListener('keydown',esc03);
 
+/* Portrait: keep the selected line / city visible above the details sheet. */
+(function(){let d=typeof document!=='undefined'&&document.getElementById?.('details');if(!d?.getBoundingClientRect||typeof MutationObserver==='undefined')return;let lastKey='';
+function reveal(){if(d.hidden||!selected){lastKey='';return}let k=selected.type+':'+selected.id;if(k===lastKey||!portraitMode)return;lastKey=k;requestAnimationFrame(()=>{let pts=selected.type==='line'?(S.lines.find(l=>l.id===selected.id)?.stops||[]).map(i=>S.cities[i]):selected.type==='city'?[S.cities[selected.id]]:[];pts=pts.filter(Boolean);if(!pts.length)return;let top=(document.querySelector('header')?.getBoundingClientRect().bottom||60)+50,bottom=d.getBoundingClientRect().top-40,ys=pts.map(p=>p.y*view.scale+view.y),lo=Math.min(...ys),hi=Math.max(...ys),dy=0;if(hi-lo>bottom-top)dy=(top+bottom-lo-hi)/2;else if(hi>bottom)dy=bottom-hi;else if(lo<top)dy=top-lo;if(Math.abs(dy)<4)return;let from=view.y,t0=performance.now();(function step(t){let p=Math.min(1,(t-t0)/280);view.y=from+dy*(1-Math.pow(1-p,3));if(p<1)requestAnimationFrame(step)})(t0)})}
+new MutationObserver(reveal).observe(d,{attributes:true,attributeFilter:['hidden'],childList:true});})();
+/* View comfort: smooth "whole map", soft pan limits, and reveal newly unlocked cities. */
+function fitTarget(){let v={x:view.x,y:view.y,scale:view.scale};fit();let t={x:view.x,y:view.y,scale:view.scale};view.x=v.x;view.y=v.y;view.scale=v.scale;return t}
+function animateView(t,ms=320){if(typeof requestAnimationFrame==='undefined'){Object.assign(view,t);return}let f={x:view.x,y:view.y,scale:view.scale},t0=performance.now();animateView.id=(animateView.id||0)+1;let id=animateView.id;(function step(n){if(id!==animateView.id)return;let p=Math.min(1,(n-t0)/ms),e=1-Math.pow(1-p,3);view.scale=f.scale+(t.scale-f.scale)*e;view.x=f.x+(t.x-f.x)*e;view.y=f.y+(t.y-f.y)*e;if(p<1)requestAnimationFrame(step)})(t0)}
+function animateFit(){animateView(fitTarget())}
+if(typeof document!=='undefined'&&document.getElementById?.('overview'))$('overview').onclick=animateFit;
+(function(){if(typeof requestAnimationFrame==='undefined'||!document.querySelector)return;let seen=-1;
+function bounds(){let cs=S?.cities||[],xs=cs.map(c=>c.x),ys=cs.map(c=>c.y);return{x0:Math.min(0,...xs),x1:Math.max(1200,...xs),y0:Math.min(0,...ys),y1:Math.max(710,...ys)}}
+function tick(){try{if(S&&!modalOpen){let b=fitBand(),m=bounds(),k=view.scale,
+ /* keep the map reaching the middle of the band covered by the map */
+ minX=W*.45-m.x1*k,maxX=W*.55-m.x0*k,minY=b.top+(b.bottom-b.top)*.45-m.y1*k,maxY=b.bottom-(b.bottom-b.top)*.45-m.y0*k;
+ if(pointers.size===0){if(view.x<minX)view.x+=(minX-view.x)*.25;else if(view.x>maxX)view.x+=(maxX-view.x)*.25;if(view.y<minY)view.y+=(minY-view.y)*.25;else if(view.y>maxY)view.y+=(maxY-view.y)*.25;}
+ let n=realCities().length;if(seen>=0&&n>seen&&portraitMode&&!draft){let off=realCities().some(c=>{let sx=c.x*k+view.x,sy=c.y*k+view.y;return sx<10||sx>W-10||sy<b.top||sy>b.bottom});if(off){animateFit();toast('新城镇出现，已调整视野');}}seen=n;}}catch{}requestAnimationFrame(tick)}
+requestAnimationFrame(tick)})();
