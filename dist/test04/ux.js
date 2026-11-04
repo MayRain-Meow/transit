@@ -71,7 +71,7 @@ function uxDismissModal() {
 
 /* ---------- welcome & help ---------- */
 welcome = function (hasSave) {
-  openModal(`<div class="ux-hero"><span class="eyebrow">东岸 · 0.4.1 界面整合版</span><h1>从一条线，带动一座城。</h1>
+  openModal(`<div class="ux-hero"><span class="eyebrow">东岸 · 0.4.2 修复版</span><h1>从一条线，带动一座城。</h1>
 <p class="ux-lead">从一座城市拖向另一座，修出线路、派出车辆，把乘客送到与他们标记同色同形的城市。完成城市任务拿奖金，看小镇长大。</p></div>
 <ul class="ux-points">
 <li><i>¥</i><span><b>起步 ¥500</b>大巴 ¥180，拉线另计建设费，报价就在底栏</span></li>

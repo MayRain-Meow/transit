@@ -78,6 +78,11 @@ const schoolBuildBeforeCenter=buildSchool;buildSchool=function(id){let c=S.citie
 const roadInfoBeforeCenter=openInfrastructure;openInfrastructure=function(id){roadInfoBeforeCenter(id);$('modal-content').innerHTML+='<p>检修中心覆盖的新开工项目工期已按覆盖长度折算：完全覆盖−30%，重叠不叠加。</p>';};
 $('engineering').onclick=()=>showEngineering();
 
+// Complete destination arrivals before forced unloading, and recover queues from older saves.
+function finishPassengerAtCity(p,city){if(!p||!city||city.kind==='bridgehead'||!matchesDestination(city,p))return false;if(p.arrivalSettled)return true;p.arrivalSettled=true;S.delivered++;S.periodDelivered++;city.served=(city.served||0)+1;completeTrip(p,city);return true;}
+function settleDestinationQueues(){let count=0;for(let city of realCities()){if(city.dormant||!city.q.length)continue;let pending=city.q;city.q=[];for(let p of pending){if(finishPassengerAtCity(p,city))count++;else city.q.push(p);}}return count;}
+const tickBeforeArrivalFix=tick;tick=function(dt){settleDestinationQueues();tickBeforeArrivalFix(dt);};
+const loadBeforeArrivalFix=load;load=function(){let ok=loadBeforeArrivalFix();if(ok&&settleDestinationQueues())save();return ok;};
 resize();const hadSave=load();if(!hadSave)reset();updateUI();welcome(hadSave);requestAnimationFrame(frame);
 /* Top notice: closable; hints stay closed for good, live events stay closed until they end. */
 (function(){const KEY='transit04-notice-off',PERM={intro:1,dormant:1};let off={},session={},cur='';try{off=JSON.parse(localStorage.getItem(KEY)||'{}')}catch{}
