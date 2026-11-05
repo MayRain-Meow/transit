@@ -11,9 +11,10 @@ let uxLastType = null;
 function money(n) { return '¥' + Math.floor((+n || 0) + 1e-6); }
 function haptic(ms = 8) { try { if (UX_COARSE) navigator.vibrate?.(ms); } catch {} }
 function uxEl(id) { return document.getElementById(id); }
-function panTo(x, y) {
-  const b = fitBand();
-  animateView({ scale: view.scale, x: W / 2 - x * view.scale, y: (b.top + b.bottom) / 2 - y * view.scale });
+// Centre a world point in the usable map band (works with the portrait rotation).
+function panTo(x, y, scale = view.scale) {
+  const b = fitBand(), cx = W / 2, cy = (b.top + b.bottom) / 2;
+  animateView(view.rot ? { scale, x: cx + y * scale, y: cy - x * scale } : { scale, x: cx - x * scale, y: cy - y * scale });
 }
 function uxFocusCity(id) {
   const c = S.cities[id]; if (!c) return;
@@ -309,24 +310,183 @@ updateBridgeBar = function () { uxResetDrawExtras(); uxBridgeBar(); };
 // While drawing near a screen edge, scroll the map so far cities stay reachable on a phone.
 (function edgeScroll() {
   let ptr = null;
-  cv.addEventListener('pointermove', e => { ptr = { pointerId: e.pointerId, clientX: e.clientX, clientY: e.clientY }; }, { passive: true });
-  for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, () => { ptr = null; }, { passive: true });
+  cv.addEventListener('pointermove', e => { ptr = { pointerId: e.pointerId, clientX: e.clientX, clientY: e.clientY }; }, { passive: true, capture: true });
+  for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, () => { ptr = null; }, { passive: true, capture: true });
   function step() {
     try {
-      if (ptr && gesture && pointers.size === 1 && ['draft', 'city-edit', 'elastic'].includes(gesture.kind)) {
+      const extending = ptr && uxExt && ptr.pointerId === uxExt.id;
+      if (extending || ptr && gesture && pointers.size === 1 && ['draft', 'city-edit', 'elastic'].includes(gesture.kind)) {
         const top = (document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8;
         const bar = uxEl('drawbar'), bottom = bar && !bar.hidden ? bar.getBoundingClientRect().top - 8 : H - 8;
         const edge = 44, push = d => 7 * Math.min(1, d / edge);
         let dx = 0, dy = 0;
         if (ptr.clientX < edge) dx = push(edge - ptr.clientX); else if (ptr.clientX > W - edge) dx = -push(ptr.clientX - (W - edge));
         if (ptr.clientY < top + edge) dy = push(top + edge - ptr.clientY); else if (ptr.clientY > bottom - edge) dy = -push(ptr.clientY - (bottom - edge));
-        if (dx || dy) { view.x += dx; view.y += dy; movePointer(ptr); }
+        if (dx || dy) { view.x += dx; view.y += dy; if (extending) uxExtMove(ptr); else movePointer(ptr); }
       }
     } catch {}
     requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
 })();
+
+/* ---------- line-end handles: grab the end of any line and keep stringing cities ---------- */
+// A knob sits just beyond each terminus. Dragging it extends that end; passing more cities chains them,
+// sliding back over a city just added takes it off again. Works for lines that share a city, without a picker.
+let uxExt = null;
+const UX_HANDLE_PX = 30, UX_HANDLE_HIT = UX_COARSE ? 26 : 18;
+function uxHandles() {
+  const out = [];
+  if (draft || bridgeDraft || !S?.lines) return out;
+  for (const l of S.lines) {
+    if (l.retiring || l.stops.length < 2) continue;
+    for (const end of ['head', 'tail']) {
+      const e = S.cities[end === 'tail' ? l.stops.at(-1) : l.stops[0]], n = S.cities[end === 'tail' ? l.stops.at(-2) : l.stops[1]];
+      if (!e || !n) continue;
+      const dx = e.x - n.x, dy = e.y - n.y, len = Math.hypot(dx, dy) || 1, reach = radius(e) + 6 + UX_HANDLE_PX / view.scale;
+      out.push({ line: l, end, city: e, x: e.x + dx / len * reach, y: e.y + dy / len * reach, ux: dx / len, uy: dy / len });
+    }
+  }
+  return out;
+}
+function uxHandleAt(sx, sy) {
+  let best = null, d = UX_HANDLE_HIT;
+  for (const h of uxHandles()) { const p = toScreen(h), dd = Math.hypot(p.x - sx, p.y - sy); if (dd < d) { d = dd; best = h; } }
+  return best;
+}
+function uxDrawHandles() {
+  const focus = selected?.type === 'line' ? selected.id : selected?.type === 'stop' ? selected.line : null;
+  for (const h of uxHandles()) {
+    const on = h.line.id === focus, k = 1 / view.scale, start = radius(h.city) + 4;
+    if (focus !== null && !on) continue;
+    ctx.save(); ctx.globalAlpha = on ? 1 : .55; ctx.lineCap = 'round';
+    ctx.strokeStyle = h.line.color; ctx.lineWidth = (on ? 4 : 3) * k;
+    ctx.beginPath(); ctx.moveTo(h.city.x + h.ux * start, h.city.y + h.uy * start); ctx.lineTo(h.x, h.y); ctx.stroke();
+    ctx.beginPath(); ctx.arc(h.x, h.y, (on ? 9 : 6.5) * k, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = (on ? 3 : 2.2) * k; ctx.stroke();
+    if (on) { ctx.beginPath(); ctx.arc(h.x, h.y, 3 * k, 0, Math.PI * 2); ctx.fillStyle = h.line.color; ctx.fill(); }
+    ctx.restore();
+  }
+}
+function uxExtStops() { return uxExt.end === 'tail' ? [...uxExt.base, ...uxExt.added] : [...uxExt.added.slice().reverse(), ...uxExt.base]; }
+function uxExtMove(e) {
+  if (!uxExt || !draft) return;
+  const p = toWorld(e), c = hitCity(p), endId = uxExt.end === 'tail' ? uxExt.base.at(-1) : uxExt.base[0];
+  if (c) {
+    const i = uxExt.added.indexOf(c.id);
+    if (c.id === endId) uxExt.added = [];
+    else if (i >= 0) uxExt.added = uxExt.added.slice(0, i + 1);
+    else if (!uxExt.base.includes(c.id)) { uxExt.added.push(c.id); popStation(c, draft.color); }
+  }
+  draft.stops = uxExtStops();
+  draft.extensionPointer = { city: uxExt.added.at(-1) ?? endId, p }; draft.pointer = null;
+  draftBar();
+  uxEl('drawtext').innerHTML = uxExt.added.length ? `延长 <b>+${uxExt.added.length}</b> 站 · ${uxExt.added.map(id => escapeHTML(S.cities[id].name)).join(' → ')}` : '拖到城市上连接 · 回到原端点取消';
+}
+function uxExtFinish(cancelled) {
+  const ext = uxExt; uxExt = null; if (!ext || !draft) return;
+  draft.extensionPointer = null;
+  if (cancelled || !ext.added.length) { cancelDraft(false); if (!ext.moved) selectLine(ext.line); return; }
+  const c = draftCost();
+  if (c.invalid || c.cash > S.points) { toast(c.invalid || '资金不足：延长需要 ' + money(c.cash)); cancelDraft(false); selectLine(ext.line); return; }
+  if (c.cash || c.bridge || c.tunnel) { draftBar(); haptic(); } else commitDraft(true);
+}
+cv.addEventListener('pointerdown', e => {
+  if (uxExt || draft || bridgeDraft || pointers.size || modalOpen) return;
+  const h = uxHandleAt(e.clientX, e.clientY); if (!h) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  try { cv.setPointerCapture(e.pointerId); } catch {}
+  hideJunction(); beginDraft(h.line.type, h.line.id);
+  uxExt = { id: e.pointerId, line: h.line.id, end: h.end, base: [...h.line.stops], added: [], x0: e.clientX, y0: e.clientY, moved: false };
+  haptic(); uxExtMove(e);
+}, { capture: true });
+cv.addEventListener('pointermove', e => {
+  if (!uxExt || e.pointerId !== uxExt.id) return;
+  e.stopImmediatePropagation();
+  if (Math.hypot(e.clientX - uxExt.x0, e.clientY - uxExt.y0) > 8) uxExt.moved = true;
+  uxExtMove(e);
+}, { capture: true });
+for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
+  if (!uxExt || e.pointerId !== uxExt.id) return;
+  e.stopImmediatePropagation(); uxExtFinish(t === 'pointercancel');
+}, { capture: true });
+
+/* ---------- edge pointers: cities that need you but sit off-screen ---------- */
+// New towns (with their opening countdown) and towns about to lose a life get a pill on the screen edge.
+// Tapping it glides there and opens the town; nothing moves the camera on its own.
+(function edgePointers() {
+  if (!document.body?.appendChild) return;
+  const layer = document.createElement('div'); layer.id = 'ux-edge'; document.body.appendChild(layer);
+  const pills = new Map();
+  layer.addEventListener('click', e => { const b = e.target.closest('[data-city]'); if (b) { haptic(); uxFocusCity(+b.dataset.city); } });
+  function update() {
+    try {
+      const keep = new Set();
+      if (S && !modalOpen && !draft && !bridgeDraft) {
+        const band = fitBand(), stack = document.querySelector('.top-stack')?.getBoundingClientRect();
+        band.top = Math.max(band.top, stack && stack.height ? stack.bottom + 4 : 0);
+        const cx = W / 2, cy = (band.top + band.bottom) / 2;
+        for (const c of realCities()) {
+          const urgent = !c.dormant && c.warning > 0, fresh = c.dormant;
+          if (!urgent && !fresh) continue;
+          const p = toScreen(c);
+          if (p.x > 8 && p.x < W - 8 && p.y > band.top + 8 && p.y < band.bottom - 8) continue;
+          const dx = p.x - cx, dy = p.y - cy, sx = (W / 2 - 64) / Math.abs(dx || 1e-6), sy = ((band.bottom - band.top) / 2 - 22) / Math.abs(dy || 1e-6), k = Math.min(sx, sy, 1);
+          let el = pills.get(c.id);
+          if (!el) { el = document.createElement('button'); el.dataset.city = c.id; layer.appendChild(el); pills.set(c.id, el); }
+          const secs = urgent ? Math.ceil(c.warning) : typeof cityOpeningRemaining === 'function' ? cityOpeningRemaining(c) : null;
+          el.className = 'ux-edge-pill' + (urgent ? ' is-urgent' : '');
+          el.innerHTML = `<i style="transform:rotate(${Math.atan2(dy, dx)}rad)">➜</i><span>${urgent ? '告急 ' : '新城 '}${escapeHTML(c.name)}</span>${secs !== null ? `<small>${secs}s</small>` : ''}`;
+          el.style.left = (cx + dx * k) + 'px'; el.style.top = (cy + dy * k) + 'px';
+          el.setAttribute('aria-label', (urgent ? '告急城市 ' : '新城镇 ') + c.name + '，点击前往');
+          keep.add(c.id);
+        }
+      }
+      for (const [id, el] of pills) if (!keep.has(id)) { el.remove(); pills.delete(id); }
+    } catch {}
+    setTimeout(update, 150);
+  }
+  update();
+})();
+
+/* ---------- portrait rotation: keep city-attached labels upright and in place ---------- */
+// Badges, markers and icons are drawn at "city + offset". When the map is rotated, turn each one around the
+// city it belongs to, so "above the city" stays above on screen. Cities are at least 145 apart vertically.
+function uxLabelCity(x, y) {
+  let best = null, d = 80;
+  for (const c of realCities()) { const dd = Math.hypot(c.x - x, c.y - y); if (dd < d) { d = dd; best = c; } }
+  if (best) return best;
+  d = 151;
+  for (const c of realCities()) { const dy = c.y - y; if (Math.abs(c.x - x) < 75 && dy >= 0 && dy < d) { d = dy; best = c; } }
+  return best;
+}
+function uxCityUpright(fn) {
+  return function (...args) {
+    if (!view.rot) return fn.apply(this, args);
+    const t0 = text, r0 = roundBody;
+    const around = (c, draw) => { if (!c) return draw(); ctx.save(); uprightAround(c.x, c.y); draw(); ctx.restore(); };
+    text = (t, x, y, ...rest) => around(uxLabelCity(x, y), () => t0(t, x, y, ...rest));
+    roundBody = (x, y, w, h, ...rest) => around(uxLabelCity(x + w / 2, y + h / 2), () => r0(x, y, w, h, ...rest));
+    try { return fn.apply(this, args); } finally { text = t0; roundBody = r0; }
+  };
+}
+function uxWrapLateDrawers() {
+  for (const name of ['drawMissionBadges', 'drawEventMarkers', 'drawCityEconomy', 'drawRouteGhosts'])
+    if (typeof globalThis[name] === 'function' && !globalThis[name].uxUpright) { const f = uxCityUpright(globalThis[name]); f.uxUpright = true; globalThis[name] = f; }
+  if (typeof drawCityOpening === 'function' && !drawCityOpening.uxUpright) {
+    const open = drawCityOpening;
+    drawCityOpening = function (c) { ctx.save(); uprightAround(c.x, c.y); try { open(c); } finally { ctx.restore(); } };
+    drawCityOpening.uxUpright = true;
+  }
+  if (!drawCityEconomy.uxHandles) { const dce = drawCityEconomy; drawCityEconomy = function (...a) { dce.apply(this, a); uxDrawHandles(); }; drawCityEconomy.uxHandles = true; }
+}
+// events.js loads after this file and redefines some drawers, so wrap once every script has run.
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', uxWrapLateDrawers); else uxWrapLateDrawers();
+
+const uxText = text;
+text = function (t, x, y, size = 12, color, align) {
+  if (ctx.canvas === cv && view.scale < .85) size *= Math.min(1.35, .85 / view.scale);
+  return uxText(t, x, y, size, color, align);
+};
 
 /* Re-render surfaces that were drawn before this layer loaded. */
 if (modalOpen && uxEl('modal-content').innerHTML.includes('startGame()')) welcome(typeof hadSave !== 'undefined' && hadSave);
