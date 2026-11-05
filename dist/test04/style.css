@@ -616,3 +616,11 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
 @media (orientation:portrait) and (max-width:820px){
   body:has(#details.is-full:not([hidden])) .undo-build{display:none!important}
 }
+
+/* Landscape/desktop: when the side details panel is open, the construction-undo pill moves to its left. */
+@media not ((orientation:portrait) and (max-width:820px)){
+  body:has(#details:not([hidden])) .undo-build{right:calc(var(--gutter) + var(--safe-r) + 306px)}
+}
+@media (max-width:1100px) and (not ((orientation:portrait) and (max-width:820px))){
+  body:has(#details:not([hidden])) .undo-build{right:calc(var(--gutter) + var(--safe-r) + 284px)}
+}

@@ -543,17 +543,23 @@ text = function (t, x, y, size = 12, color, align) {
 function uxViewFor(p, cx, cy, s) { return view.rot ? { x: cx + p.y * s, y: cy - p.x * s, scale: s } : { x: cx - p.x * s, y: cy - p.y * s, scale: s }; }
 function uxVisibleRect() {
   const header = (document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8;
-  let top = Math.max(header, ...['.top-stack', '.undo-build'].map(q => { const e = document.querySelector(q); const r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height ? r.bottom + 12 : 0; }));
-  let bottom = H - 12;
+  const rect = { l: 14, r: W - 14, b: H - 12,
+    t: Math.max(header, ...['.top-stack', '.undo-build'].map(q => { const e = document.querySelector(q); const r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height ? r.bottom + 12 : 0; })) };
+  // Panels can sit at the bottom (portrait sheets, docks) or at a side (landscape details, route list).
+  // For each one that overlaps the map, trim whichever edge keeps the larger usable area.
   for (const q of ['#details', '#routes', 'footer .dock', '#drawbar']) {
     const e = document.querySelector(q); if (!e || e.hidden || typeof getComputedStyle === 'function' && getComputedStyle(e).display === 'none') continue;
-    const r = e.getBoundingClientRect(); if (!r.height) continue;
-    // The details sheet always counts, even fully expanded near the top; other bars only when they sit low.
-    if (q === '#details' || r.top > H * .3) bottom = Math.min(bottom, r.top - 12);
+    const p = e.getBoundingClientRect();
+    if (!(p.bottom > p.top && p.right > p.left) || p.right <= rect.l || p.left >= rect.r || p.bottom <= rect.t || p.top >= rect.b) continue;
+    const options = [{ ...rect, b: Math.min(rect.b, p.top - 12) }, { ...rect, t: Math.max(rect.t, p.bottom + 12) },
+      { ...rect, r: Math.min(rect.r, p.left - 12) }, { ...rect, l: Math.max(rect.l, p.right + 12) }]
+      .filter(o => o.r - o.l >= 60 && o.b - o.t >= 40);
+    if (!options.length) continue;
+    Object.assign(rect, options.reduce((x, y) => (y.r - y.l) * (y.b - y.t) > (x.r - x.l) * (x.b - x.t) ? y : x));
   }
-  // Tight space (sheet fully expanded): notices are overlays and may be overlapped, the sheet may not.
-  if (bottom - top < 80) top = Math.min(top, header);
-  return { l: 14, r: W - 14, t: top, b: Math.max(top + 40, bottom) };
+  // Tight space (portrait sheet fully expanded): notices are overlays and may be overlapped, panels may not.
+  if (rect.b - rect.t < 80) rect.t = Math.min(rect.t, header);
+  return rect;
 }
 // Move (and only if needed, zoom out) so every world point plus its padding sits inside the visible rect.
 function uxFrame(points, pad = 60) {

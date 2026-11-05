@@ -159,5 +159,23 @@ test('a fully expanded details sheet bounds the framing area and the selected ci
   assert(c.y>=rect.t&&c.y<=rect.b,'city y '+c.y+' inside '+rect.t+'..'+rect.b);assert(c.x>=rect.l&&c.x<=rect.r,'city x '+c.x);
   d.classList.remove('is-full');d.hidden=true;delete d.rect;
 });
+test('landscape side details panel trims the right edge, not the map height',()=>{
+  const save={w:context.innerWidth,h:context.innerHeight,header:node('header').rect,routes:node('routes').rect,dock:node('dock').rect};
+  try{
+    context.innerWidth=844;context.innerHeight=390;node('header').rect={left:0,right:844,top:0,bottom:54};
+    node('routes').rect={left:16,right:216,top:150,bottom:376};node('dock').rect={left:236,right:828,top:338,bottom:380};
+    fresh();run('resize();S.points=9000;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1,2]};commitDraft(true);selectLine(S.lines[0].id)');
+    assert.equal(run('view.rot'),0,'landscape is not rotated');
+    const d=node('details');d.hidden=false;d.rect={left:536,right:820,top:60,bottom:322};
+    const rect=JSON.parse(run('JSON.stringify(uxVisibleRect())'));
+    assert(rect.r<=536-12,'right edge trimmed to the side panel: '+rect.r);
+    assert(rect.b-rect.t>=200,'map height kept: '+rect.t+'..'+rect.b);
+    assert(rect.l>=216,'left route list respected: '+rect.l);
+    run('animateView=t=>Object.assign(view,t);uxFrameSelection()');
+    for(const p of JSON.parse(run('JSON.stringify(S.lines[0].stops.map(i=>toScreen(S.cities[i])))')))
+      assert(p.x>=rect.l&&p.x<=rect.r&&p.y>=rect.t&&p.y<=rect.b,'stop '+JSON.stringify(p)+' inside '+JSON.stringify(rect));
+    d.hidden=true;delete d.rect;
+  }finally{context.innerWidth=save.w;context.innerHeight=save.h;node('header').rect=save.header;node('routes').rect=save.routes;node('dock').rect=save.dock;run('resize()');}
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
