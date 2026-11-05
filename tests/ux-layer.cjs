@@ -139,5 +139,25 @@ test('extending from the head prepends in travel order',()=>{
   run(`uxExtMove(${JSON.stringify(at)})`);assert.equal(run('JSON.stringify(draft.stops)'),'[0,1,2]');
   run('uxExt=null;cancelDraft(false)');
 });
+test('overlapping end handles hit the selected (visible) line, never a hidden one',()=>{
+  fresh();run('S.points=9000;for(const n of [1,2]){draft={type:"bus",name:"线"+n,color:n===1?"#c56544":"#4f86a8",stops:[0,1]};commitDraft(true);}clearSelection();resize()');
+  const [a,b]=JSON.parse(run('JSON.stringify(S.lines.map(l=>l.id))'));
+  const knob=id=>run(`(()=>{let h=uxHandles().find(h=>h.line.id===${id}&&h.end==="tail"),p=toScreen(h);return JSON.stringify(p)})()`);
+  assert.equal(knob(a),knob(b),'the two tails coincide');
+  const p=JSON.parse(knob(b));
+  run(`selectLine(${b})`);assert.equal(run(`uxHandleAt(${p.x},${p.y})?.line.id`),b,'second line selected → its own knob');
+  run(`selectLine(${a})`);assert.equal(run(`uxHandleAt(${p.x},${p.y})?.line.id`),a,'first line selected → its own knob');
+  run('clearSelection()');assert.equal(run(`uxHandleAt(${p.x},${p.y})?.line.id`),b,'no selection → the knob drawn on top');
+});
+test('a fully expanded details sheet bounds the framing area and the selected city ends above it',()=>{
+  fresh();run('resize();openCity(1)');
+  const d=node('details');d.hidden=false;d.classList.add('is-full');d.rect={left:12,right:378,top:190,bottom:766,height:576};
+  const rect=JSON.parse(run('JSON.stringify(uxVisibleRect())'));
+  assert(rect.b<=190-12,'visible bottom '+rect.b+' stays above the sheet top 190');assert(rect.b-rect.t>=40,'some map remains');
+  run('animateView=t=>Object.assign(view,t);uxFrameSelection()');
+  const c=JSON.parse(run('JSON.stringify(toScreen(S.cities[1]))'));
+  assert(c.y>=rect.t&&c.y<=rect.b,'city y '+c.y+' inside '+rect.t+'..'+rect.b);assert(c.x>=rect.l&&c.x<=rect.r,'city x '+c.x);
+  d.classList.remove('is-full');d.hidden=true;delete d.rect;
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;

@@ -352,16 +352,22 @@ function uxHandles() {
   }
   return out;
 }
+function uxHandleFocus() { return selected?.type === 'line' ? selected.id : selected?.type === 'stop' ? selected.line : null; }
+// Hit-testing and drawing share this list: when a line is selected only its knobs exist for the finger.
+function uxVisibleHandles() { const f = uxHandleFocus(); return uxHandles().filter(h => f === null || h.line.id === f); }
 function uxHandleAt(sx, sy) {
-  let best = null, d = UX_HANDLE_HIT;
-  for (const h of uxHandles()) { const p = toScreen(h), dd = Math.hypot(p.x - sx, p.y - sy); if (dd < d) { d = dd; best = h; } }
+  // Knobs of lines that end together overlap; the one drawn last (on top) wins within 3px.
+  let best = null, d = Infinity;
+  for (const h of uxVisibleHandles()) {
+    const p = toScreen(h), dd = Math.hypot(p.x - sx, p.y - sy);
+    if (dd < UX_HANDLE_HIT && dd <= d + 3) { best = h; d = Math.min(d, dd); }
+  }
   return best;
 }
 function uxDrawHandles() {
-  const focus = selected?.type === 'line' ? selected.id : selected?.type === 'stop' ? selected.line : null;
-  for (const h of uxHandles()) {
+  const focus = uxHandleFocus();
+  for (const h of uxVisibleHandles()) {
     const on = h.line.id === focus, k = 1 / view.scale, start = radius(h.city) + 4;
-    if (focus !== null && !on) continue;
     ctx.save(); ctx.globalAlpha = on ? 1 : .38; ctx.lineCap = 'round';
     ctx.strokeStyle = h.line.color; ctx.lineWidth = (on ? 4 : 3) * k;
     ctx.beginPath(); ctx.moveTo(h.city.x + h.ux * start, h.city.y + h.uy * start); ctx.lineTo(h.x, h.y); ctx.stroke();
@@ -536,14 +542,18 @@ text = function (t, x, y, size = 12, color, align) {
 // Whatever the sheet covers, the selected city or line (or a range preview) is framed in the space above it.
 function uxViewFor(p, cx, cy, s) { return view.rot ? { x: cx + p.y * s, y: cy - p.x * s, scale: s } : { x: cx - p.x * s, y: cy - p.y * s, scale: s }; }
 function uxVisibleRect() {
-  const top = Math.max(document.querySelector('header')?.getBoundingClientRect().bottom || 60,
-    ...['.top-stack', '.undo-build'].map(q => { const e = document.querySelector(q); const r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height ? r.bottom : 0; })) + 12;
+  const header = (document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8;
+  let top = Math.max(header, ...['.top-stack', '.undo-build'].map(q => { const e = document.querySelector(q); const r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height ? r.bottom + 12 : 0; }));
   let bottom = H - 12;
   for (const q of ['#details', '#routes', 'footer .dock', '#drawbar']) {
-    const e = document.querySelector(q); if (!e || e.hidden || getComputedStyle(e).display === 'none') continue;
-    const r = e.getBoundingClientRect(); if (r.height && r.top > H * .3) bottom = Math.min(bottom, r.top - 12);
+    const e = document.querySelector(q); if (!e || e.hidden || typeof getComputedStyle === 'function' && getComputedStyle(e).display === 'none') continue;
+    const r = e.getBoundingClientRect(); if (!r.height) continue;
+    // The details sheet always counts, even fully expanded near the top; other bars only when they sit low.
+    if (q === '#details' || r.top > H * .3) bottom = Math.min(bottom, r.top - 12);
   }
-  return { l: 14, r: W - 14, t: top, b: Math.max(top + 80, bottom) };
+  // Tight space (sheet fully expanded): notices are overlays and may be overlapped, the sheet may not.
+  if (bottom - top < 80) top = Math.min(top, header);
+  return { l: 14, r: W - 14, t: top, b: Math.max(top + 40, bottom) };
 }
 // Move (and only if needed, zoom out) so every world point plus its padding sits inside the visible rect.
 function uxFrame(points, pad = 60) {
@@ -566,7 +576,8 @@ function uxSelectionPoints() {
 let uxPreviewFrame = null;   // {c, radius} while a range preview is shown
 function uxFrameSelection() {
   if (uxPreviewFrame) { const { c, radius: r } = uxPreviewFrame; uxFrame([{ x: c.x - r, y: c.y - r }, { x: c.x + r, y: c.y + r }], 10); return; }
-  uxFrame(uxSelectionPoints(), selected?.type === 'line' ? 50 : 90);
+  const full = uxEl('details')?.classList.contains('is-full');
+  uxFrame(uxSelectionPoints(), selected?.type === 'line' ? (full ? 30 : 50) : (full ? 36 : 90));
 }
 function uxSheetSet(state) {
   const d = uxEl('details'); if (!d) return;
