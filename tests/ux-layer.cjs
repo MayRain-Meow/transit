@@ -25,7 +25,7 @@ const context = {console,document:{getElementById:node,createElement:()=>node('o
   innerWidth:390,innerHeight:844,devicePixelRatio:1,window:{addEventListener(){}},screen:{},performance:{now:()=>100},addEventListener(){},
   localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
 vm.createContext(context);
-for (const file of ['game','progression','world','economy','ux']) vm.runInContext(fs.readFileSync(path.join(root,`dist/test04/${file}.js`),'utf8'),context);
+for (const file of ['game','progression','world','economy','management','ux','events']) vm.runInContext(fs.readFileSync(path.join(root,`dist/test04/${file}.js`),'utf8'),context);
 const run = code => vm.runInContext(code,context);
 const checks = [];
 function test(name,fn){try{fn();checks.push({name,passed:true});}catch(error){checks.push({name,passed:false,error:error.message});}}
@@ -58,11 +58,13 @@ test('fleet plus buys when stock is empty and minus returns a vehicle to stock',
   run('uxFleetPlus(S.lines[0].id)');assert.equal(run('S.vehicles.length'),n+1);assert.equal(run('S.points'),820);
   run('uxFleetMinus(S.lines[0].id)');assert.equal(run('S.vehicles.length'),n);assert.equal(run('S.inventory.bus'),1);
 });
-test('deleting a line needs two taps and never calls confirm()',()=>{
+test('line cancellation shows recovery quote and requires explicit confirmation',()=>{
   const id=run('S.lines[0].id');run(`uxDeleteLine(${id})`);
-  assert.equal(run(`!!S.lines.find(l=>l.id===${id}).retiring`),false);assert.match(node('details').innerHTML,/再点一次确认撤销/);
-  run(`uxDeleteLine(${id})`);assert.equal(run(`S.lines.find(l=>l.id===${id})?.retiring??true`),true);
+  assert.equal(run(`S.lines.find(l=>l.id===${id}).retiring`),undefined);
+  assert.match(node('modal-content').innerHTML,/取消并回收/);
+  run(`confirmLineCancellation(${id},false)`);assert.equal(run(`S.lines.find(l=>l.id===${id})?.retiring??true`),true);
 });
+
 test('switching transport type only offers unlocked types with free slots',()=>{
   fresh();run('S.unlocked=["bus","emu"];S.limits.emu=1;chooseType();uxSetType("emu")');assert.equal(run('draft.type'),'emu');
   run('uxSetType("air")');assert.equal(run('draft.type'),'emu');run('cancelDraft(false)');
