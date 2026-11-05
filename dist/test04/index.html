@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><meta name="theme-color" content="#fffef9"><title>交通线 · 城市成长测试版 0.5</title><link rel="stylesheet" href="style.css?v=5.0-city30"></head>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><meta name="theme-color" content="#fffef9"><title>交通线 · 城市经营 1.0</title><link rel="stylesheet" href="style.css?v=1.0.0"><link rel="stylesheet" href="market.css?v=1.0.0&asset=entry-20261105"></head>
 <body><canvas id="map"></canvas>
 <header>
-  <div class="brand"><span class="brand-symbol">↗</span><div><b>交通线<span>东岸</span></b><small>NETWORK WORLD / 0.5</small></div></div>
+  <div class="brand"><span class="brand-symbol">↗</span><div><b>交通线<span>东岸</span></b><small>NETWORK WORLD / 1.0</small></div></div>
   <div class="calendar"><small id="year">第一年 · 一月</small><b id="date">01 / 01 <span>周一</span></b><small id="calendar-tag">距补助10天</small></div>
   <div class="stats">
     <div class="stat stat-delivered"><small>已送达</small><b id="delivered">0</b></div>
     <button id="finance" class="stat stat-money" title="收支账本" aria-label="打开收支账本"><small>资金 <span aria-hidden="true">↗</span></small><b id="points">0</b><small id="maintenance-estimate">月底维护 ¥0</small></button>
-    <div class="stat stat-lives"><small>生命</small><b id="lives" title="剩余生命">♥ ♥</b></div>
+    <div class="stat stat-lives"><small>生命</small><b id="lives" title="剩余生命">♥</b></div>
   </div>
   <div class="controls">
     <div class="playback" role="group" aria-label="时间控制"><button id="pause" title="暂停 / 继续" aria-label="暂停或继续">Ⅱ</button><button id="speed" title="切换速度" aria-label="切换速度">1×</button></div>
@@ -16,7 +16,7 @@
     <button id="fullscreen" class="ctl" title="横屏全屏" aria-label="横屏全屏"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
   </div>
 </header>
-<div class="map-caption"><span class="eyebrow">东 岸 · 0.5</span><span>沿海平原 · 河谷 · 北岭</span></div>
+<div class="map-caption"><span class="eyebrow">东 岸 · 1.0</span><span>沿海平原 · 河谷 · 北岭</span></div>
 <div class="top-stack">
   <div id="orientation-hint" hidden><span id="orientation-status">横屏视野更宽，也可竖屏游玩</span><button id="landscape-enter">横屏</button><button id="dismiss-orientation" aria-label="关闭横屏建议">×</button></div>
   <div class="notice-wrap"><div id="notice" class="notice" role="status"></div><button id="notice-close" title="关闭提示" aria-label="关闭提示">×</button></div>
@@ -31,6 +31,7 @@
     <button id="dock-tasks" class="dock-btn dock-tasks"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></svg><span class="dock-label">任务</span></button>
     <button id="engineering" class="dock-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 17h20M4 17v-5M20 17v-5M2 12h20M6 12a6 6 0 0 1 12 0"/></svg><span class="dock-label">工程<span class="dock-more"> / 天气</span></span></button>
     <button id="operations" class="dock-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="dock-label">运营<span class="dock-more">中心</span></span></button>
+    <button id="market" class="dock-btn dock-market" title="金融市场"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 16v-4M10 16V9M15 16V6M20 16V3"/></svg><span class="dock-label">金融</span></button>
     <button id="shop" class="dock-btn is-primary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg><span class="dock-label"><span class="dock-more">交通</span>采购</span><small id="next-supply">10日补给</small></button>
   </nav>
 </footer>
@@ -41,5 +42,6 @@
   <div class="db-actions"><button id="drawundo" title="撤销上一站" aria-label="撤销上一站" hidden>↶</button><button id="drawcancel">取消</button><button id="drawdone" class="primary">完成线路</button></div>
 </div>
 <div id="modal" class="overlay" hidden><section id="modal-content" class="modal"></section></div>
-<script src="game.js?v=5.0-city30"></script><script src="progression.js?v=5.0-city30"></script><script src="world.js?v=5.0-city30"></script><script src="economy.js?v=5.0-city30"></script><script src="management.js?v=5.0-city30"></script><script src="ux.js?v=5.0-city30"></script><script src="events.js?v=5.0-city30"></script>
+<script src="game.js?v=1.0.0&asset=valley-20261105"></script><script src="progression.js?v=1.0.0"></script><script src="world.js?v=1.0.0&asset=valley-20261105"></script><script src="economy.js?v=1.0.0"></script><script src="management.js?v=1.0.0"></script><script src="ux.js?v=1.0.0"></script><script src="events.js?v=1.0.0"></script>
+<script src="balance1.js?v=1.0.0&asset=entry-20261105"></script><script src="market.js?v=1.0.0&asset=entry-copy-20261105"></script>
 </body></html>

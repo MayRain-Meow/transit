@@ -2,8 +2,8 @@
 // 0.4: transport-led city services, schools, retained asset maintenance and train motion.
 const SCHOOL_COST=380;
 const fresh03=fresh;fresh=function(){let x=fresh03();x.economyVersion=6;x.maintenance={accrued:0,debt:0,lastDay:0,lastSettledMonth:0,months:[]};x.ledger.maintenance=0;x.ledger.education=0;return x;};
-save=function(){try{localStorage.setItem('transit-atlas-city-beta-v4',JSON.stringify(S));}catch{}};
-load=function(){try{let x=JSON.parse(localStorage.getItem('transit-atlas-city-beta-v4'));if(x?.version===1&&x.economyVersion===6){S=x;S.paused=true;return true;}}catch{}return false;};
+save=function(){try{localStorage.setItem('transit-atlas-v1',JSON.stringify(S));}catch{}};
+load=function(){try{let x=JSON.parse(localStorage.getItem('transit-atlas-v1')||localStorage.getItem('transit-atlas-city-beta-v4'));if(x?.version===1&&x.economyVersion===6){S=x;S.paused=true;return true;}}catch{}return false;};
 function cityService(c){return c.service??={records:[],samples:[],rating:'待评价',score:null,badDays:0,goodDays:0,protectUntil:Math.max(S.day,c.activatedDay||0)+14,peak:c.size,reason:'积累至少6位乘客的出行样本后评价'};}
 const make03=makeCity;makeCity=function(...args){let c=make03(...args);cityService(c);return c;};
 const freshPassenger03=newPassenger;newPassenger=function(c){let n=c.q.length;freshPassenger03(c);if(c.q.length>n)registerServicePassenger(c.q.at(-1));};

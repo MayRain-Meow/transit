@@ -1,0 +1,20 @@
+PASS new game has one life, 500 cash, new prices and exact subsidy
+PASS 100 periodic subsidy is paid only once per boundary
+PASS ordinary card loads, maturity 230 and no capacity on 2/3 stars
+PASS reward is once, complete vehicle pack and highest capacity only
+PASS one four/five protection, cutoff180, actual protected bases21/28
+PASS transport clock starts only after all unlocked; sixth bonuses unlimited
+PASS bank100 brokerage150, no building count cap, price and float config
+PASS wealth accrues actual duration, T+1 redemption and no principal as profit
+PASS unowned shares move daily, report09 is idempotent, reload never rerolls
+PASS 365-day lump catchup equals daily settlement, reports preserve prior flows
+PASS trade rejects invalid amounts and available float, 1 share works, no roundtrip mint
+PASS 10% holding schedules next three20% days, cannot retrigger
+PASS withdraw and sell remain accessible after city downgrade
+PASS reported profit excludes transfers and yesterday is immutable
+PASS financial seeds never consume traffic RNG
+PASS five-year cycle and gold windows over100 independent market seeds
+PASS full interface renders products, shares, chart and negative profit
+PASS latest weather loss, demand ramp and maintenance multiplier
+PASS old save import keeps the original backup and caps lives to one
+19 release1 checks passed
