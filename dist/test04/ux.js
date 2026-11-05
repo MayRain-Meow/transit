@@ -35,12 +35,17 @@ updateUI = function () {
   uxUpdateUI();
   const p = uxEl('points'); if (p) p.textContent = money(S.points);
   const n = uxEl('notice'); if (n && n.textContent.startsWith('城市成长测试版')) n.textContent = '点城市查看任务 · 拖线后在底栏点「建设」';
+  if (n && /运营中心|工程采购|交通采购|收支账本/.test(n.textContent)) n.textContent = uxRename(n.textContent);
 };
+
+/* ---------- retired entry names in upstream texts → the three hubs ---------- */
+const UX_RENAMES = [['交通采购', '建造·车辆'], ['工程采购', '建造'], ['收支账本', '资金·收支'], ['运营中心', '目标']];
+function uxRename(t) { t = String(t); for (const [a, b] of UX_RENAMES) t = t.split(a).join(b); return t; }
 
 /* ---------- sheets (modals) ---------- */
 const uxOpenModal = openModal;
 openModal = function (html) {
-  html = String(html).split('¥' + S.points).join(money(S.points));
+  html = uxRename(String(html).split('¥' + S.points).join(money(S.points)));
   uxOpenModal(html);
   const m = uxEl('modal-content'); m.scrollTop = 0; m.style.transform = '';
 };
@@ -174,6 +179,7 @@ draftBar = function () {
     }
     cost.innerHTML = parts.join('');
   }
+  for (const e of [cost, uxEl('drawtext')]) if (e && /运营中心|工程采购|交通采购|收支账本/.test(e.innerHTML)) e.innerHTML = uxRename(e.innerHTML);
   done.textContent = draft.stops.length < 2 ? '建设' : c.cash ? '建设 ¥' + c.cash : isNew ? '建设' : '应用修改';
 };
 uxEl('drawundo').onclick = uxUndoStop;
@@ -188,7 +194,7 @@ commitDraft = function (skip = false) {
 const uxToast = toast;
 toast = function (t) {
   t = String(t).replace('点击查看报价后确认建设', '核对底栏报价后点「建设」').replace('；查看报价确认建设', '，然后点底栏「建设」');
-  uxToast(t);
+  uxToast(uxRename(t));
   uxPlaceToast();
 };
 // Portrait: float messages just above whatever sheet is at the bottom, inside the thumb zone.
@@ -922,12 +928,24 @@ globalThis.CITY_GLYPH = () => ctx.canvas === cv ? Math.max(1, Math.min(1.45, .85
   lineStyle = function (...a) { style.apply(this, a); if (ctx.canvas === cv) ctx.lineWidth *= Math.max(1, Math.min(1.4, .85 / view.scale)); };
 })();
 function uxScreenFor(v, p) { return v.rot ? { x: v.x - p.y * v.scale, y: v.y + p.x * v.scale } : { x: v.x + p.x * v.scale, y: v.y + p.y * v.scale }; }
+// Phones: portrait, or a short landscape screen (the side route list and dock leave a small map window).
+function uxCompact() { return portraitMode || H <= 500; }
+const PLAY_MIN_SCALE_LAND = .6;
 function uxPlayTarget() {
   const all = fitTarget();
-  if (!portraitMode || all.scale >= PLAY_MIN_SCALE) return all;
+  if (!uxCompact()) return all;
+  if (portraitMode && all.scale >= PLAY_MIN_SCALE) return all;
   const active = realCities().filter(c => !c.dormant); if (!active.length) return all;
-  const band = fitBand(), s = PLAY_MIN_SCALE, rot = view.rot;
-  const box = { l: band.side + UX_FIT_PAD.l, r: W - band.side - UX_FIT_PAD.r, t: band.top + UX_FIT_PAD.t, b: band.bottom - UX_FIT_PAD.b };
+  const rot = view.rot; let s, box;
+  if (portraitMode) {
+    const band = fitBand(); s = PLAY_MIN_SCALE;
+    box = { l: band.side + UX_FIT_PAD.l, r: W - band.side - UX_FIT_PAD.r, t: band.top + UX_FIT_PAD.t, b: band.bottom - UX_FIT_PAD.b };
+  } else {
+    // landscape phone: the free map window is what remains after the route list (left) and the dock (bottom)
+    const r = uxVisibleRect(); box = { l: r.l + 20, r: r.r - 70, t: r.t + 26, b: r.b - 34 };
+    const xs = active.map(c => c.x), ys = active.map(c => c.y);
+    s = Math.max(PLAY_MIN_SCALE_LAND, Math.min(1.1, (box.r - box.l) / Math.max(1, Math.max(...xs) - Math.min(...xs)), (box.b - box.t) / Math.max(1, Math.max(...ys) - Math.min(...ys))));
+  }
   const cx = (box.l + box.r) / 2, cy = (box.t + box.b) / 2;
   const mean = { x: active.reduce((n, c) => n + c.x, 0) / active.length, y: active.reduce((n, c) => n + c.y, 0) / active.length };
   let best = null;
@@ -942,13 +960,13 @@ function uxPlayTarget() {
 }
 let uxOverviewOn = false;
 function uxApplyPlayView(animate) {
-  if (!portraitMode || !S?.cities) return;
+  if (!uxCompact() || !S?.cities) return;
   const t = uxPlayTarget(); uxOverviewOn = false; uxSyncOverviewButton();
   if (animate) animateView(t); else Object.assign(view, t);
 }
 function uxSyncOverviewButton() { const b = uxEl('overview'); if (b) { b.title = uxOverviewOn ? '回到游玩视图' : '查看全图'; b.setAttribute('aria-label', b.title); b.classList.toggle('is-on', uxOverviewOn); } }
 uxEl('overview').onclick = () => {
-  if (!portraitMode) { animateFit(); return; }
+  if (!uxCompact()) { animateFit(); return; }
   uxOverviewOn = !uxOverviewOn; uxSyncOverviewButton();
   animateView(uxOverviewOn ? fitTarget() : uxPlayTarget()); haptic();
 };

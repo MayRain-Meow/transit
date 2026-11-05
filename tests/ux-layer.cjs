@@ -217,5 +217,10 @@ test('hubs: each global page carries its hub tabs; the old operations centre lan
   run('S.contract=null;showOperations()');assert.equal(run('globalThis.__opened'),'activity','operations → 目标/城市活动');
   run('showActivityCards=globalThis.__oa');
 });
+test('upstream texts that name retired entries point to the three hubs',()=>{
+  assert.equal(run('uxRename("跨河前请先在工程采购中手动建桥")'),'跨河前请先在建造中手动建桥');
+  assert.equal(run('uxRename("三张城市活动邀请 · 运营中心选择")'),'三张城市活动邀请 · 目标选择');
+  assert.equal(run('uxRename("可在交通采购中购买")'),'可在建造·车辆中购买');
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
