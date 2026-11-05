@@ -200,6 +200,9 @@ function uxPlaceToast() {
     if (!e || e.hidden || typeof getComputedStyle !== 'function' || getComputedStyle(e).display === 'none') continue;
     const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
   }
+  // A sheet that fills most of the screen leaves no room above it: use the top of the map instead.
+  const tall = [...document.querySelectorAll('#details')].some(e => !e.hidden && e.getBoundingClientRect().top < H * .35);
+  if (tall) { el.style.bottom = 'auto'; el.style.top = ((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8) + 'px'; return; }
   el.style.top = 'auto'; el.style.bottom = (H - top + 10) + 'px';
 }
 const uxStopUndo = offerStopUndo;
@@ -359,10 +362,10 @@ function uxDrawHandles() {
   for (const h of uxHandles()) {
     const on = h.line.id === focus, k = 1 / view.scale, start = radius(h.city) + 4;
     if (focus !== null && !on) continue;
-    ctx.save(); ctx.globalAlpha = on ? 1 : .55; ctx.lineCap = 'round';
+    ctx.save(); ctx.globalAlpha = on ? 1 : .38; ctx.lineCap = 'round';
     ctx.strokeStyle = h.line.color; ctx.lineWidth = (on ? 4 : 3) * k;
     ctx.beginPath(); ctx.moveTo(h.city.x + h.ux * start, h.city.y + h.uy * start); ctx.lineTo(h.x, h.y); ctx.stroke();
-    ctx.beginPath(); ctx.arc(h.x, h.y, (on ? 9 : 6.5) * k, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = (on ? 3 : 2.2) * k; ctx.stroke();
+    ctx.beginPath(); ctx.arc(h.x, h.y, (on ? 9 : 5.5) * k, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = (on ? 3 : 2.2) * k; ctx.stroke();
     if (on) { ctx.beginPath(); ctx.arc(h.x, h.y, 3 * k, 0, Math.PI * 2); ctx.fillStyle = h.line.color; ctx.fill(); }
     ctx.restore();
   }
@@ -522,8 +525,105 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 
 const uxText = text;
 text = function (t, x, y, size = 12, color, align) {
+  globalThis.uxHaloOK = size >= 9;
   if (ctx.canvas === cv && view.scale < .85) size *= Math.min(1.35, .85 / view.scale);
-  return uxText(t, x, y, size, color, align);
+  try { return uxText(t, x, y, size, color, align); } finally { globalThis.uxHaloOK = true; }
+};
+
+/* ---------- detail sheet: peek first, expand on demand, keep the subject in view ---------- */
+// Phones in portrait: a new selection opens as a short "peek" (title, numbers, main actions) so the map stays
+// usable. Swipe up or tap the grip for everything; swipe down to go back to peek, then to close.
+// Whatever the sheet covers, the selected city or line (or a range preview) is framed in the space above it.
+function uxViewFor(p, cx, cy, s) { return view.rot ? { x: cx + p.y * s, y: cy - p.x * s, scale: s } : { x: cx - p.x * s, y: cy - p.y * s, scale: s }; }
+function uxVisibleRect() {
+  const top = Math.max(document.querySelector('header')?.getBoundingClientRect().bottom || 60,
+    ...['.top-stack', '.undo-build'].map(q => { const e = document.querySelector(q); const r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height ? r.bottom : 0; })) + 12;
+  let bottom = H - 12;
+  for (const q of ['#details', '#routes', 'footer .dock', '#drawbar']) {
+    const e = document.querySelector(q); if (!e || e.hidden || getComputedStyle(e).display === 'none') continue;
+    const r = e.getBoundingClientRect(); if (r.height && r.top > H * .3) bottom = Math.min(bottom, r.top - 12);
+  }
+  return { l: 14, r: W - 14, t: top, b: Math.max(top + 80, bottom) };
+}
+// Move (and only if needed, zoom out) so every world point plus its padding sits inside the visible rect.
+function uxFrame(points, pad = 60) {
+  if (!points.length) return;
+  const rect = uxVisibleRect(), sp = points.map(p => toScreen(p)), padPx = pad * view.scale;
+  const box = { l: Math.min(...sp.map(p => p.x)) - padPx, r: Math.max(...sp.map(p => p.x)) + padPx, t: Math.min(...sp.map(p => p.y)) - padPx, b: Math.max(...sp.map(p => p.y)) + padPx };
+  if (box.l >= rect.l && box.r <= rect.r && box.t >= rect.t && box.b <= rect.b) return;
+  const fit = Math.min(1, (rect.r - rect.l) / (box.r - box.l), (rect.b - rect.t) / (box.b - box.t));
+  const s = Math.max(minScale(), view.scale * fit);
+  const cx = points.reduce((n, p) => n + p.x, 0) / points.length, cy = points.reduce((n, p) => n + p.y, 0) / points.length;
+  animateView(uxViewFor({ x: cx, y: cy }, (rect.l + rect.r) / 2, (rect.t + rect.b) / 2, s), 300);
+}
+function uxSelectionPoints() {
+  if (!selected) return [];
+  if (selected.type === 'line') return (S.lines.find(l => l.id === selected.id)?.stops || []).map(i => S.cities[i]).filter(Boolean);
+  if (['city', 'stop', 'junction'].includes(selected.type)) return [S.cities[selected.id]].filter(Boolean);
+  if (selected.type === 'vehicle') { const v = S.vehicles.find(x => x.id === selected.id), p = v && vehiclePose(v); return p ? [p] : []; }
+  return [];
+}
+let uxPreviewFrame = null;   // {c, radius} while a range preview is shown
+function uxFrameSelection() {
+  if (uxPreviewFrame) { const { c, radius: r } = uxPreviewFrame; uxFrame([{ x: c.x - r, y: c.y - r }, { x: c.x + r, y: c.y + r }], 10); return; }
+  uxFrame(uxSelectionPoints(), selected?.type === 'line' ? 50 : 90);
+}
+function uxSheetSet(state) {
+  const d = uxEl('details'); if (!d) return;
+  d.classList.toggle('is-peek', state === 'peek'); d.classList.toggle('is-full', state === 'full');
+  if (state === 'peek') d.scrollTop = 0;
+  setTimeout(() => requestAnimationFrame(uxFrameSelection), 240);   // after the height transition
+}
+(function sheetStates() {
+  const d = uxEl('details'); if (!d?.getBoundingClientRect || typeof MutationObserver === 'undefined') return;
+  let lastKey = '';
+  new MutationObserver(() => {
+    if (d.hidden || !selected) { lastKey = ''; uxPreviewFrame = null; d.classList.remove('is-peek', 'is-full'); return; }
+    const k = selected.type + ':' + selected.id;
+    if (k !== lastKey) { lastKey = k; uxSheetSet('peek'); }
+  }).observe(d, { attributes: true, attributeFilter: ['hidden'], childList: true });
+  let y0 = null, top0 = 0;
+  d.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; top0 = d.scrollTop; }, { passive: true });
+  d.addEventListener('touchend', e => {
+    if (y0 === null || !portraitMode) return;
+    const dy = e.changedTouches[0].clientY - y0, full = d.classList.contains('is-full'); y0 = null;
+    if (dy < -40 && !full) { uxSheetSet('full'); haptic(); }
+    else if (dy > 50 && top0 <= 0) { if (full) uxSheetSet('peek'); else clearSelection(); haptic(); }
+  }, { passive: true });
+  d.addEventListener('click', e => { // a tap on the grip strip toggles; taps fire click on touch screens too
+    if (portraitMode && e.clientY - d.getBoundingClientRect().top < 30 && !e.target.closest('button')) uxSheetSet(d.classList.contains('is-full') ? 'peek' : 'full'); });
+})();
+// Range previews: shrink the sheet and fit the whole circle above it.
+for (const [name, radius] of [['previewMeteo', c => meteoPreview?.radius || 240], ['previewRepairCenter', () => typeof REPAIR_CENTER_RADIUS === 'number' ? REPAIR_CENTER_RADIUS : 300]]) {
+  const f = globalThis[name]; if (typeof f !== 'function') continue;
+  globalThis[name] = function (id, ...rest) {
+    const r = f.call(this, id, ...rest), c = S.cities[id];
+    if (c) { uxPreviewFrame = { c, radius: radius(c) }; uxSheetSet('peek'); }
+    return r;
+  };
+}
+
+/* ---------- map legibility: halos, fewer squares, quiet decorations while you work ---------- */
+globalThis.TEXT_HALO = '#fffef9e6';   // soft outline keeps labels readable over lines and buildings
+globalThis.QUEUE_SHOWN = 12;           // two rows of waiting squares, then "+n"
+(function quietArt() {
+  const art = drawCityArt;
+  drawCityArt = function (c) {
+    const busy = draft || bridgeDraft || selected?.type === 'line';
+    globalThis.ART_ALPHA = busy ? .42 : 1;
+    try { return art(c); } finally { globalThis.ART_ALPHA = 1; }
+  };
+})();
+// Mission badges: show progress that means something; a row of "0/20" at overview zoom is noise.
+drawMissionBadges = function () {
+  for (const c of realCities()) {
+    if (c.dormant) { if (typeof drawCityOpening === 'function') drawCityOpening(c); continue; }
+    const spec = missionSpec(c), rewarded = c.rewardUntil > S.day, label = rewarded ? '奖金已到账' : spec ? c.mission.progress + '/' + spec.goal : '繁荣';
+    const focus = selected && ['city', 'stop', 'junction'].includes(selected.type) && selected.id === c.id;
+    if (!rewarded && !focus && view.scale < .9 && (!spec || c.mission.progress === 0)) continue;
+    roundBody(c.x - 28, c.y - 85 - c.size * 9, 56, 17, 5, rewarded ? '#e5efda' : '#fffdf6', '#e1e6d8', .8);
+    text(label, c.x, c.y - 73 - c.size * 9, 8, rewarded ? '#577942' : '#879274');
+  }
 };
 
 /* Re-render surfaces that were drawn before this layer loaded. */
