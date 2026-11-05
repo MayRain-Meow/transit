@@ -1,0 +1,61 @@
+{
+  "passed": [
+    "manual bridge fixed endpoints, auto routing through heads, reuse after editing one bank",
+    "cross-river route without built bridge is rejected",
+    "bridge demolition drains in-flight vehicle then removes markers and blocks routing",
+    "bridge upgrade purchase charges once, slows construction, speeds completion",
+    "interval and express routing only serves assigned cities; disconnected fleet cannot serve other bank",
+    "fog/rain slow relevant vehicles; station halves loss without stacking; typhoon grounds new flights",
+    "hub purchase cap is three and no duplicate charge",
+    "quake closure drains traffic, preserves passengers, repair reopens",
+    "city spacing and far-city unlock",
+    "all 0.3 screens and render loops run",
+    "typhoon seasons contain 3–4 south-to-north circular storms only in late July–September",
+    "removing collinear B retains old-route ghost and undo restores the stop",
+    "school eligibility, single purchase, exact destinations and completed-trip return",
+    "maintenance charges shared infrastructure once, prorates, carries debt and repays without stopping roads",
+    "school subsidy is earned, service weighted, paid once and suspended on downgrade",
+    "service sample protection, warning, downgrade, school retention and restoration without repeat prizes",
+    "bus remains uniform; train slows at real stops, express skips and bridgeheads preserve speed",
+    "train simulation gives long journeys higher average speed than short stopping journeys",
+    "shop carriages target individual EMU/high-speed trains, enforce funds, stale clicks and eight-car cap",
+    "school fee discount includes roads and bridges, never stacks and pauses with poor service or town downgrade",
+    "repair centres require medium cities, charge once, retain old work and give exact union coverage",
+    "regional centres shorten actual road, bridge and quake-repair jobs without reducing prices",
+    "matching triangle passengers finish at arrival before service changes or vehicle recall",
+    "legacy destination queues recover before timeout without duplicate fares and keep exact-city travellers",
+    "express trains still pass skipped matching cities and settle at their next matching stop",
+    "saved destination queues recover once on load using the release save key",
+    "individual long waits no longer cost lives; full capacity alone accumulates recoverable city pressure",
+    "just-built line undo returns full cash exactly once and restores consumed stock",
+    "cancelling an operated line sells assets partially, protects shared roads and prevents double recovery",
+    "train recall retains purchased carriage count and investment for redeployment",
+    "cancellation in motion waits for safe arrival before selling vehicles and removing roads",
+    "upgrade and bridge undo refund complete cost while paid upgrades increase later partial recovery",
+    "remote cities have low but positive growth and tourism remains slightly stronger",
+    "undo rejects transported vehicles and expires after twenty seconds",
+    "cancelling after a paid road upgrade recovers half actual construction plus upgrade only once",
+    "remote discovery starts at medium distance and does not leap ahead of unconnected remote cities",
+    "legacy dormant extreme cities move closer without moving an operated remote city"
+  ],
+  "opening": [
+    {
+      "day": 20,
+      "funds": 303,
+      "trips": 26,
+      "lives": 2
+    },
+    {
+      "day": 40,
+      "funds": 948.81,
+      "trips": 85,
+      "lives": 2
+    },
+    {
+      "day": 60,
+      "funds": 1755.01,
+      "trips": 157,
+      "lives": 2
+    }
+  ]
+}

@@ -41,12 +41,20 @@ function inEllipse(p,e){let x=(p.x-e.x)/e.rx,y=(p.y-e.y)/e.ry;return Math.hypot(
 function segDist(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));return Math.hypot(p.x-a.x-dx*t,p.y-a.y-dy*t)}
 const mountainPolygons=mountains.map(e=>Array.from({length:160},(_,i)=>{let a=i/160*Math.PI*2,r=terrainRadius(a,e);return {x:e.x+Math.cos(a)*e.rx*r,y:e.y+Math.sin(a)*e.ry*r};}));
 function pointInPolygon(p,poly){let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){let a=poly[i],b=poly[j];if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)inside=!inside;}return inside;}
+// The river valley is a physical gap in the mountain, not water painted over rock.
+const RIVER_VALLEY_HALF_WIDTH=32;
+const riverValleyBanks=[-1,1].map(side=>Array.from({length:435},(_,i)=>{let y=-300+i*3;return {x:river(y)+side*RIVER_VALLEY_HALF_WIDTH,y};}));
+function valleyCenter(y){let lo=Math.floor((y+300)/3),t=(y+300)/3-lo;if(lo<0||lo>=434)return river(y);return riverValleyBanks[0][lo].x*(1-t)+riverValleyBanks[0][lo+1].x*t+RIVER_VALLEY_HALF_WIDTH;}
+function inRiverValley(p){return Math.abs(p.x-valleyCenter(p.y))<RIVER_VALLEY_HALF_WIDTH;}
+function clipMountainValley(){ctx.beginPath();ctx.rect(-300,-300,2000,1400);let left=riverValleyBanks[0],right=riverValleyBanks[1];ctx.moveTo(left[0].x,left[0].y);for(let p of left)ctx.lineTo(p.x,p.y);for(let p of right.slice().reverse())ctx.lineTo(p.x,p.y);ctx.closePath();ctx.clip('evenodd');}
 function mountainDistance(p){let best=Infinity;for(let poly of mountainPolygons){if(pointInPolygon(p,poly))return 0;for(let i=0;i<poly.length;i++)best=Math.min(best,segDist(p,poly[i],poly[(i+1)%poly.length]));}return best;}
 function cityBuildable(x,y,size=0){let clearance=[12,17,23][size]+32;return x<coast(y)-clearance&&Math.abs(x-river(y))>clearance+9&&mountainDistance({x,y})>clearance;}
 const crossingCache=new Map();
 function mountainCrossings(a,b){let cacheKey=[a.x,a.y,b.x,b.y].join(',');if(crossingCache.has(cacheKey))return crossingCache.get(cacheKey);let dx=b.x-a.x,dy=b.y-a.y,cuts=[0,1];
 for(let poly of mountainPolygons)for(let i=0;i<poly.length;i++){let p=poly[i],q=poly[(i+1)%poly.length],ex=q.x-p.x,ey=q.y-p.y,den=dx*ey-dy*ex;if(Math.abs(den)<1e-9)continue;let t=((p.x-a.x)*ey-(p.y-a.y)*ex)/den,u=((p.x-a.x)*dy-(p.y-a.y)*dx)/den;if(t>0&&t<1&&u>=0&&u<=1)cuts.push(t);}
-cuts.sort((x,y)=>x-y);let spans=[];for(let i=1;i<cuts.length;i++){let lo=cuts[i-1],hi=cuts[i];if(hi-lo<1e-7)continue;let t=(lo+hi)/2,p={x:a.x+dx*t,y:a.y+dy*t};if(mountainPolygons.some(poly=>pointInPolygon(p,poly))){if(spans.length&&Math.abs(spans.at(-1)[1]-lo)<1e-6)spans.at(-1)[1]=hi;else spans.push([lo,hi]);}}
+// Intersect the exact same sampled valley edges used by the background clip.
+for(let bank of riverValleyBanks)for(let i=1;i<bank.length;i++){let p=bank[i-1],q=bank[i],ex=q.x-p.x,ey=q.y-p.y,den=dx*ey-dy*ex;if(Math.abs(den)<1e-9)continue;let t=((p.x-a.x)*ey-(p.y-a.y)*ex)/den,u=((p.x-a.x)*dy-(p.y-a.y)*dx)/den;if(t>0&&t<1&&u>=0&&u<=1)cuts.push(t);}
+cuts.sort((x,y)=>x-y);let spans=[];for(let i=1;i<cuts.length;i++){let lo=cuts[i-1],hi=cuts[i];if(hi-lo<1e-7)continue;let t=(lo+hi)/2,p={x:a.x+dx*t,y:a.y+dy*t};if(!inRiverValley(p)&&mountainPolygons.some(poly=>pointInPolygon(p,poly))){if(spans.length&&Math.abs(spans.at(-1)[1]-lo)<1e-6)spans.at(-1)[1]=hi;else spans.push([lo,hi]);}}
 if(crossingCache.size>2500)crossingCache.clear();crossingCache.set(cacheKey,spans);return spans;}
 function requirements(a,b,type){if(type==='air')return {bridge:0,tunnel:0,hill:0};let bridge=0,hill=0,lastR=false;for(let i=0;i<=80;i++){let t=i/80,p={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};if(p.x>coast(p.y)-4)return {invalid:'线路不能经过海域'};let r=Math.abs(p.x-river(p.y))<9;if(r&&!lastR)bridge++;if(hills.some(e=>inEllipse(p,e)))hill++;lastR=r;}return {bridge,tunnel:mountainCrossings(a,b).length,hill:hill/81};}
 
@@ -85,35 +93,63 @@ let terrainCache=null;
 function contourPath(e,f=1,dx=0,dy=0){ctx.beginPath();for(let i=0;i<=160;i++){let a=i/160*Math.PI*2,r=terrainRadius(a,e)*f,x=e.x+Math.cos(a)*e.rx*r+dx,y=e.y+Math.sin(a)*e.ry*r+dy;if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.closePath();}
 function coastPath(shift=0){ctx.beginPath();for(let y=-150;y<=1000;y+=3){let x=coast(y)+shift;if(y===-150)ctx.moveTo(x,y);else ctx.lineTo(x,y)}}
 function riverPath(){ctx.beginPath();for(let y=-150;y<=660;y+=3){let x=river(y);if(y===-150)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.quadraticCurveTo(850,710,coast(690),690)}
+// Cartographic background only: every physical boundary stays tied to game geometry.
+function terrainStroke(points,color,width=1){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
+function terrainPolygon(points,fill){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fillStyle=fill;ctx.fill();}
+function reliefRidge(e,t){return {x:e.x+e.rx*(t*1.82-.91),y:e.y-e.ry*(.12+.19*Math.sin(t*8.8+e.x)+.12*Math.sin(t*21.4))};}
 function paintTerrain(){
-ctx.fillStyle='#f5f6ee';ctx.fillRect(-300,-300,2000,1400);
-// Ocean depth and shoreline keep the white land area visually dominant.
-coastPath();ctx.lineTo(1650,1000);ctx.lineTo(1650,-150);ctx.closePath();let sea=ctx.createLinearGradient(960,0,1400,0);sea.addColorStop(0,'#dcecef');sea.addColorStop(.4,'#e8f2f3');sea.addColorStop(1,'#f3f8f8');ctx.fillStyle=sea;ctx.fill();
-for(let off of [13,33,66]){coastPath(off);ctx.strokeStyle=off<34?'#c5dfe2':'#d6e8e9';ctx.lineWidth=.7;ctx.stroke();}
-for(let row=0;row<16;row++)for(let col=0;col<5;col++){let y=40+row*46,x=1055+col*49+(row%2)*19;if(x<coast(y)+85)continue;ctx.beginPath();if(view.rot){ctx.moveTo(x,y+9);ctx.bezierCurveTo(x+3,y+3,x-3,y-3,x,y-9);}else{ctx.moveTo(x-9,y);ctx.bezierCurveTo(x-3,y-3,x+3,y+3,x+9,y);}ctx.strokeStyle='#cbdee055';ctx.lineWidth=.8;ctx.stroke();}
-coastPath(-4);ctx.strokeStyle='#efe9d6';ctx.lineWidth=6;ctx.stroke();coastPath();ctx.strokeStyle='#96bcc2';ctx.lineWidth=1.15;ctx.stroke();
-// Soft rounded contour bands identify hills without dense repeated onion rings.
-for(let e of hills){contourPath(e);let wash=ctx.createLinearGradient(e.x,e.y-e.ry,e.x,e.y+e.ry);wash.addColorStop(0,'#fcfaf4');wash.addColorStop(.5,'#f2efdf');wash.addColorStop(1,'#faf8f0');ctx.fillStyle=wash;ctx.fill();ctx.strokeStyle='#e3deca';ctx.lineWidth=.7;ctx.stroke();ctx.save();ctx.clip();
-for(let k=0;k<7;k++){let y=e.y-e.ry*.75+k*e.ry*.25;ctx.beginPath();for(let i=0;i<=40;i++){let x=e.x-e.rx+i*e.rx/20,yy=y+Math.sin(i*.18+k*.64)*11+Math.sin(i*.37-k*.3)*5;if(!i)ctx.moveTo(x,yy);else ctx.lineTo(x,yy);}ctx.strokeStyle=k%2?'#d8d2b9':'#e4dfcb';ctx.lineWidth=k%2?.8:.55;ctx.stroke();}
-for(let k=0;k<3;k++){let e2={x:e.x+(k-1)*e.rx*.48,y:e.y+Math.sin(k*1.8)*e.ry*.22,rx:e.rx*.27,ry:e.ry*.32};for(let f of [1,.64]){contourPath(e2,f);ctx.strokeStyle='#d9d3ba';ctx.lineWidth=.65;ctx.stroke();}}
+ctx.save();ctx.lineJoin='round';ctx.lineCap='round';
+ctx.fillStyle='#faf9f2';ctx.fillRect(-300,-300,2000,1400);
+// Clip all land decoration to the actual coastline. No decorative water obstacles.
+ctx.save();coastPath();ctx.lineTo(-300,1000);ctx.lineTo(-300,-150);ctx.closePath();ctx.clip();
+for(let e of hills){contourPath(e,1.07);ctx.fillStyle='#efeedd';ctx.fill();contourPath(e);let wash=ctx.createLinearGradient(e.x,e.y-e.ry,e.x,e.y+e.ry);wash.addColorStop(0,'#f6f3e6');wash.addColorStop(.5,'#e8e7d2');wash.addColorStop(1,'#f2f0df');ctx.fillStyle=wash;ctx.fill();ctx.save();ctx.clip();
+for(let k=0;k<6;k++){let pts=[];for(let i=0;i<=55;i++){let x=e.x-e.rx+i*e.rx/27.5,y=e.y-e.ry*.85+k*e.ry*.34+Math.sin(i*.14+k*.8)*10+Math.sin(i*.31+k)*3;pts.push({x,y});}terrainStroke(pts,k%2?'#d7d6bd':'#e0ddc6',.8);}
 ctx.restore();}
-// Layered slopes, a continuous ridge and branching valleys create shaded relief.
-for(let e of mountains){
-contourPath(e,1.02,5,10);ctx.fillStyle='#62785b20';ctx.fill();contourPath(e,1,0,6);ctx.fillStyle='#a8b69b';ctx.fill();contourPath(e);ctx.fillStyle='#dde5d0';ctx.fill();ctx.save();ctx.clip();
-const peakAt=(x,base,peak,width)=>{poly([[x-width,base],[x,peak],[x+width*.9,base]],'#c2d0b1');poly([[x,peak],[x+width*.9,base],[x+width*.24,base]],'#a8bb96');poly([[x-width,base],[x,peak],[x-width*.18,base]],'#e4ead8');ctx.beginPath();ctx.moveTo(x-width*.45,base-5);ctx.lineTo(x,peak+3);ctx.lineTo(x+width*.45,base-3);ctx.strokeStyle='#f1f2e5';ctx.lineWidth=1;ctx.stroke();};if(view.rot){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(-Math.PI/2);let hw=e.ry,hh=e.rx;[-.34,.3,-.06,.36,-.28,.14,-.2].forEach((o,i)=>{let base=-hh*.74+i*hh*.3;peakAt(o*hw,base,base-hh*(.24+(i%3)*.07),hw*.8)});ctx.restore();}else for(let i=0;i<5;i++){let x=e.x-e.rx*.9+i*e.rx*.43,base=e.y+e.ry*.82,peak=e.y-e.ry*(.42+(i%3)*.23),width=e.rx*.46;peakAt(x,base,peak,width)}
-ctx.restore();text(e.x<300?'西岭':e.x<650?'云脊':'东麓',e.x,e.y+e.ry*.9,8,'#819571');}
-// River banks, a light floodplain, then a continuous water channel.
-ctx.save();ctx.translate(2,3);riverPath();ctx.strokeStyle='#78978244';ctx.lineWidth=24;ctx.stroke();ctx.restore();riverPath();ctx.strokeStyle='#eef3e7';ctx.lineWidth=29;ctx.stroke();riverPath();ctx.strokeStyle='#c2d8d2';ctx.lineWidth=20;ctx.stroke();riverPath();ctx.strokeStyle='#a9cdd2';ctx.lineWidth=16;ctx.stroke();riverPath();ctx.strokeStyle='#daecee';ctx.lineWidth=12;ctx.stroke();riverPath();ctx.strokeStyle='#edf6f5';ctx.lineWidth=3;ctx.stroke();
-// Quiet, sparse vegetation along the foothills, without interfering with routes.
-for(let i=0;i<170;i++){let x=65+((i*97)%905),y=215+Math.sin(i*4.7)*28;if(x>coast(y)-25||Math.abs(x-river(y))<35||mountains.some(e=>inEllipse({x,y},e)))continue;let px=x+Math.sin(i*1.7)*5,py=y+Math.cos(i*.8)*6;ctx.beginPath();ctx.arc(px,py,.65+(i%3)*.25,0,Math.PI*2);ctx.fillStyle=i%3?'#c8d4ba66':'#b4c4a266';ctx.fill();}
-for(let i=0;i<75;i++){let x=80+(i*127)%890,y=236+(i*71)%405;if(x>coast(y)-45||Math.abs(x-river(y))<32||mountains.some(e=>inEllipse({x,y},e))||S.cities.some(c=>Math.hypot(c.x-x,c.y-y)<85))continue;drawTree(x,y,.7+(i%3)*.13);}
-text('北  岭  山  脉',485,45,11,'#9aa990');text('西  原',160,400,10,'#c0c5b9');text('南 部 丘 陵',450,650,10,'#b9b49e');text('东 岸 平 原',872,450,10,'#b7c2b3');text('东  海',1125,345,18,'#a9c6c6');text('E A S T   S E A',1125,368,7,'#aecbca');
-ctx.save();ctx.translate(river(450)+24,450);ctx.rotate(-1.44);text('澄 江',0,0,9,'#9cbcbf');ctx.restore();
-// Scale and compass belong to the map, not to the controls.
-ctx.strokeStyle='#b6c1b8';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(1080,100);ctx.lineTo(1080,72);ctx.lineTo(1076,82);ctx.moveTo(1080,72);ctx.lineTo(1084,82);ctx.stroke();text('N',1080,62,9,'#9bad9f');
-ctx.beginPath();ctx.moveTo(820,688);ctx.lineTo(900,688);ctx.moveTo(820,684);ctx.lineTo(820,692);ctx.moveTo(860,686);ctx.lineTo(860,690);ctx.moveTo(900,684);ctx.lineTo(900,692);ctx.stroke();text('0',820,704,7,'#aeb8ac');text('50 km',900,704,7,'#aeb8ac');
+// Sparse field parcels, grouped into quiet agricultural districts, never roads.
+for(let i=0;i<115;i++){let x=45+(i*113)%925,y=250+(i*79)%410,w=12+(i*7)%29,h=6+(i*3)%13;
+if(x+w>coast(y)-40||Math.abs(x-river(y))<60||mountains.some(e=>inEllipse({x,y},e))||hills.some(e=>inEllipse({x,y},e)))continue;
+ctx.save();ctx.translate(x,y);ctx.rotate(-.18+.12*Math.sin(i*1.7));ctx.fillStyle=['#e9ecd980','#f0e9d480','#e0e8d66b','#edeedb70'][i%4];ctx.fillRect(0,0,w,h);ctx.strokeStyle='#d3d8bd66';ctx.lineWidth=.5;ctx.strokeRect(0,0,w,h);for(let z=4;z<h;z+=4){ctx.beginPath();ctx.moveTo(1,z);ctx.lineTo(w-1,z);ctx.stroke();}ctx.restore();}
+// Small groves collect below the mountain chain; subdued enough for route legibility.
+for(let i=0;i<180;i++){let x=35+(i*83)%960,y=208+Math.sin(i*2.3)*27+(i%4)*8;
+if(x>coast(y)-35||Math.abs(x-river(y))<38||mountains.some(e=>inEllipse({x,y},e)))continue;
+ctx.beginPath();ctx.ellipse(x,y,2.3+(i%3),1.6+(i%2),-.3,0,Math.PI*2);ctx.fillStyle=i%3?'#b6c8a66b':'#9eb69570';ctx.fill();}
+ctx.restore();
+// Three quiet sea-depth bands follow the same shore used by the route validator.
+coastPath();ctx.lineTo(1650,1000);ctx.lineTo(1650,-150);ctx.closePath();let sea=ctx.createLinearGradient(980,0,1420,0);sea.addColorStop(0,'#d4e7e6');sea.addColorStop(.35,'#e0eded');sea.addColorStop(1,'#edf4f2');ctx.fillStyle=sea;ctx.fill();ctx.save();ctx.clip();
+coastPath(12);ctx.strokeStyle='#c3deda';ctx.lineWidth=26;ctx.stroke();coastPath(45);ctx.strokeStyle='#cfe4e1';ctx.lineWidth=35;ctx.stroke();
+for(let off of [26,65,112]){coastPath(off);ctx.strokeStyle='#b9d5d180';ctx.lineWidth=.65;ctx.stroke();}
+for(let i=0;i<95;i++){let y=-30+(i*43)%900,x=coast(y)+95+(i*71)%390;terrainStroke([{x:x-5,y},{x,y:y-1.4},{x:x+7,y:y+.4}],'#b6d0cf66',.7);}
+ctx.restore();coastPath(-3);ctx.strokeStyle='#e8dfc2';ctx.lineWidth=5;ctx.stroke();coastPath();ctx.strokeStyle='#93b8b0';ctx.lineWidth=1.2;ctx.stroke();
+// Continuous ridges and unequal branching spurs replace repeated triangular peaks.
+ctx.save();clipMountainValley();
+for(let [index,e] of mountains.entries()){
+contourPath(e);let slope=ctx.createLinearGradient(e.x-e.rx*.3,e.y-e.ry,e.x+e.rx*.2,e.y+e.ry);slope.addColorStop(0,'#e1e7d5');slope.addColorStop(.5,'#c4d0b4');slope.addColorStop(1,'#d8dfc8');ctx.fillStyle=slope;ctx.fill();ctx.save();ctx.clip();
+// A small irregular elevation mesh gives continuous relief instead of a flat band.
+const elevation=(u,v)=>{let center=-.14+.16*Math.sin(u*5.2+index*2)+.09*Math.sin(u*14.3+index),profile=Math.exp(-(((v-center)/.43)**2)),ends=Math.max(0,1-u*u);return profile*ends*(.68+.18*Math.sin(u*19+index)+.10*Math.cos(u*31-index));};
+const shade=(u,v)=>{let z=elevation(u,v),dx=(elevation(u+.025,v)-z)/.025,dy=(elevation(u,v+.025)-z)/.025;let light=Math.max(-1,Math.min(1,(dx*.25+dy*.55)));return [Math.round(205+light*20-z*8),Math.round(216+light*16-z*9),Math.round(187+light*20-z*12)];};
+let grid=[];for(let row=0;row<=15;row++){let line=[];for(let col=0;col<=36;col++){let u=-1.12+col*2.24/36+.012*Math.sin(row*8.7+col*2.9),v=-1.15+row*2.3/15+.035*Math.sin(col*9.1+row*4);line.push({x:e.x+u*e.rx,y:e.y+v*e.ry-elevation(u,v)*7,u,v});}grid.push(line);}
+for(let row=0;row<15;row++)for(let col=0;col<36;col++){let a=grid[row][col],b=grid[row][col+1],c=grid[row+1][col],d=grid[row+1][col+1];for(let tri of [[a,b,c],[b,d,c]]){let u=tri.reduce((sum,p)=>sum+p.u,0)/3,v=tri.reduce((sum,p)=>sum+p.v,0)/3;terrainPolygon(tri,'rgb('+shade(u,v).join(',')+')');}}
+let ridge=[];for(let i=0;i<=42;i++){let t=i/42;ridge.push(reliefRidge(e,t));}
+terrainStroke(ridge,'#829a7466',.8);terrainStroke(ridge.map(p=>({x:p.x,y:p.y-1})),'#f5f5e3aa',.8);
+for(let i=3;i<40;i+=4){let p=ridge[i],side=i%8===3?1:-1,end={x:p.x+e.rx*.08*Math.sin(i),y:e.y+side*e.ry*(.65+.13*Math.sin(i*2))};ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.bezierCurveTo(p.x+4,p.y+(end.y-p.y)*.3,end.x-7,end.y-3,end.x,end.y);ctx.strokeStyle=side>0?'#7f9c7255':'#f3f2e4a0';ctx.lineWidth=.8;ctx.stroke();}
+ctx.restore();contourPath(e);ctx.strokeStyle='#8b9f79';ctx.lineWidth=1.25;ctx.stroke();text(['西 岭','云 脊','东 麓'][index],e.x,e.y+e.ry*.73,8,'#718263');}
+ctx.restore();
+// River remains the physical 18-unit channel, bordered by banks and floodplain.
+for(let [width,color] of [[34,'#e6ecdb'],[24,'#cddbc4'],[19,'#94bdb9'],[16,'#b8d9d5'],[10,'#d1e8e2']]){riverPath();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
+let glint=[];for(let y=-150;y<670;y+=5)glint.push({x:river(y)-2.2,y});terrainStroke(glint,'#f5faf2b0',1.2);
+for(let i=0;i<38;i++){let y=220+i*11.2,x=river(y),side=i%2?1:-1;terrainStroke([{x:x+side*12,y},{x:x+side*16,y:y+4},{x:x+side*17,y:y+8}],'#90ae9c80',.65);}
+text('北  岭  山  脉',470,43,11,'#98a48b');text('西 原',150,410,10,'#bcc1ac');text('东 岸 平 原',870,440,11,'#b4bda6');text('南 部 丘 陵',390,653,10,'#b1af93');text('东 海',1130,344,19,'#8aafac');text('E A S T   S E A',1130,368,7,'#a4beb7');
+ctx.save();ctx.translate(river(465)+30,465);ctx.rotate(-1.4);text('澄 江',0,0,9,'#8eada6');ctx.restore();
+terrainStroke([{x:1080,y:100},{x:1080,y:72}],'#9db2a6',1);terrainPolygon([{x:1080,y:70},{x:1077,y:80},{x:1083,y:80}],'#9db2a6');text('N',1080,61,8,'#91a69a');
+ctx.restore();
 }
-function drawTerrain(){if(!terrainCache)terrainCache={};let r=view.rot?1:0;if(!terrainCache[r]){let c=document.createElement('canvas');c.width=r?1800:3000;c.height=r?3000:1800;let live=ctx;try{ctx=c.getContext('2d');ctx.scale(1.5,1.5);if(r){ctx.translate(1000,300);ctx.rotate(Math.PI/2);}else ctx.translate(300,200);paintTerrain();}finally{ctx=live;}terrainCache[r]=c;}if(r){ctx.save();ctx.rotate(-Math.PI/2);ctx.drawImage(terrainCache[r],-1000,-300,1200,2000);ctx.restore();}else ctx.drawImage(terrainCache[r],-300,-200,2000,1200);}
+function drawTerrain(){
+// One fixed-size cache (~14 MB RGBA) for the current orientation, independent of phone DPR and gameplay RNG.
+// Portrait paints the same world rotated 90° clockwise (see toScreen); switching orientation rebuilds it, so memory stays at one cache.
+let r=view.rot?1:0;
+if(!terrainCache||(terrainCache.rot||0)!==r){let cache=document.createElement('canvas');cache.width=r?1440:2400;cache.height=r?2400:1440;let live=ctx;try{ctx=cache.getContext('2d');ctx.scale(1.2,1.2);if(r){ctx.translate(1000,300);ctx.rotate(Math.PI/2);}else ctx.translate(300,200);paintTerrain();cache.rot=r;terrainCache=cache;}finally{ctx=live;}}
+if(r){ctx.save();ctx.rotate(-Math.PI/2);ctx.drawImage(terrainCache,-1000,-300,1200,2000);ctx.restore();}else ctx.drawImage(terrainCache,-300,-200,2000,1200);
+}
 let laneSignature='',laneOffsets=new Map();
 function laneOffset(l,a,b){if(a.id===undefined||b.id===undefined)return 0;let active=S.lines.map(x=>draft?.original===x.id?draft:x),signature=view.scale.toFixed(4)+'|'+active.map(x=>x.id+':'+x.type+':'+x.stops.join(',')).join('|');if(signature!==laneSignature){laneSignature=signature;laneOffsets.clear();}let pair=[a.id,b.id].sort((x,y)=>x-y).join('-'),cacheKey=l.id+':'+pair;if(laneOffsets.has(cacheKey))return laneOffsets.get(cacheKey);let group=l.type==='air'?'air':'ground',peers=active.filter(x=>(x.type==='air'?'air':'ground')===group&&x.stops.some((id,k)=>k&&[x.stops[k-1],id].sort((u,v)=>u-v).join('-')===pair));if(!peers.some(x=>x.id===l.id))peers.push(l);peers.sort((x,y)=>(x.type==='bus'?0:isTrain(x.type)?1:2)-(y.type==='bus'?0:isTrain(y.type)?1:2)||x.id-y.id);let index=peers.findIndex(x=>x.id===l.id),offset=(index-(peers.length-1)/2)*12/Math.max(view.scale,.35);laneOffsets.set(cacheKey,offset);return offset;}
 function lanePoint(a,b,l,t){let dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1,x=a.x+dx*t,y=a.y+dy*t;let canonical=a.id!==undefined&&b.id!==undefined&&a.id>b.id?-1:1;let amount=laneOffset(l,a,b),ramp=Math.max(0,Math.min(1,t/.16,(1-t)/.16)),smooth=ramp*ramp*(3-2*ramp);x+=-dy/len*canonical*amount*smooth;y+=dx/len*canonical*amount*smooth;if(l.type==='air'){x+=2*(1-t)*t*dy*.12*canonical;y-=2*(1-t)*t*dx*.12*canonical;}return {x,y};}
