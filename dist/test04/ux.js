@@ -724,7 +724,54 @@ function uxHubBar(key, idx, m) {
   m.querySelectorAll('.tabs').forEach(t => { if (!t.querySelector('button')) t.remove(); });
   m.scrollTop = 0;
 }
+/* ---------- 建造 · 桥梁与道路: actions first, empty sections gone ---------- */
+// Upstream renders headings with placeholder text ("还没有桥梁", "暂无受损路段"). Rebuild as: two bridge actions with a
+// starting price, then only sections that have content — existing bridges, damaged roads, per-line upgrades as rows.
+function uxEngineeringPage(m) {
+  if (m.querySelector('.ux-eng')) return;
+  const sections = new Map(); let cur = null;
+  for (const n of [...m.children]) {
+    if (n.tagName === 'H3') { cur = n.textContent; sections.set(cur, []); n.remove(); continue; }
+    if (cur) { sections.get(cur).push(n); n.remove(); }
+  }
+  const pick = re => [...sections.entries()].find(([k]) => re.test(k))?.[1] || [];
+  const hasContent = nodes => nodes.some(n => n.querySelector?.('button') || n.classList?.contains('quote-row'));
+  const wrap = document.createElement('div'); wrap.className = 'ux-eng';
+  // bridges
+  const from = t => { try { return bridgePrice({ x: 0, y: 0 }, { x: 38, y: 0 }, t); } catch { return ''; } };
+  const old = m.querySelector(':scope > .tabs'); if (old && old.querySelector('[onclick^="beginBridge"]')) old.remove();
+  wrap.insertAdjacentHTML('beforeend', `<div class="ux-eng-title">建桥 <small>从一岸拖到对岸，跨河线路才能通过</small></div>
+<div class="ux-eng-actions"><button onclick="beginBridge('bus')"><b>公路桥</b><small>大巴使用 · ¥${from('bus')} 起</small></button><button onclick="beginBridge('track')"><b>铁路桥</b><small>动车 / 高铁 · ¥${from('track')} 起</small></button></div>`);
+  const addSection = (title, nodes, note) => {
+    if (!hasContent(nodes)) return;
+    const d = document.createElement('section'); d.className = 'ux-eng-sec';
+    d.innerHTML = `<div class="ux-eng-title">${title}${note ? ` <small>${note}</small>` : ''}</div>`;
+    nodes.forEach(n => d.appendChild(n)); wrap.appendChild(d);
+  };
+  addSection('已有桥梁', pick(/已有桥梁/), '拓宽提速或拆除');
+  addSection('受损路段', pick(/断线|维修/), '抢修后恢复通行');
+  // line upgrades: one row per line with its colour
+  const upg = pick(/道路升级|铁路改造/).flatMap(n => [...(n.querySelectorAll?.('button[onclick^="openInfrastructure"]') || [])]);
+  if (upg.length) {
+    const d = document.createElement('section'); d.className = 'ux-eng-sec';
+    d.innerHTML = '<div class="ux-eng-title">线路提速 <small>拓宽道路、改造铁路，施工期间减速</small></div>';
+    for (const b of upg) {
+      const id = +(b.getAttribute('onclick').match(/\d+/) || [])[0], l = S.lines.find(x => x.id === id);
+      const row = document.createElement('button'); row.className = 'ux-eng-row'; row.setAttribute('onclick', b.getAttribute('onclick'));
+      row.innerHTML = `<i style="background:${l?.color || '#999'}"></i><span>${escapeHTML(l?.name || b.textContent)}</span><small>${l ? TYPES[l.type].name + ' · ' + l.stops.length + ' 站' : ''}</small><em>›</em>`;
+      d.appendChild(row);
+    }
+    wrap.appendChild(d);
+  }
+  for (const [k, nodes] of sections) if (!/已有桥梁|断线|维修|道路升级|铁路改造/.test(k)) addSection(k, nodes);
+  const rules = m.querySelector(':scope > .ux-rules');
+  const facilities = m.querySelector(':scope > section.infra-card');
+  (m.querySelector(':scope > .modal-head') || m.firstChild).after(wrap);
+  if (facilities) { facilities.className = 'ux-eng-foot'; wrap.appendChild(facilities); }
+  if (rules) m.appendChild(rules);
+}
 function uxWrapHubs() {
+  uxAfter('showEngineering', m => uxEngineeringPage(m));
   for (const [key, hub] of Object.entries(UX_HUBS)) hub.tabs.forEach(([, fn], i) => {
     if (fn === 'uxMarketWealth' || fn === 'uxMarketStocks') return;
     uxAfter(fn, m => uxHubBar(key, i, m));
