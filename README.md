@@ -1,8 +1,8 @@
-# 交通线 · 东岸 1.0
+# 交通线 · 东岸 1.1
 
-[进入1.0](https://transit-atlas-coast.kkxxwwk321.chatgpt.site/test04/)
+[进入1.1](https://transit-atlas-coast.kkxxwwk321.chatgpt.site/test04/)
 
-原生HTML、CSS、JavaScript交通经营游戏。开局500、一条生命；每10游戏日固定补助100。
+原生HTML、CSS、JavaScript交通经营游戏。开局5,000、一条生命；每10游戏日固定补助1,000。
 
 1.0保留拉线、桥隧、列车扩编、城市服务、天气地震、学校与检修设施，并应用独立365天研究的经济、任务和卡牌规则。无金融市场时参考自动策略存活111/200，该数字不代表加入投资后的玩家通关率。
 
@@ -10,10 +10,18 @@
 
 运行：`python -m http.server 8000 --directory dist`，进入`/test04/`。静态发布目录为`dist`。
 
-脚本顺序：game → progression → world → economy → management → ux → events → balance1 → market。1.0使用独立存档键，首次可读取原0.5存档；不会覆盖原键。旧存档保留现有资产与进行中的活动，新开局采用全部最新条件。
+脚本顺序：currency11 → game → progression → world → economy → management → ux → events → balance1 → market。1.0使用独立存档键，首次可读取原0.5存档；不会覆盖原键。旧存档保留现有资产与进行中的活动，新开局采用全部最新条件。
 
 验证：`node tests/release1.cjs`。旧版测试中关于两条命、旧公交价格和旧卡牌概率的断言仅适用于旧规则。
 
+
+## 1.1 交通经济金额调整
+
+交通现金、票款、补助、任务与活动奖金、罚款、建设、车辆车厢、维护、维修及回收金额统一为1.0的10倍；开局5,000，大巴1,600，每十天补助1,000。人数、运力、时间、概率、折扣和百分比不变。金融系统保持原值：银行100、证券公司150，股价、股本、已有理财本金和金融持仓不变。
+
+沿用当前入口和存档，首次加载1.0存档时备份原数据，再转换交通现金、资产投资额、账本、欠款与进行中的活动金额；转换标记避免重复放大。金融交易账目和账户不转换。
+
+验证：`node tests/currency11.cjs`、`node tests/release1.cjs`、`node tests/finance-valley.cjs`、`node tests/terrain.cjs`。
 
 ## 1.0 地图背景优化
 
