@@ -41,13 +41,15 @@ function fit(){
     minX=Math.min(0,...cities.map(c=>c.x-110));minY=Math.min(0,...cities.map(c=>c.y-110));
     maxX=Math.max(1200,...cities.map(c=>c.x+140));maxY=Math.max(710,...cities.map(c=>c.y+100));
   }
-  view.scale=Math.min(width/(maxX-minX),height/(maxY-minY),portraitMode?1.2:9);
-  view.x=band.side+(width-(maxX-minX)*view.scale)/2-minX*view.scale;
-  view.y=band.top+(height-(maxY-minY)*view.scale)/2-minY*view.scale;
+  const across=view.rot?maxY-minY:maxX-minX,down=view.rot?maxX-minX:maxY-minY;
+  view.scale=Math.min(width/across,height/down,portraitMode?1.2:9);
+  // Rotated: screen x = view.x - y*scale, screen y = view.y + x*scale (see toScreen in game.js).
+  view.x=band.side+(width-across*view.scale)/2+(view.rot?maxY:-minX)*view.scale;
+  view.y=band.top+(height-down*view.scale)/2-(view.rot?minX:minY)*view.scale;
 }
 const cityArt02=drawCityArt;drawCityArt=function(c){if(c.kind!=='bridgehead')cityArt02(c);};
 const missionBadges02=drawMissionBadges;drawMissionBadges=function(){for(let c of realCities()){let spec=missionSpec(c);if(c.dormant)continue;let label=c.rewardUntil>S.day?'奖金已到账':spec?c.mission.progress+'/'+spec.goal:'繁荣';roundBody(c.x-28,c.y-85-c.size*9,56,17,5,'#fffdf6','#e1e6d8',.8);text(label,c.x,c.y-73-c.size*9,8,'#879274');}};
-spawnCity=function(){if(realCities().length>=24||realCities().filter(c=>c.dormant).length>=2)return;let far=S.unlocked.includes('rail')&&(!S.farOffered||Math.random()<.35);for(let n=0;n<350;n++){let x=far?rand(-700,-140):rand(100,Math.min(950,500+S.day*4)),y=far?rand(-220,930):rand(265,620);if(!cityBuildable(x,y)||realCities().some(c=>Math.hypot(c.x-x,c.y-y)<185||Math.abs(c.x-x)<190&&Math.abs(c.y-y)<145))continue;let c=makeCity(x,y,0,Math.floor(rand(0,4)),realCities().length%3);c.name=names[realCities().length%names.length]+(far?'远城':'');c.dormant=true;c.grace=45;S.cities.push(c);if(far){S.farOffered=true;fit();}toast('发现 '+c.name+' · 城市周围已预留成长与拉线空间');return;}};
+spawnCity=function(){if(realCities().length>=24||realCities().filter(c=>c.dormant).length>=2)return;let far=S.unlocked.includes('rail')&&(!S.farOffered||Math.random()<.35);for(let n=0;n<350;n++){let x=far?rand(-700,-140):rand(100,Math.min(950,500+S.day*4)),y=far?rand(-220,930):rand(265,620);if(!cityBuildable(x,y)||realCities().some(c=>Math.hypot(c.x-x,c.y-y)<185||Math.abs(c.x-x)<190&&Math.abs(c.y-y)<145))continue;let c=makeCity(x,y,0,Math.floor(rand(0,4)),realCities().length%3);c.name=names[realCities().length%names.length]+(far?'远城':'');c.dormant=true;c.grace=45;S.cities.push(c);if(far){S.farOffered=true;}toast('发现 '+c.name+' · 城市周围已预留成长与拉线空间');return;}};
 const checkUnlocks02=checkUnlocks;checkUnlocks=function(){checkUnlocks02();if(S.unlocked.includes('rail')&&!S.farOffered)spawnCity();};
 function bridgePrice(a,b,type){return Math.ceil((type==='bus'?150:260)+Math.max(0,Math.hypot(a.x-b.x,a.y-b.y)-38)*2);}
 function beginBridge(type){closeModal();cancelDraft(false);bridgeDraft={type,a:null,b:null};$('drawbar').hidden=false;$('drawtext').textContent='建桥：从一侧河岸拖到对岸，两个桥头由你确定';$('drawdone').textContent='确认桥梁';$('drawdone').disabled=true;toast('从河岸拖向对岸 · 桥头自动吸附岸边');}
@@ -136,18 +138,17 @@ const esc03=e=>{if(e.code==='Escape'&&bridgeDraft){bridgeDraft=null;engineeringP
 
 /* Portrait: keep the selected line / city visible above the details sheet. */
 (function(){let d=typeof document!=='undefined'&&document.getElementById?.('details');if(!d?.getBoundingClientRect||typeof MutationObserver==='undefined')return;let lastKey='';
-function reveal(){if(d.hidden||!selected){lastKey='';return}let k=selected.type+':'+selected.id;if(k===lastKey||!portraitMode)return;lastKey=k;requestAnimationFrame(()=>{let pts=selected.type==='line'?(S.lines.find(l=>l.id===selected.id)?.stops||[]).map(i=>S.cities[i]):selected.type==='city'?[S.cities[selected.id]]:[];pts=pts.filter(Boolean);if(!pts.length)return;let top=(document.querySelector('header')?.getBoundingClientRect().bottom||60)+50,bottom=d.getBoundingClientRect().top-40,ys=pts.map(p=>p.y*view.scale+view.y),lo=Math.min(...ys),hi=Math.max(...ys),dy=0;if(hi-lo>bottom-top)dy=(top+bottom-lo-hi)/2;else if(hi>bottom)dy=bottom-hi;else if(lo<top)dy=top-lo;if(Math.abs(dy)<4)return;let from=view.y,t0=performance.now();(function step(t){let p=Math.min(1,(t-t0)/280);view.y=from+dy*(1-Math.pow(1-p,3));if(p<1)requestAnimationFrame(step)})(t0)})}
+function reveal(){if(d.hidden||!selected){lastKey='';return}let k=selected.type+':'+selected.id;if(k===lastKey||!portraitMode)return;lastKey=k;requestAnimationFrame(()=>{let pts=selected.type==='line'?(S.lines.find(l=>l.id===selected.id)?.stops||[]).map(i=>S.cities[i]):selected.type==='city'?[S.cities[selected.id]]:[];pts=pts.filter(Boolean);if(!pts.length)return;let top=(document.querySelector('header')?.getBoundingClientRect().bottom||60)+50,bottom=d.getBoundingClientRect().top-40,ys=pts.map(p=>toScreen(p).y),lo=Math.min(...ys),hi=Math.max(...ys),dy=0;if(hi-lo>bottom-top)dy=(top+bottom-lo-hi)/2;else if(hi>bottom)dy=bottom-hi;else if(lo<top)dy=top-lo;if(Math.abs(dy)<4)return;let from=view.y,t0=performance.now();(function step(t){let p=Math.min(1,(t-t0)/280);view.y=from+dy*(1-Math.pow(1-p,3));if(p<1)requestAnimationFrame(step)})(t0)})}
 new MutationObserver(reveal).observe(d,{attributes:true,attributeFilter:['hidden'],childList:true});})();
-/* View comfort: smooth "whole map", soft pan limits, and reveal newly unlocked cities. */
+/* View comfort: smooth "whole map" and soft pan limits (screen space, so it works rotated). */
 function fitTarget(){let v={x:view.x,y:view.y,scale:view.scale};fit();let t={x:view.x,y:view.y,scale:view.scale};view.x=v.x;view.y=v.y;view.scale=v.scale;return t}
 function animateView(t,ms=320){if(typeof requestAnimationFrame==='undefined'){Object.assign(view,t);return}let f={x:view.x,y:view.y,scale:view.scale},t0=performance.now();animateView.id=(animateView.id||0)+1;let id=animateView.id;(function step(n){if(id!==animateView.id)return;let p=Math.min(1,(n-t0)/ms),e=1-Math.pow(1-p,3);view.scale=f.scale+(t.scale-f.scale)*e;view.x=f.x+(t.x-f.x)*e;view.y=f.y+(t.y-f.y)*e;if(p<1)requestAnimationFrame(step)})(t0)}
 function animateFit(){animateView(fitTarget())}
 if(typeof document!=='undefined'&&document.getElementById?.('overview'))$('overview').onclick=animateFit;
-(function(){if(typeof requestAnimationFrame==='undefined'||!document.querySelector)return;let seen=-1;
-function bounds(){let cs=S?.cities||[],xs=cs.map(c=>c.x),ys=cs.map(c=>c.y);return{x0:Math.min(0,...xs),x1:Math.max(1200,...xs),y0:Math.min(0,...ys),y1:Math.max(710,...ys)}}
-function tick(){try{if(S&&!modalOpen){let b=fitBand(),m=bounds(),k=view.scale,
- /* keep the map reaching the middle of the band covered by the map */
- minX=W*.45-m.x1*k,maxX=W*.55-m.x0*k,minY=b.top+(b.bottom-b.top)*.45-m.y1*k,maxY=b.bottom-(b.bottom-b.top)*.45-m.y0*k;
- if(pointers.size===0){if(view.x<minX)view.x+=(minX-view.x)*.25;else if(view.x>maxX)view.x+=(maxX-view.x)*.25;if(view.y<minY)view.y+=(minY-view.y)*.25;else if(view.y>maxY)view.y+=(maxY-view.y)*.25;}
- let n=realCities().length;if(seen>=0&&n>seen&&portraitMode&&!draft){let off=realCities().some(c=>{let sx=c.x*k+view.x,sy=c.y*k+view.y;return sx<10||sx>W-10||sy<b.top||sy>b.bottom});if(off){animateFit();toast('新城镇出现，已调整视野');}}seen=n;}}catch{}requestAnimationFrame(tick)}
+function mapScreenBox(){let cs=S?.cities||[],xs=cs.map(c=>c.x),ys=cs.map(c=>c.y),x0=Math.min(0,...xs),x1=Math.max(1200,...xs),y0=Math.min(0,...ys),y1=Math.max(710,...ys),pts=[[x0,y0],[x1,y0],[x0,y1],[x1,y1]].map(([x,y])=>toScreen({x,y}));return{l:Math.min(...pts.map(p=>p.x)),r:Math.max(...pts.map(p=>p.x)),t:Math.min(...pts.map(p=>p.y)),b:Math.max(...pts.map(p=>p.y))}}
+(function(){if(typeof requestAnimationFrame==='undefined'||!document.querySelector)return;
+function tick(){try{if(S&&!modalOpen&&pointers.size===0){let band=fitBand(),m=mapScreenBox(),cy0=band.top+(band.bottom-band.top)*.45,cy1=band.bottom-(band.bottom-band.top)*.45;
+ /* keep the map reaching the middle of the usable band */
+ if(m.r<W*.45)view.x+=(W*.45-m.r)*.25;else if(m.l>W*.55)view.x+=(W*.55-m.l)*.25;
+ if(m.b<cy0)view.y+=(cy0-m.b)*.25;else if(m.t>cy1)view.y+=(cy1-m.t)*.25;}}catch{}requestAnimationFrame(tick)}
 requestAnimationFrame(tick)})();
