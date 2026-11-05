@@ -201,7 +201,7 @@ function uxPlaceToast() {
     const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
   }
   // A sheet that fills most of the screen leaves no room above it: use the top of the map instead.
-  const tall = [...document.querySelectorAll('#details')].some(e => !e.hidden && e.getBoundingClientRect().top < H * .35);
+  const sheet = uxEl('details'), tall = !!sheet && !sheet.hidden && sheet.getBoundingClientRect().top < H * .35;
   if (tall) { el.style.bottom = 'auto'; el.style.top = ((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8) + 'px'; return; }
   el.style.top = 'auto'; el.style.bottom = (H - top + 10) + 'px';
 }
