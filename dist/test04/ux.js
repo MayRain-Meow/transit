@@ -19,7 +19,8 @@ function panTo(x, y, scale = view.scale) {
 function uxFocusCity(id) {
   const c = S.cities[id]; if (!c) return;
   closeModal(); hideJunction(); selected = { type: 'city', id }; showDetails();
-  requestAnimationFrame(() => panTo(c.x, c.y));
+  // Portrait: the sheet framing (uxFrameSelection) places the city and remembers the prior view for close.
+  if (!portraitMode) requestAnimationFrame(() => panTo(c.x, c.y));
 }
 function uxTypes() { return ['bus', 'emu', 'rail', 'air'].filter(t => TYPES[t]); }
 function uxFreeSlots(t) { return S.limits[t] - S.lines.filter(l => l.type === t && !l.retiring).length; }
@@ -244,7 +245,7 @@ ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不�
 <div class="ux-fleet"><div><small>车辆</small><b>${vs.length}<span> 辆</span></b></div><div><small>载客</small><b>${load}<span> / ${seats}</span></b></div>
 <div class="ux-stepper"><button onclick="uxFleetMinus(${l.id})" ${!vs.some(v => !v.recall) ? 'disabled' : ''} aria-label="回收一辆">−</button><button class="primary" onclick="uxFleetPlus(${l.id})" ${canAdd ? '' : 'disabled'}>＋ ${inv > 0 ? '库存 ' + inv : '¥' + T.vehicle}</button></div></div>
 <div class="ux-route">${stops.map(id => `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`).join('<i>→</i>')}</div>
-<p class="ux-hint">拖端点城市可延长；拖线段经过城市可挂站、摘站。</p>
+<p class="ux-hint">拖动线路两端的 ＋ 可连续延长；拖线段经过城市可挂站、摘站。</p>
 ${vs.length ? `<div class="ux-list"><div class="ux-list-title">车辆与运行方案</div>${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${v.people.length}/${vehCap(v)} 人${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
 <div class="ux-actions-row">${l.type !== 'air' ? `<button onclick="openInfrastructure(${l.id})">道路升级</button>` : ''}<button class="ux-danger" onclick="uxDeleteLine(${l.id})">${uxArmedDelete?.id === l.id && uxArmedDelete.until > performance.now() ? '再点一次确认撤销' : '取消线路'}</button></div>`;
 }
@@ -337,7 +338,14 @@ updateBridgeBar = function () { uxResetDrawExtras(); uxBridgeBar(); };
 // A knob sits just beyond each terminus. Dragging it extends that end; passing more cities chains them,
 // sliding back over a city just added takes it off again. Works for lines that share a city, without a picker.
 let uxExt = null;
-const UX_HANDLE_PX = 30, UX_HANDLE_HIT = UX_COARSE ? 26 : 18;
+// Browsing is quiet: no extension controls on the map. Selecting a line shows an "extend" tab at each of its ends:
+// a short lead in the line colour coming out of the end city, ending in a round tab with a plus. The tab sits a
+// fixed distance outside the end city's node on screen; its touch target is 22px in radius (about 44×44 CSS px),
+// but a press on the city node itself still belongs to the city. Hidden tabs are never hit-tested.
+const UX_TAB_GAP = 30, UX_TAB_R = 10, UX_HANDLE_HIT = 22;
+let uxTabSince = { line: null, at: 0 };
+function uxHandleFocus() { return selected?.type === 'line' ? selected.id : selected?.type === 'stop' ? selected.line : null; }
+function uxNodePx(c) { return radius(c) * view.scale * (globalThis.CITY_GLYPH?.() ?? 1); }
 function uxHandles() {
   const out = [];
   if (draft || bridgeDraft || !S?.lines) return out;
@@ -346,33 +354,55 @@ function uxHandles() {
     for (const end of ['head', 'tail']) {
       const e = S.cities[end === 'tail' ? l.stops.at(-1) : l.stops[0]], n = S.cities[end === 'tail' ? l.stops.at(-2) : l.stops[1]];
       if (!e || !n) continue;
-      const dx = e.x - n.x, dy = e.y - n.y, len = Math.hypot(dx, dy) || 1, reach = radius(e) + 6 + UX_HANDLE_PX / view.scale;
+      const dx = e.x - n.x, dy = e.y - n.y, len = Math.hypot(dx, dy) || 1, reach = uxTabReach(e, dx / len, dy / len) / view.scale;
       out.push({ line: l, end, city: e, x: e.x + dx / len * reach, y: e.y + dy / len * reach, ux: dx / len, uy: dy / len });
     }
   }
   return out;
 }
-function uxHandleFocus() { return selected?.type === 'line' ? selected.id : selected?.type === 'stop' ? selected.line : null; }
-// Hit-testing and drawing share this list: when a line is selected only its knobs exist for the finger.
-function uxVisibleHandles() { const f = uxHandleFocus(); return uxHandles().filter(h => f === null || h.line.id === f); }
+// Screen distance from the city centre to the tab. Starts just outside the node and slides further out along the
+// line if it would sit on the waiting squares (drawn upright to the node's right, up to two rows).
+function uxTabReach(c, ux, uy) {
+  const s = view.scale, g = globalThis.CITY_GLYPH?.() ?? 1, r = radius(c), base = uxNodePx(c) + UX_TAB_GAP;
+  const n = Math.min(c.q?.length || 0, globalThis.QUEUE_SHOWN || 30); if (!n) return base;
+  const o = toScreen(c), t = toScreen({ x: c.x + ux, y: c.y + uy }), dl = Math.hypot(t.x - o.x, t.y - o.y) || 1, sx = (t.x - o.x) / dl, sy = (t.y - o.y) / dl;
+  const rows = Math.ceil(Math.min(n, 30) / 6), pad = UX_TAB_R + 4;
+  const box = { l: (r + 15) * s * g - pad, r: (r + 15 + 6 * 11) * s * g + pad + 22, t: -r * s * g - pad, b: (-r + rows * 12) * s * g + pad };
+  let d = base;
+  while (d < base + 140 && sx * d >= box.l && sx * d <= box.r && sy * d >= box.t && sy * d <= box.b) d += 6;
+  return d;
+}
+// Hit-testing and drawing share this list. Nothing selected → no tabs at all.
+function uxVisibleHandles() { const f = uxHandleFocus(); return f === null ? [] : uxHandles().filter(h => h.line.id === f); }
 function uxHandleAt(sx, sy) {
-  // Knobs of lines that end together overlap; the one drawn last (on top) wins within 3px.
   let best = null, d = Infinity;
   for (const h of uxVisibleHandles()) {
+    const c = toScreen(h.city);
+    if (Math.hypot(c.x - sx, c.y - sy) <= uxNodePx(h.city) + 8) continue;   // the city node keeps its own taps
     const p = toScreen(h), dd = Math.hypot(p.x - sx, p.y - sy);
     if (dd < UX_HANDLE_HIT && dd <= d + 3) { best = h; d = Math.min(d, dd); }
   }
   return best;
 }
 function uxDrawHandles() {
-  const focus = uxHandleFocus();
+  const focus = uxHandleFocus(); if (focus === null) { uxTabSince.line = null; return; }
+  if (uxTabSince.line !== focus) uxTabSince = { line: focus, at: performance.now() };
+  const k = 1 / view.scale, age = (performance.now() - uxTabSince.at) / 1400;
   for (const h of uxVisibleHandles()) {
-    const on = h.line.id === focus, k = 1 / view.scale, start = radius(h.city) + 4;
-    ctx.save(); ctx.globalAlpha = on ? 1 : .38; ctx.lineCap = 'round';
-    ctx.strokeStyle = h.line.color; ctx.lineWidth = (on ? 4 : 3) * k;
-    ctx.beginPath(); ctx.moveTo(h.city.x + h.ux * start, h.city.y + h.uy * start); ctx.lineTo(h.x, h.y); ctx.stroke();
-    ctx.beginPath(); ctx.arc(h.x, h.y, (on ? 9 : 5.5) * k, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = (on ? 3 : 2.2) * k; ctx.stroke();
-    if (on) { ctx.beginPath(); ctx.arc(h.x, h.y, 3 * k, 0, Math.PI * 2); ctx.fillStyle = h.line.color; ctx.fill(); }
+    const col = h.line.color, start = (uxNodePx(h.city) + 3) * k, stop = (UX_TAB_GAP - UX_TAB_R + 1) * k;
+    ctx.save(); ctx.lineCap = 'round';
+    // lead: the line continues a little past its end city
+    ctx.globalAlpha = .9; ctx.strokeStyle = col; ctx.lineWidth = 3.2 * k; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(h.city.x + h.ux * start, h.city.y + h.uy * start);
+    ctx.lineTo(h.city.x + h.ux * (start + stop), h.city.y + h.uy * (start + stop)); ctx.stroke();
+    // a brief invitation pulse right after selecting the line
+    if (age < 1) { ctx.globalAlpha = .35 * (1 - age); ctx.lineWidth = 2 * k; ctx.beginPath(); ctx.arc(h.x, h.y, (UX_TAB_R + 3 + 10 * age) * k, 0, Math.PI * 2); ctx.stroke(); }
+    // tab: white rim, line-coloured disc, white plus
+    ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(h.x, h.y, (UX_TAB_R + 2.5) * k, 0, Math.PI * 2); ctx.fillStyle = '#fffef9'; ctx.fill();
+    ctx.beginPath(); ctx.arc(h.x, h.y, UX_TAB_R * k, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.2 * k; ctx.beginPath();
+    ctx.moveTo(h.x - 4.5 * k, h.y); ctx.lineTo(h.x + 4.5 * k, h.y); ctx.moveTo(h.x, h.y - 4.5 * k); ctx.lineTo(h.x, h.y + 4.5 * k); ctx.stroke();
     ctx.restore();
   }
 }
@@ -394,7 +424,7 @@ function uxExtMove(e) {
 function uxExtFinish(cancelled) {
   const ext = uxExt; uxExt = null; if (!ext || !draft) return;
   draft.extensionPointer = null;
-  if (cancelled || !ext.added.length) { cancelDraft(false); if (!ext.moved) selectLine(ext.line); return; }
+  if (cancelled || !ext.added.length) { cancelDraft(false); if (!ext.moved) { selectLine(ext.line); if (!cancelled) toast('按住 ＋ 拖向城市即可延长，可连续经过多座'); } return; }
   const c = draftCost();
   if (c.invalid || c.cash > S.points) { toast(c.invalid || '资金不足：延长需要 ' + money(c.cash)); cancelDraft(false); selectLine(ext.line); return; }
   if (c.cash || c.bridge || c.tunnel) { draftBar(); haptic(); } else commitDraft(true);
@@ -532,7 +562,10 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 const uxText = text;
 text = function (t, x, y, size = 12, color, align) {
   globalThis.uxHaloOK = size >= 9;
-  if (ctx.canvas === cv && view.scale < .85) size *= Math.min(1.35, .85 / view.scale);
+  if (ctx.canvas === cv) {
+    const m = ctx.getTransform?.(), k = m ? Math.hypot(m.a, m.b) / (dpr || 1) : view.scale;
+    if (k < .85) size *= Math.min(1.35, .85 / k);
+  }
   try { return uxText(t, x, y, size, color, align); } finally { globalThis.uxHaloOK = true; }
 };
 
@@ -574,7 +607,7 @@ function uxFrame(points, pad = 60) {
 }
 function uxSelectionPoints() {
   if (!selected) return [];
-  if (selected.type === 'line') return (S.lines.find(l => l.id === selected.id)?.stops || []).map(i => S.cities[i]).filter(Boolean);
+  if (selected.type === 'line') return [...(S.lines.find(l => l.id === selected.id)?.stops || []).map(i => S.cities[i]).filter(Boolean), ...uxHandles().filter(h => h.line.id === selected.id)];
   if (['city', 'stop', 'junction'].includes(selected.type)) return [S.cities[selected.id]].filter(Boolean);
   if (selected.type === 'vehicle') { const v = S.vehicles.find(x => x.id === selected.id), p = v && vehiclePose(v); return p ? [p] : []; }
   return [];
@@ -644,6 +677,73 @@ drawMissionBadges = function () {
     text(label, c.x, c.y - 73 - c.size * 9, 8, rewarded ? '#577942' : '#879274');
   }
 };
+
+/* ---------- readable portrait: play view, size floors, no creeping zoom ---------- */
+// The default camera frames the cities you are playing with at a readable scale instead of squeezing the whole
+// world into a thumbnail. ⌖ toggles between this play view and the full overview. When the map is zoomed out,
+// the things you act on (city nodes, names, waiting squares, lines) keep a minimum on-screen size; buildings
+// and scenery do not, so the hierarchy reads at a glance.
+const PLAY_MIN_SCALE = .66;
+const UX_FIT_PAD = { l: 34, r: 86, t: 44, b: 58 };
+globalThis.CITY_GLYPH = () => ctx.canvas === cv ? Math.max(1, Math.min(1.45, .85 / view.scale)) : 1;
+(function lineFloor() {
+  const style = lineStyle;
+  lineStyle = function (...a) { style.apply(this, a); if (ctx.canvas === cv) ctx.lineWidth *= Math.max(1, Math.min(1.4, .85 / view.scale)); };
+})();
+function uxScreenFor(v, p) { return v.rot ? { x: v.x - p.y * v.scale, y: v.y + p.x * v.scale } : { x: v.x + p.x * v.scale, y: v.y + p.y * v.scale }; }
+function uxPlayTarget() {
+  const all = fitTarget();
+  if (!portraitMode || all.scale >= PLAY_MIN_SCALE) return all;
+  const active = realCities().filter(c => !c.dormant); if (!active.length) return all;
+  const band = fitBand(), s = PLAY_MIN_SCALE, rot = view.rot;
+  const box = { l: band.side + UX_FIT_PAD.l, r: W - band.side - UX_FIT_PAD.r, t: band.top + UX_FIT_PAD.t, b: band.bottom - UX_FIT_PAD.b };
+  const cx = (box.l + box.r) / 2, cy = (box.t + box.b) / 2;
+  const mean = { x: active.reduce((n, c) => n + c.x, 0) / active.length, y: active.reduce((n, c) => n + c.y, 0) / active.length };
+  let best = null;
+  for (const p of [mean, ...active]) {
+    const v = { rot, scale: s, ...uxViewFor(p, cx, cy, s) };
+    let score = 0;
+    for (const c of active) { const q = uxScreenFor(v, c); if (q.x >= box.l && q.x <= box.r && q.y >= box.t && q.y <= box.b) score += cityHasRoute?.(c) ? 2 : 1; }
+    score -= Math.hypot(p.x - mean.x, p.y - mean.y) / 1e4;   // tie-break: stay near the middle of the network
+    if (!best || score > best.score) best = { score, v };
+  }
+  return { x: best.v.x, y: best.v.y, scale: s };
+}
+let uxOverviewOn = false;
+function uxApplyPlayView(animate) {
+  if (!portraitMode || !S?.cities) return;
+  const t = uxPlayTarget(); uxOverviewOn = false; uxSyncOverviewButton();
+  if (animate) animateView(t); else Object.assign(view, t);
+}
+function uxSyncOverviewButton() { const b = uxEl('overview'); if (b) { b.title = uxOverviewOn ? '回到游玩视图' : '查看全图'; b.setAttribute('aria-label', b.title); b.classList.toggle('is-on', uxOverviewOn); } }
+uxEl('overview').onclick = () => {
+  if (!portraitMode) { animateFit(); return; }
+  uxOverviewOn = !uxOverviewOn; uxSyncOverviewButton();
+  animateView(uxOverviewOn ? fitTarget() : uxPlayTarget()); haptic();
+};
+addEventListener('resize', () => uxApplyPlayView(false));
+(function () { const start = startGame; startGame = function (...a) { const r = start.apply(this, a); uxApplyPlayView(false); return r; }; })();
+// Framing for an open sheet may zoom out; closing the sheet brings the earlier view back, unless the player
+// moved the map in between. Repeated open/close therefore never ratchets the scale down.
+let uxFrameRestore = null;   // { from: view before the first automatic framing, to: view after the latest one }
+(function () {
+  const frame = uxFrame, near = (p, q) => q && Math.abs(p.scale - q.scale) < 1e-3 && Math.abs(p.x - q.x) < 3 && Math.abs(p.y - q.y) < 3;
+  uxFrame = function (points, pad) {
+    const before = { x: view.x, y: view.y, scale: view.scale }, id0 = animateView.id;
+    frame(points, pad);
+    if (animateView.id === id0) return;              // nothing moved
+    if (!uxFrameRestore) uxFrameRestore = { from: before, to: null };
+    const r = uxFrameRestore, myId = animateView.id;
+    setTimeout(() => { if (uxFrameRestore === r && animateView.id === myId) r.to = { x: view.x, y: view.y, scale: view.scale }; }, 380);
+  };
+  const d = uxEl('details');
+  if (d?.getBoundingClientRect && typeof MutationObserver !== 'undefined') new MutationObserver(() => {
+    if (!d.hidden || !uxFrameRestore) return;
+    const r = uxFrameRestore; uxFrameRestore = null;
+    // Only undo our own framing: if the player panned or zoomed after it, their view stays.
+    if (near(view, r.to)) animateView(r.from, 280);
+  }).observe(d, { attributes: true, attributeFilter: ['hidden'] });
+})();
 
 /* Re-render surfaces that were drawn before this layer loaded. */
 if (modalOpen && uxEl('modal-content').innerHTML.includes('startGame()')) welcome(typeof hadSave !== 'undefined' && hadSave);

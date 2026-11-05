@@ -32,20 +32,20 @@ function fit(){
   const width=W-2*band.side,height=band.bottom-band.top;
   let minX,minY,maxX,maxY;
   if(portraitMode&&cities.length){
-    // Far cities extend west of x=0 and beyond the initial map's vertical range.
-    minX=Math.min(...cities.map(c=>c.x))-150;
-    maxX=Math.max(...cities.map(c=>c.x))+150;
-    minY=Math.min(...cities.map(c=>c.y))-140;
-    maxY=Math.max(...cities.map(c=>c.y))+110;
+    // Far cities extend west of x=0 and beyond the initial map's vertical range. Margins are added in screen
+    // pixels below (labels under the node, waiting squares to its right), not as large world-unit borders.
+    minX=Math.min(...cities.map(c=>c.x));maxX=Math.max(...cities.map(c=>c.x));
+    minY=Math.min(...cities.map(c=>c.y));maxY=Math.max(...cities.map(c=>c.y));
   }else{
     minX=Math.min(0,...cities.map(c=>c.x-110));minY=Math.min(0,...cities.map(c=>c.y-110));
     maxX=Math.max(1200,...cities.map(c=>c.x+140));maxY=Math.max(710,...cities.map(c=>c.y+100));
   }
-  const across=view.rot?maxY-minY:maxX-minX,down=view.rot?maxX-minX:maxY-minY;
-  view.scale=Math.min(width/across,height/down,portraitMode?1.2:9);
+  const across=Math.max(1,view.rot?maxY-minY:maxX-minX),down=Math.max(1,view.rot?maxX-minX:maxY-minY);
+  const pad=portraitMode&&cities.length?{l:34,r:86,t:44,b:58}:{l:0,r:0,t:0,b:0},w=width-pad.l-pad.r,h=height-pad.t-pad.b;
+  view.scale=Math.min(w/across,h/down,portraitMode?1.15:9);
   // Rotated: screen x = view.x - y*scale, screen y = view.y + x*scale (see toScreen in game.js).
-  view.x=band.side+(width-across*view.scale)/2+(view.rot?maxY:-minX)*view.scale;
-  view.y=band.top+(height-down*view.scale)/2-(view.rot?minX:minY)*view.scale;
+  view.x=band.side+pad.l+(w-across*view.scale)/2+(view.rot?maxY:-minX)*view.scale;
+  view.y=band.top+pad.t+(h-down*view.scale)/2-(view.rot?minX:minY)*view.scale;
 }
 const cityArt02=drawCityArt;drawCityArt=function(c){if(c.kind!=='bridgehead')cityArt02(c);};
 const missionBadges02=drawMissionBadges;drawMissionBadges=function(){for(let c of realCities()){let spec=missionSpec(c);if(c.dormant){drawCityOpening(c);continue;}let label=c.rewardUntil>S.day?'奖金已到账':spec?c.mission.progress+'/'+spec.goal:'繁荣';roundBody(c.x-28,c.y-85-c.size*9,56,17,5,'#fffdf6','#e1e6d8',.8);text(label,c.x,c.y-73-c.size*9,8,'#879274');}};

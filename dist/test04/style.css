@@ -624,3 +624,12 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
 @media (max-width:1100px) and (not ((orientation:portrait) and (max-width:820px))){
   body:has(#details:not([hidden])) .undo-build{right:calc(var(--gutter) + var(--safe-r) + 284px)}
 }
+
+/* Portrait: notices stay one quiet line so they do not eat the map; ⌖ shows when the overview is on. */
+@media (orientation:portrait) and (max-width:820px){
+  .top-stack{width:calc(100vw - 32px)}
+  .notice-wrap{max-width:100%;padding:2px 2px 2px 12px;box-shadow:none}
+  .notice{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:3px 0;text-align:left}
+  #notice-close{width:28px;height:28px}
+}
+#overview.is-on{background:var(--ink);color:#fff}

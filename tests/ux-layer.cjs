@@ -147,7 +147,7 @@ test('overlapping end handles hit the selected (visible) line, never a hidden on
   const p=JSON.parse(knob(b));
   run(`selectLine(${b})`);assert.equal(run(`uxHandleAt(${p.x},${p.y})?.line.id`),b,'second line selected → its own knob');
   run(`selectLine(${a})`);assert.equal(run(`uxHandleAt(${p.x},${p.y})?.line.id`),a,'first line selected → its own knob');
-  run('clearSelection()');assert.equal(run(`uxHandleAt(${p.x},${p.y})?.line.id`),b,'no selection → the knob drawn on top');
+  run('clearSelection()');assert.equal(run(`uxHandleAt(${p.x},${p.y})`),null,'no selection → no extension tab is drawn or hit');
 });
 test('a fully expanded details sheet bounds the framing area and the selected city ends above it',()=>{
   fresh();run('resize();openCity(1)');
@@ -176,6 +176,26 @@ test('landscape side details panel trims the right edge, not the map height',()=
       assert(p.x>=rect.l&&p.x<=rect.r&&p.y>=rect.t&&p.y<=rect.b,'stop '+JSON.stringify(p)+' inside '+JSON.stringify(rect));
     d.hidden=true;delete d.rect;
   }finally{context.innerWidth=save.w;context.innerHeight=save.h;node('header').rect=save.header;node('routes').rect=save.routes;node('dock').rect=save.dock;run('resize()');}
+});
+test('vehicles follow their heading: no upright turn inside vehicle drawing, labels still upright in portrait',()=>{
+  fresh();run('resize();S.points=9000;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection()');
+  const turns=code=>JSON.parse(run(`(()=>{const out=[];ctx.rotate=a=>out.push(a);ctx.getTransform=()=>({a:0,b:1,c:-1,d:0});try{${code}}finally{delete ctx.rotate;delete ctx.getTransform;}return JSON.stringify(out.filter(a=>Math.abs(a+Math.PI/2)<1e-9).length)})()`));
+  assert.equal(run('view.rot'),1,'portrait');
+  assert.equal(turns('drawVehicle(S.vehicles[0],null)'),0,'bus body/windows must not be turned upright');
+  run('S.unlocked.push("emu");S.inventory.emu=2;draft={type:"emu",name:"动车1线",color:"#4f86a8",stops:[1,2]};commitDraft(true);clearSelection();S.vehicles.at(-1).cars=4');
+  assert.equal(turns('drawVehicle(S.vehicles.at(-1),null)'),0,'train cars must not be turned upright');
+  assert.equal(turns('roundBody(0,0,20,10,3,"#fff")'),1,'a label plate is still turned upright in portrait');
+  run('view.rot=0');assert.equal(turns('roundBody(0,0,20,10,3,"#fff")'),0,'landscape never compensates');run('resize()');
+});
+test('extension tabs: quiet while browsing, ~44px target when a line is selected, city node keeps its taps',()=>{
+  fresh();run('resize();S.points=9000;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection()');
+  assert.equal(run('uxVisibleHandles().length'),0,'browsing: no tabs');
+  run('selectLine(S.lines[0].id)');assert.equal(run('uxVisibleHandles().length'),2,'selected: one tab per end');
+  const h=JSON.parse(run('JSON.stringify((()=>{let h=uxVisibleHandles().find(h=>h.end==="tail"),p=toScreen(h),c=toScreen(h.city);return {p,c,dx:(p.x-c.x),dy:(p.y-c.y)}})())'));
+  const len=Math.hypot(h.dx,h.dy),ox=-h.dy/len*20,oy=h.dx/len*20;   // 20px to the side of the tab centre
+  assert.equal(run(`uxHandleAt(${h.p.x+ox},${h.p.y+oy})?.end`),'tail','20px off-centre still grabs the tab');
+  assert.equal(run(`uxHandleAt(${h.c.x},${h.c.y})`),null,'pressing the end city node is a city tap, not the tab');
+  run('clearSelection()');
 });
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
