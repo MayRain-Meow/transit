@@ -646,6 +646,18 @@ function uxWrapLatePanels() {
     uxFoldRules(m);
   });
   for (const name of ['showFinance', 'shop']) uxAfter(name, m => uxFoldRules(m));
+  // Finance market (1.0): the "build another bank/broker" box moves to the end once one exists, and long rule lines fold.
+  uxAfter('showFinancialMarket', m => {
+    const fm = m.querySelector('.financial-market') || m;
+    for (const b of [...fm.querySelectorAll('.market-build')]) {
+      if (!/已有/.test(b.textContent)) continue;
+      const d = document.createElement('details'); d.className = 'ux-rules ux-market-build';
+      d.innerHTML = '<summary>' + ((b.querySelector('b, strong, h3')?.textContent || '设施建设').trim() + ' · 再建一座') + '</summary>';
+      fm.appendChild(d); d.appendChild(b);
+    }
+    const rules = [...fm.querySelectorAll('p')].filter(p => !p.id && !p.closest('.ux-rules') && p.textContent.trim().length > 30 && !p.querySelector('button, input, b[id], span[id]'));
+    if (rules.length) { const d = document.createElement('details'); d.className = 'ux-rules'; d.innerHTML = '<summary>规则说明</summary>'; fm.appendChild(d); rules.forEach(p => d.appendChild(p)); }
+  });
   uxAfter('showEngineering', m => {
     uxHeadFirst(m);
     const lists = [...m.querySelectorAll('.task-cities')];
