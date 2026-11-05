@@ -703,3 +703,21 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
   .financial-market .market-tabs{margin:8px 0}
   .ux-market-build .market-build{border-top:0;padding-top:0}
 }
+
+/* ============================================================
+   Hubs: 目标 / 建造 / 资金 (three dock buttons, tabbed sheets)
+   ============================================================ */
+.dock-legacy{display:none!important}
+.dock-hub{position:relative}
+.modal-head.has-hub{flex-wrap:wrap;row-gap:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.ux-hub-tabs{flex:1 0 100%;display:flex;gap:4px;padding:3px;border-radius:12px;background:#eef1ea}
+.ux-hub-tabs button{flex:1;min-height:36px;padding:0 6px;border-radius:9px;font-size:12px;font-weight:600;color:#5f6f68;white-space:nowrap}
+.ux-hub-tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px #263b4218}
+.ux-contract{display:grid;gap:6px;padding:12px 0}
+.ux-contract b{font-size:16px}
+.ux-contract span{font-size:12px;color:#5f6f68}
+.modal .ux-empty{padding:18px 0;color:#6f7d76;font-size:13px;line-height:1.7}
+@media (orientation:portrait) and (max-width:820px){
+  footer .dock{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px}   /* overrides market.css five-column dock */
+  .dock-hub{flex-direction:column}
+}

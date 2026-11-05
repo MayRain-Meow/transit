@@ -595,9 +595,11 @@ function uxWrapLateDrawers() {
 // Later layers append sections by string. These passes keep one header on top, drop entries that already have a
 // home elsewhere (tasks and ledger have their own buttons), and move per-city builds to the city sheet.
 function uxAfter(name, tidy) {
-  const f = globalThis[name]; if (typeof f !== 'function' || f.uxTidy) return;
-  const g = function (...a) { const r = f.apply(this, a); try { tidy(uxEl('modal-content')); } catch {} return r; };
-  g.uxTidy = true; globalThis[name] = g;
+  const f = globalThis[name]; if (typeof f !== 'function') return;
+  if (f.uxTidies) { f.uxTidies.push(tidy); return; }
+  const list = [tidy];
+  const g = function (...a) { const r = f.apply(this, a); for (const t of list) { try { t(uxEl('modal-content')); } catch {} } return r; };
+  g.uxTidy = true; g.uxTidies = list; globalThis[name] = g;
 }
 function uxHeadFirst(m) { const head = m.querySelector('.modal-head'); if (head && m.firstElementChild !== head) m.prepend(head); }
 const UX_HELP_TOPICS = [[/开局|一条命|补助/, '资金与生命'], [/候客|满员|拥堵|扣命/, '等待与扣命'], [/任务|成长|维护费|欠费/, '任务、收入与维护'], [/解锁|名额|每\d+天/, '交通方式与名额'], [/学校|检修/, '学校与检修中心'], [/金融|银行|证券|股票|理财/, '金融市场'], [/活动|邀请|卡/, '城市活动']];
@@ -645,7 +647,7 @@ function uxWrapLatePanels() {
     m.querySelectorAll('.tabs').forEach(t => { if (!t.querySelector('button')) t.remove(); });
     uxFoldRules(m);
   });
-  for (const name of ['showFinance', 'shop']) uxAfter(name, m => uxFoldRules(m));
+  for (const name of ['showFinance', 'shop', 'showMaintenance', 'showWeather', 'chooseContract', 'showEngineering']) uxAfter(name, m => uxFoldRules(m));
   // Finance market (1.0): the "build another bank/broker" box moves to the end once one exists, and long rule lines fold.
   uxAfter('showFinancialMarket', m => {
     const fm = m.querySelector('.financial-market') || m;
@@ -679,8 +681,64 @@ function uxWrapLatePanels() {
     last.after(d);
   });
 }
+/* ---------- three hubs: 目标 / 建造 / 资金 ---------- */
+// Players think "what should I do", "how do I grow", "how is my money". Every global sheet now belongs to one hub,
+// opened from the dock, with a fixed row of tabs on top so each page does a single job. Pages are still rendered
+// by the upstream functions; the hub only adds the tab row, the hub title, and removes links that the tabs replace.
+// Per-object actions stay on the object (city facilities in the city sheet, fleet and upgrades in the line sheet).
+const UX_HUBS = {
+  goal: { name: '目标', tabs: [['城市任务', 'showTasks'], ['城市活动', 'showActivityCards'], ['服务合同', 'uxContractPage']] },
+  build: { name: '建造', tabs: [['桥梁与道路', 'showEngineering'], ['车辆', 'shop'], ['天气', 'showWeather']] },
+  money: { name: '资金', tabs: [['收支', 'showFinance'], ['维护', 'showMaintenance'], ['理财', 'uxMarketWealth'], ['股票', 'uxMarketStocks']] },
+};
+function uxMarketWealth() { showFinancialMarket(marketTab === 'portfolio' ? 'portfolio' : 'wealth'); }
+function uxMarketStocks() { showFinancialMarket('stocks'); }
+function uxOpenHub(key, i = 0) { haptic(); globalThis[UX_HUBS[key].tabs[i][1]](); }
+function uxContractPage() {
+  const c = S.contract, open = !c && S.day >= 20 && S.day >= (S.contractCooldown || 0);
+  if (open) { chooseContract(); return; }
+  let body;
+  if (c) {
+    const rate = c.count ? Math.round(c.good / c.count * 100) : 100, pct = Math.min(100, c.count / c.goal * 100);
+    body = `<section class="ux-contract"><b>${escapeHTML(S.cities[c.city]?.name || '')}</b><span>剩余 ${Math.max(0, c.end - S.day).toFixed(1)} 天 · 奖励 ¥${c.reward}</span>
+<span class="ux-bar"><i style="width:${pct}%"></i></span><small>有效运输 ${c.count}/${c.goal} · 候车合格 ${rate}%（需 ≥80%）</small></section>`;
+  } else body = S.day < 20 ? '<p class="ux-empty">第 20 天开放：在 10 天内为一座城市完成运输量，候车不超时就拿奖金，未达标不扣钱。</p>'
+    : `<p class="ux-empty">冷却中，还需 ${Math.ceil(S.contractCooldown - S.day)} 天可再接合同。</p>`;
+  openModal(`<div class="modal-head"><h2>服务合同</h2><button class="close" onclick="closeModal()">×</button></div>${body}`);
+}
+function uxHubBar(key, idx, m) {
+  const hub = UX_HUBS[key];
+  if (!m || m.hidden === true || m.querySelector('.ux-hub-tabs')) return;
+  let head = m.querySelector('.modal-head');
+  if (!head) { head = document.createElement('div'); head.className = 'modal-head'; head.innerHTML = '<h2></h2><button class="close" onclick="closeModal()">×</button>'; m.prepend(head); }
+  uxHeadFirst(m);
+  let h2 = head.querySelector('h2'); if (!h2) { h2 = document.createElement('h2'); head.prepend(h2); }
+  h2.textContent = hub.name;
+  head.querySelectorAll('.close').forEach(b => b.setAttribute('onclick', 'closeModal()'));
+  const nav = document.createElement('nav'); nav.className = 'ux-hub-tabs'; nav.setAttribute('role', 'tablist');
+  nav.innerHTML = hub.tabs.map(([label], i) => `<button role="tab" aria-selected="${i === idx}" class="${i === idx ? 'on' : ''}" onclick="uxOpenHub('${key}',${i})">${label}</button>`).join('');
+  head.classList.add('has-hub'); head.appendChild(nav);   // tabs live in the sticky header so they stay reachable while scrolling
+  // links the tabs replace
+  m.querySelectorAll('.ux-links, .market-tabs').forEach(n => { const keep = n.querySelector('[onclick*="portfolio"]'); if (keep && n.classList.contains('market-tabs')) { const row = document.createElement('div'); row.className = 'ux-help-links'; row.appendChild(keep); n.replaceWith(row); } else n.remove(); });
+  m.querySelectorAll('button[onclick^="showOperations"], button[onclick^="showMaintenance"], button[onclick^="showFinance()"], button[onclick^="showWeather"], button[onclick^="showEngineering"], button[onclick^="shop()"]').forEach(b => { if (!b.closest('.ux-hub-tabs')) b.remove(); });
+  m.querySelectorAll('.tabs').forEach(t => { if (!t.querySelector('button')) t.remove(); });
+  m.scrollTop = 0;
+}
+function uxWrapHubs() {
+  for (const [key, hub] of Object.entries(UX_HUBS)) hub.tabs.forEach(([, fn], i) => {
+    if (fn === 'uxMarketWealth' || fn === 'uxMarketStocks') return;
+    uxAfter(fn, m => uxHubBar(key, i, m));
+  });
+  uxAfter('chooseContract', m => uxHubBar('goal', 2, m));
+  uxAfter('showFinancialMarket', m => uxHubBar('money', marketTab === 'stocks' ? 3 : 2, m));
+  uxAfter('showFinanceLock', m => uxHubBar('money', /证券|券商/.test(m.textContent) && !/银行尚未/.test(m.textContent) ? 3 : 2, m));
+  // the old operations centre is retired: its callers ("返回" buttons, accepting a contract) land in the goal hub
+  showOperations = function () { uxOpenHub('goal', S.contract ? 2 : 1); };
+  // dock + header entries
+  for (const key of ['goal', 'build', 'money']) { const b = uxEl('hub-' + key); if (b) b.onclick = () => uxOpenHub(key); }
+}
 // events.js loads after this file and redefines some drawers and sheets, so wrap once every script has run.
-function uxLate() { uxWrapLateDrawers(); uxWrapLatePanels(); }
+function uxLate() { uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', uxLate); else uxLate();
 
 const uxText = text;

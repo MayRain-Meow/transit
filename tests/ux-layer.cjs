@@ -209,5 +209,13 @@ test('full sheet with a notice on top: the sheet still bounds the map and the ci
     const c=JSON.parse(run('JSON.stringify(toScreen(S.cities[1]))'));assert(c.y>=rect.t&&c.y<=rect.b,'city y '+c.y);
   }finally{d.classList.remove('is-full');d.hidden=true;delete d.rect;delete stack.rect;stack.hidden=true;}
 });
+test('hubs: each global page carries its hub tabs; the old operations centre lands in the goal hub',()=>{
+  fresh();run('uxLate&&uxLate()');
+  // DOM insertion of the tab row is checked in the browser; here: every hub page is wrapped, and routing works.
+  for(const fn of ['showTasks','showActivityCards','chooseContract','showEngineering','shop','showWeather','showFinance','showMaintenance'])assert.equal(run(fn+'.uxTidy'),true,fn+' wrapped');
+  let opened='';run('globalThis.__oa=showActivityCards;showActivityCards=()=>{globalThis.__opened="activity"}');
+  run('S.contract=null;showOperations()');assert.equal(run('globalThis.__opened'),'activity','operations → 目标/城市活动');
+  run('showActivityCards=globalThis.__oa');
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
