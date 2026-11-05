@@ -598,3 +598,9 @@ select{font:inherit;color:var(--ink);border:1px solid #dce3d3;background:#fff;pa
 @media (orientation:portrait) and (max-width:820px){
   .undo-build{top:calc(var(--hud-h) + var(--safe-t) + 50px);right:auto;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:9px 16px;border-radius:20px;font-size:12px;white-space:nowrap}
 }
+
+/* The construction-undo pill never covers an open sheet. */
+body:has(#modal:not([hidden])) .undo-build{display:none!important}
+.ux-help-body{padding:0 0 12px}
+.ux-help-body .infra-card{border-top:0;padding-top:0}
+.ux-help-body p{font-size:12px;line-height:1.8;color:#5f6f68}

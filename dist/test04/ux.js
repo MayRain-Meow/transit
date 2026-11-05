@@ -422,8 +422,9 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
     try {
       const keep = new Set();
       if (S && !modalOpen && !draft && !bridgeDraft) {
-        const band = fitBand(), stack = document.querySelector('.top-stack')?.getBoundingClientRect();
-        band.top = Math.max(band.top, stack && stack.height ? stack.bottom + 4 : 0);
+        const band = fitBand();
+        // Stay below the notices and the construction-undo pill so a pointer is never covered.
+        for (const sel of ['.top-stack', '.undo-build']) { const e = document.querySelector(sel); if (!e || e.hidden) continue; const r = e.getBoundingClientRect(); if (r.height) band.top = Math.max(band.top, r.bottom + 4); }
         const cx = W / 2, cy = (band.top + band.bottom) / 2;
         for (const c of realCities()) {
           const urgent = !c.dormant && c.warning > 0, fresh = c.dormant;
@@ -443,6 +444,7 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
       }
       for (const [id, el] of pills) if (!keep.has(id)) { el.remove(); pills.delete(id); }
     } catch {}
+    if (uxEl('toast')?.classList.contains('show')) uxPlaceToast();
     setTimeout(update, 150);
   }
   update();
@@ -479,8 +481,44 @@ function uxWrapLateDrawers() {
   }
   if (!drawCityEconomy.uxHandles) { const dce = drawCityEconomy; drawCityEconomy = function (...a) { dce.apply(this, a); uxDrawHandles(); }; drawCityEconomy.uxHandles = true; }
 }
-// events.js loads after this file and redefines some drawers, so wrap once every script has run.
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', uxWrapLateDrawers); else uxWrapLateDrawers();
+/* ---------- tidy sheets that later scripts extend ---------- */
+// Later layers append sections by string. These passes keep one header on top, drop entries that already have a
+// home elsewhere (tasks and ledger have their own buttons), and move per-city builds to the city sheet.
+function uxAfter(name, tidy) {
+  const f = globalThis[name]; if (typeof f !== 'function' || f.uxTidy) return;
+  const g = function (...a) { const r = f.apply(this, a); try { tidy(uxEl('modal-content')); } catch {} return r; };
+  g.uxTidy = true; globalThis[name] = g;
+}
+function uxHeadFirst(m) { const head = m.querySelector('.modal-head'); if (head && m.firstElementChild !== head) m.prepend(head); }
+function uxWrapLatePanels() {
+  uxAfter('showOperations', m => {
+    uxHeadFirst(m);
+    m.querySelectorAll('button[onclick^="showTasks"],button[onclick^="showFinance"],button[onclick^="closeModal();showTasks"]').forEach(b => b.remove());
+    m.querySelectorAll('.tabs').forEach(t => { if (!t.querySelector('button')) t.remove(); });
+  });
+  uxAfter('showEngineering', m => {
+    uxHeadFirst(m);
+    const lists = [...m.querySelectorAll('.task-cities')];
+    if (!lists.length) return;
+    lists.forEach(list => { const h = list.previousElementSibling; if (h?.tagName === 'H3') h.remove(); list.remove(); });
+    const cs = realCities().filter(c => !c.dormant);
+    const note = document.createElement('section'); note.className = 'infra-card';
+    note.innerHTML = `<h3>城市设施</h3><p>气象站 ${cs.filter(c => c.meteo).length} 座 · 交通枢纽 ${S.hubCount}/3 · 检修中心 ${cs.filter(c => c.repairCenter).length} 座<br>点地图上的城市，在城市详情里建设并预览覆盖范围。</p>`;
+    m.appendChild(note);
+  });
+  uxAfter('help', m => {
+    const last = [...m.querySelectorAll('details.ux-help')].at(-1); if (!last) return;
+    const extra = []; for (let n = last.nextElementSibling; n; n = n.nextElementSibling) if (!n.classList.contains('ux-foot')) extra.push(n);
+    if (!extra.length) return;
+    const d = document.createElement('details'); d.className = 'ux-help';
+    d.innerHTML = '<summary>版本新增（0.4–0.5）</summary>';
+    const body = document.createElement('div'); body.className = 'ux-help-body'; extra.forEach(n => body.appendChild(n)); d.appendChild(body);
+    last.after(d);
+  });
+}
+// events.js loads after this file and redefines some drawers and sheets, so wrap once every script has run.
+function uxLate() { uxWrapLateDrawers(); uxWrapLatePanels(); }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', uxLate); else uxLate();
 
 const uxText = text;
 text = function (t, x, y, size = 12, color, align) {

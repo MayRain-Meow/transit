@@ -113,5 +113,31 @@ test('merged UX keeps school maintenance and repair-centre controls and effects'
   run('previewRepairCenter(0);render();showMaintenance()');assert.match(node('modal-content').innerHTML,/学校−10%/);
 });
 test('new help explains both school savings and repair centres',()=>{fresh();run('help()');assert.match(node('modal-content').innerHTML,/检修中心/);assert.match(node('modal-content').innerHTML,/维护费−10%/);});
+test('portrait rotates the map and screen↔world conversions are inverse',()=>{
+  run('resize()');assert.equal(run('view.rot'),1);
+  const err=run('(()=>{let p={x:313.5,y:-87.25},q=toScreen(p),w=toWorld({clientX:q.x,clientY:q.y});return Math.hypot(w.x-p.x,w.y-p.y)})()');
+  assert(err<1e-9,'round trip error '+err);
+  run('fit()');const cities=run('JSON.stringify(realCities().map(c=>toScreen(c)))');const band=run('fitBand()');
+  for(const p of JSON.parse(cities)){assert(p.x>=12&&p.x<=378,'x '+p.x);assert(p.y>=band.top&&p.y<=band.bottom,'y '+p.y);}
+});
+test('dragging a line-end handle chains cities and backs off when retraced',()=>{
+  fresh();run('S.points=5000;draft={type:"bus",name:"大巴1线",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection();resize()');
+  const tail=run('JSON.stringify(uxHandles().find(h=>h.end==="tail"))');assert(tail,'tail handle exists');
+  const at=i=>run(`(()=>{let q=toScreen(S.cities[${i}]);return {clientX:q.x,clientY:q.y}})()`);
+  run('beginDraft("bus",S.lines[0].id);uxExt={id:1,line:S.lines[0].id,end:"tail",base:[...S.lines[0].stops],added:[],moved:true}');
+  run(`uxExtMove(${JSON.stringify(at(2))})`);assert.equal(run('JSON.stringify(draft.stops)'),'[0,1,2]');
+  run(`uxExtMove(${JSON.stringify(at(1))})`);assert.equal(run('JSON.stringify(draft.stops)'),'[0,1]');
+  run(`uxExtMove(${JSON.stringify(at(2))})`);run('uxExtFinish(false)');
+  const built=run('JSON.stringify(S.lines[0].stops)'),pending=run('draft&&JSON.stringify(draft.stops)');
+  assert(built==='[0,1,2]'||pending==='[0,1,2]','extension committed or waiting on the priced build button');
+  run('if(draft)cancelDraft(false)');
+});
+test('extending from the head prepends in travel order',()=>{
+  fresh();run('S.points=5000;draft={type:"bus",name:"大巴1线",color:"#c56544",stops:[1,2]};commitDraft(true);clearSelection();resize()');
+  const at=run('(()=>{let q=toScreen(S.cities[0]);return {clientX:q.x,clientY:q.y}})()');
+  run('beginDraft("bus",S.lines[0].id);uxExt={id:1,line:S.lines[0].id,end:"head",base:[...S.lines[0].stops],added:[],moved:true}');
+  run(`uxExtMove(${JSON.stringify(at)})`);assert.equal(run('JSON.stringify(draft.stops)'),'[0,1,2]');
+  run('uxExt=null;cancelDraft(false)');
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
