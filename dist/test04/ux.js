@@ -245,7 +245,7 @@ ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不�
 <div class="ux-fleet"><div><small>车辆</small><b>${vs.length}<span> 辆</span></b></div><div><small>载客</small><b>${load}<span> / ${seats}</span></b></div>
 <div class="ux-stepper"><button onclick="uxFleetMinus(${l.id})" ${!vs.some(v => !v.recall) ? 'disabled' : ''} aria-label="回收一辆">−</button><button class="primary" onclick="uxFleetPlus(${l.id})" ${canAdd ? '' : 'disabled'}>＋ ${inv > 0 ? '库存 ' + inv : '¥' + T.vehicle}</button></div></div>
 <div class="ux-route">${stops.map(id => `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`).join('<i>→</i>')}</div>
-<p class="ux-hint">拖动线路两端的 ＋ 可连续延长；拖线段经过城市可挂站、摘站。</p>
+
 ${vs.length ? `<div class="ux-list"><div class="ux-list-title">车辆与运行方案</div>${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${v.people.length}/${vehCap(v)} 人${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
 <div class="ux-actions-row">${l.type !== 'air' ? `<button onclick="openInfrastructure(${l.id})">道路升级</button>` : ''}<button class="ux-danger" onclick="uxDeleteLine(${l.id})">${uxArmedDelete?.id === l.id && uxArmedDelete.until > performance.now() ? '再点一次确认撤销' : '取消线路'}</button></div>`;
 }
@@ -257,8 +257,64 @@ const uxShowDetails = showDetails;
 showDetails = function (rebuild = true) {
   if (selected?.type === 'line') return uxLineSheet(rebuild);
   uxLineSheet.sig = null;
-  return uxShowDetails(rebuild);
+  const r = uxShowDetails(rebuild);
+  try { uxTidyCitySheet(); } catch {}
+  return r;
 };
+
+/* ---------- city sheet: numbers, goal, demand, facilities — no paragraphs ---------- */
+// Four script layers append to the city sheet. Instead of re-implementing them, re-arrange what they render:
+// waiting destinations become a row of chips, and every facility entry (weather station, hub, school/service,
+// repair centre, finance…) becomes one tile in an icon grid that says what it is for and what it costs.
+// Buttons keep their own onclick and disabled state, so upstream rules stay authoritative.
+const UX_FACILITIES = [
+  { on: /^buildMeteo|^previewMeteo/, name: '气象站', why: '范围内雨雾减速减半', icon: '<path d="M7 17h10a4 4 0 0 0 0-8 5 5 0 0 0-9.6-1.5A3.5 3.5 0 0 0 7 17z"/>' },
+  { on: /^buildHub/, name: '交通枢纽', why: '候车容量翻倍，换乘更快', icon: '<circle cx="12" cy="12" r="3"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/>' },
+  { on: /^showCityEconomy/, name: '服务与学校', why: '评价好可建学校，学生带来票款', icon: '<path d="M3 9l9-5 9 5-9 5-9-5z"/><path d="M7 11v5c3 2 7 2 10 0v-5"/>' },
+  { on: /^buildRepairCenter|^previewRepairCenter/, name: '检修中心', why: '附近施工与抢修工期最多−30%', icon: '<path d="M14 6a4 4 0 0 0-5 5l-5 5 3 3 5-5a4 4 0 0 0 5-5l-2 2-3-3 2-2z"/>' },
+  { on: /^buildFinance|^showFinanceConstruction|^openStockMarket|^showFinancialMarket/, name: '金融设施', why: '银行理财、证券交易', icon: '<path d="M3 20h18M5 16v-5M10 16V8M15 16V5M20 16v-8"/>' },
+];
+function uxTidyCitySheet() {
+  const el = uxEl('details');
+  if (!el || el.hidden || !selected || !['city', 'stop'].includes(selected.type) || el.querySelector('.ux-fac')) return;
+  // demand: chips instead of a captioned list
+  const rows = [...el.querySelectorAll(':scope > .destination-row')];
+  if (rows.length) {
+    const box = document.createElement('div'); box.className = 'ux-demand';
+    box.innerHTML = '<span class="ux-demand-label">等车去</span>';
+    rows[0].before(box);
+    for (const b of rows) {
+      const [who, meta] = [b.children[0], b.children[1]];
+      const n = (meta?.textContent || '').match(/(\d+)人/)?.[1] || '', wait = +((meta?.textContent || '').match(/·\s*(\d+)/)?.[1] || 0);
+      b.className = 'ux-chip' + (wait > 120 ? ' is-late' : '');
+      b.innerHTML = `<span style="color:${who?.style.color || ''}">${who?.innerHTML || ''}</span><b>${n}</b>${wait > 60 ? `<small>${wait}s</small>` : ''}`;
+      box.appendChild(b);
+    }
+    for (const p of el.querySelectorAll(':scope > p.detail-sub')) if (/候车目的地|没有旅客/.test(p.textContent) && !/没有旅客/.test(p.textContent)) p.remove();
+  }
+  // facilities: every known entry button becomes a tile
+  const tiles = [];
+  for (const b of [...el.querySelectorAll('button[onclick]')]) {
+    const call = b.getAttribute('onclick') || '', f = UX_FACILITIES.find(x => x.on.test(call));
+    if (!f || b.closest('.ux-fac')) continue;
+    const host = b.closest('.city-mission, .detail-actions');
+    const label = b.textContent.replace(/\s+/g, ' ').trim(), price = label.match(/¥[\d,]+/)?.[0] || '';
+    const state = f.name === '服务与学校' ? (host?.querySelector('b')?.textContent.split('·')[1]?.trim() || '') : (label.match(/\d+\/\d+/)?.[0] || (/已建|覆盖|查看/.test(label) ? '已建' : ''));
+    const tile = document.createElement('button');
+    tile.className = 'ux-fac-tile'; tile.setAttribute('onclick', call); tile.disabled = b.disabled; tile.title = label;
+    tile.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${f.icon}</svg><span><b>${f.name}</b><small>${f.why}</small></span><em>${price || state || '›'}</em>`;
+    tiles.push(tile);
+    b.remove();
+    if (host && !host.querySelector('button')) host.remove();
+  }
+  if (tiles.length) {
+    const grid = document.createElement('div'); grid.className = 'ux-fac';
+    grid.innerHTML = '<div class="ux-list-title">城市设施</div>';
+    tiles.forEach(t => grid.appendChild(t));
+    el.appendChild(grid);
+  }
+  for (const n of el.querySelectorAll(':scope > .detail-actions')) if (!n.querySelector('button')) n.remove();
+}
 
 /* ---------- tasks ---------- */
 function uxMissionDetail(c, spec) {
@@ -544,12 +600,52 @@ function uxAfter(name, tidy) {
   g.uxTidy = true; globalThis[name] = g;
 }
 function uxHeadFirst(m) { const head = m.querySelector('.modal-head'); if (head && m.firstElementChild !== head) m.prepend(head); }
+const UX_HELP_TOPICS = [[/开局|一条命|补助/, '资金与生命'], [/候客|满员|拥堵|扣命/, '等待与扣命'], [/任务|成长|维护费|欠费/, '任务、收入与维护'], [/解锁|名额|每\d+天/, '交通方式与名额'], [/学校|检修/, '学校与检修中心'], [/金融|银行|证券|股票|理财/, '金融市场'], [/活动|邀请|卡/, '城市活动']];
+function uxFoldRules(m) {
+  if (m.querySelector('.ux-rules')) return;
+  // Stand-alone rule paragraphs fold away; a short line inside a feature card says what the feature is for and stays.
+  const long = [...m.querySelectorAll(':scope > p')].filter(p => p.textContent.trim().length > 30 && !p.querySelector('button, input'));
+  if (!long.length) return;
+  const d = document.createElement('details'); d.className = 'ux-rules'; d.innerHTML = '<summary>规则说明</summary>';
+  long[0].before(d); long.forEach(p => d.appendChild(p));
+}
+function uxHowToPlay(m) {
+  const head = m.querySelector('.modal-head'); if (head?.querySelector('h2')) head.querySelector('h2').textContent = '怎么玩';
+  const steps = document.createElement('ol'); steps.className = 'ux-steps';
+  steps.innerHTML = [
+    ['连线', '从一座城市拖到另一座，看底栏报价，点「建设」。'],
+    ['配车', '点线路，用「＋」加车；拖线路两端的「＋」延长。'],
+    ['送客', '乘客的色块就是目的地，送到同色同形的城市。候车太久会扣命。'],
+    ['成长', '完成城市任务拿奖金、城市升级；每 10 天补助，月底付维护。'],
+  ].map(([t, d], i) => `<li><i>${i + 1}</i><span><b>${t}</b>${d}</span></li>`).join('');
+  (head || m.firstChild)?.after(steps);
+  // upstream rule paragraphs → topics (first one open)
+  const paras = [...m.querySelectorAll(':scope > p, :scope > section.infra-card')];
+  const groups = new Map();
+  for (const p of paras) {
+    const t = p.textContent, title = (UX_HELP_TOPICS.find(([re]) => re.test(t)) || [, '更多规则'])[1];
+    if (!groups.has(title)) groups.set(title, []);
+    groups.get(title).push(p);
+  }
+  let anchor = steps;
+  for (const [title, ps] of groups) {
+    const d = document.createElement('details'); d.className = 'ux-help';
+    d.innerHTML = `<summary>${title}</summary>`;
+    const body = document.createElement('div'); body.className = 'ux-help-body'; ps.forEach(p => body.appendChild(p)); d.appendChild(body);
+    anchor.after(d); anchor = d;
+  }
+  // remaining buttons/links (ledger, market, changelog) stay at the end as a quiet row
+  const tail = [...m.querySelectorAll(':scope > button, :scope > a')];
+  if (tail.length) { const row = document.createElement('div'); row.className = 'ux-help-links'; tail.forEach(x => row.appendChild(x)); m.appendChild(row); }
+}
 function uxWrapLatePanels() {
   uxAfter('showOperations', m => {
     uxHeadFirst(m);
     m.querySelectorAll('button[onclick^="showTasks"],button[onclick^="showFinance"],button[onclick^="closeModal();showTasks"]').forEach(b => b.remove());
     m.querySelectorAll('.tabs').forEach(t => { if (!t.querySelector('button')) t.remove(); });
+    uxFoldRules(m);
   });
+  for (const name of ['showFinance', 'shop']) uxAfter(name, m => uxFoldRules(m));
   uxAfter('showEngineering', m => {
     uxHeadFirst(m);
     const lists = [...m.querySelectorAll('.task-cities')];
@@ -561,11 +657,12 @@ function uxWrapLatePanels() {
     m.appendChild(note);
   });
   uxAfter('help', m => {
+    if (!m.querySelector('.ux-steps')) uxHowToPlay(m);
     const last = [...m.querySelectorAll('details.ux-help')].at(-1); if (!last) return;
     const extra = []; for (let n = last.nextElementSibling; n; n = n.nextElementSibling) if (!n.classList.contains('ux-foot')) extra.push(n);
     if (!extra.length) return;
     const d = document.createElement('details'); d.className = 'ux-help';
-    d.innerHTML = '<summary>版本新增（0.4–0.5）</summary>';
+    d.innerHTML = '<summary>更新说明</summary>';
     const body = document.createElement('div'); body.className = 'ux-help-body'; extra.forEach(n => body.appendChild(n)); d.appendChild(body);
     last.after(d);
   });

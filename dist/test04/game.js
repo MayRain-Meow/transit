@@ -148,6 +148,8 @@ function drawTerrain(){
 // Portrait paints the same world rotated 90° clockwise (see toScreen); switching orientation rebuilds it, so memory stays at one cache.
 let r=view.rot?1:0;
 if(!terrainCache||(terrainCache.rot||0)!==r){let cache=document.createElement('canvas');cache.width=r?1440:2400;cache.height=r?2400:1440;let live=ctx;try{ctx=cache.getContext('2d');ctx.scale(1.2,1.2);if(r){ctx.translate(1000,300);ctx.rotate(Math.PI/2);}else ctx.translate(300,200);paintTerrain();cache.rot=r;terrainCache=cache;}finally{ctx=live;}}
+// Far cities sit outside the cached rectangle (west of x=-300): continue the land and the open sea so the cache edge never shows.
+ctx.fillStyle='#faf9f2';ctx.fillRect(-4000,-3000,9000,7000);ctx.fillStyle='#edf4f2';ctx.fillRect(Math.max(coast(-150),coast(1000))+90,-3000,5000,7000);
 if(r){ctx.save();ctx.rotate(-Math.PI/2);ctx.drawImage(terrainCache,-1000,-300,1200,2000);ctx.restore();}else ctx.drawImage(terrainCache,-300,-200,2000,1200);
 }
 let laneSignature='',laneOffsets=new Map();
