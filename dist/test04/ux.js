@@ -606,6 +606,8 @@ for (const [name, radius] of [['previewMeteo', c => meteoPreview?.radius || 240]
 /* ---------- map legibility: halos, fewer squares, quiet decorations while you work ---------- */
 globalThis.TEXT_HALO = '#fffef9e6';   // soft outline keeps labels readable over lines and buildings
 globalThis.QUEUE_SHOWN = 12;           // two rows of waiting squares, then "+n"
+globalThis.TIMERS_BELOW = true;        // countdowns sit under the name, not on the buildings
+globalThis.SUBTITLE_MIN_SCALE = .8;    // "旅游 · 小镇" only when zoomed in (or the city is selected)
 (function quietArt() {
   const art = drawCityArt;
   drawCityArt = function (c) {
