@@ -21,7 +21,7 @@ node('dock').rect={left:12,right:378,top:776,bottom:834};
 node('routes').rect={left:12,right:378,top:610,bottom:766};
 const storage = new Map();
 const context = {console,document:{getElementById:node,createElement:()=>node('offscreen'),addEventListener(){},activeElement:{tagName:'BODY'},
-  querySelector:s=>({'header':node('header'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details')}[s]||null)},
+  querySelector:s=>({'header':node('header'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details'),'.top-stack':node('top-stack')}[s]||null)},
   innerWidth:390,innerHeight:844,devicePixelRatio:1,window:{addEventListener(){}},screen:{},performance:{now:()=>100},addEventListener(){},
   localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
 vm.createContext(context);
@@ -196,6 +196,17 @@ test('extension tabs: quiet while browsing, ~44px target when a line is selected
   assert.equal(run(`uxHandleAt(${h.p.x+ox},${h.p.y+oy})?.end`),'tail','20px off-centre still grabs the tab');
   assert.equal(run(`uxHandleAt(${h.c.x},${h.c.y})`),null,'pressing the end city node is a city tap, not the tab');
   run('clearSelection()');
+});
+test('full sheet with a notice on top: the sheet still bounds the map and the city is framed above it',()=>{
+  fresh();run('resize();openCity(1)');
+  const stack=node('top-stack'),d=node('details');stack.hidden=false;stack.rect={left:16,right:374,top:66,bottom:104,width:358,height:38};
+  d.hidden=false;d.classList.add('is-full');d.rect={left:12,right:378,top:148,bottom:776};
+  try{
+    const rect=JSON.parse(run('JSON.stringify(uxVisibleRect())'));
+    assert(rect.b<=148-12,'bottom '+rect.b+' stays above the sheet');assert(rect.b-rect.t>=40,'room left: '+rect.t+'..'+rect.b);
+    run('animateView=t=>Object.assign(view,t);uxFrameSelection()');
+    const c=JSON.parse(run('JSON.stringify(toScreen(S.cities[1]))'));assert(c.y>=rect.t&&c.y<=rect.b,'city y '+c.y);
+  }finally{d.classList.remove('is-full');d.hidden=true;delete d.rect;delete stack.rect;stack.hidden=true;}
 });
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;

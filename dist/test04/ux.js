@@ -319,7 +319,9 @@ updateBridgeBar = function () { uxResetDrawExtras(); uxBridgeBar(); };
   function step() {
     try {
       const extending = ptr && uxExt && ptr.pointerId === uxExt.id;
-      if (extending || ptr && gesture && pointers.size === 1 && ['draft', 'city-edit', 'elastic'].includes(gesture.kind)) {
+      // Only after the finger has travelled: grabbing a tab or city that already sits near an edge must not scroll the map.
+      const start = extending ? { x: uxExt.x0, y: uxExt.y0 } : gesture?.start, travelled = !ptr || !start || Math.hypot(ptr.clientX - start.x, ptr.clientY - start.y) > 24;
+      if (travelled && (extending || ptr && gesture && pointers.size === 1 && ['draft', 'city-edit', 'elastic'].includes(gesture.kind))) {
         const top = (document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8;
         const bar = uxEl('drawbar'), bottom = bar && !bar.hidden ? bar.getBoundingClientRect().top - 8 : H - 8;
         const edge = 44, push = d => 7 * Math.min(1, d / edge);
@@ -476,7 +478,20 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
           const secs = urgent ? Math.ceil(c.warning) : typeof cityOpeningRemaining === 'function' ? cityOpeningRemaining(c) : null;
           el.className = 'ux-edge-pill' + (urgent ? ' is-urgent' : '');
           el.innerHTML = `<i style="transform:rotate(${Math.atan2(dy, dx)}rad)">➜</i><span>${urgent ? '告急 ' : '新城 '}${escapeHTML(c.name)}</span>${secs !== null ? `<small>${secs}s</small>` : ''}`;
-          el.style.left = (cx + dx * k) + 'px'; el.style.top = (cy + dy * k) + 'px';
+          // Never cover a city that is on screen (a tap meant for it would fly the camera away): slide the pill along
+          // its edge — vertically on the left/right edges, horizontally on the top/bottom — until it is clear.
+          let px = cx + dx * k, py = cy + dy * k;
+          const halfW = (el.offsetWidth || 120) / 2 + 10, halfH = (el.offsetHeight || 34) / 2 + 10, alongY = sx <= sy;
+          const nodes = realCities().map(o => toScreen(o)).filter(q => q.x > 0 && q.x < W && q.y > band.top && q.y < band.bottom);
+          const covers = (x, y) => nodes.some(q => Math.abs(q.x - x) < halfW + 14 && Math.abs(q.y - y) < halfH + 14);
+          let clear = false;
+          for (const off of [0, 40, -40, 80, -80, 120, -120, 160, -160]) {
+            const x = alongY ? px : Math.min(W - halfW, Math.max(halfW, px + off)), y = alongY ? Math.min(band.bottom - halfH, Math.max(band.top + halfH, py + off)) : py;
+            if (!covers(x, y)) { px = x; py = y; clear = true; break; }
+          }
+          // No free spot along this edge: the city wins, the pointer waits until the map moves.
+          el.hidden = !clear;
+          el.style.left = px + 'px'; el.style.top = py + 'px';
           el.setAttribute('aria-label', (urgent ? '告急城市 ' : '新城镇 ') + c.name + '，点击前往');
           keep.add(c.id);
         }
@@ -576,8 +591,9 @@ text = function (t, x, y, size = 12, color, align) {
 function uxViewFor(p, cx, cy, s) { return view.rot ? { x: cx + p.y * s, y: cy - p.x * s, scale: s } : { x: cx - p.x * s, y: cy - p.y * s, scale: s }; }
 function uxVisibleRect() {
   const header = (document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8;
-  const rect = { l: 14, r: W - 14, b: H - 12,
-    t: Math.max(header, ...['.top-stack', '.undo-build'].map(q => { const e = document.querySelector(q); const r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height ? r.bottom + 12 : 0; })) };
+  // Panels are cut first against the header alone; notices and the undo pill are overlays applied afterwards.
+  const overlays = Math.max(0, ...['.top-stack', '.undo-build'].map(q => { const e = document.querySelector(q); const r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height ? r.bottom + 12 : 0; }));
+  const rect = { l: 14, r: W - 14, b: H - 12, t: header };
   // Panels can sit at the bottom (portrait sheets, docks) or at a side (landscape details, route list).
   // For each one that overlaps the map, trim whichever edge keeps the larger usable area.
   for (const q of ['#details', '#routes', 'footer .dock', '#drawbar']) {
@@ -590,8 +606,9 @@ function uxVisibleRect() {
     if (!options.length) continue;
     Object.assign(rect, options.reduce((x, y) => (y.r - y.l) * (y.b - y.t) > (x.r - x.l) * (x.b - x.t) ? y : x));
   }
-  // Tight space (portrait sheet fully expanded): notices are overlays and may be overlapped, panels may not.
-  if (rect.b - rect.t < 80) rect.t = Math.min(rect.t, header);
+  // Keep clear of the notices only when that still leaves real room (a fully expanded portrait sheet does not):
+  // overlays may be overlapped, panels may not.
+  if (rect.b - Math.max(rect.t, overlays) >= 80) rect.t = Math.max(rect.t, overlays);
   return rect;
 }
 // Move (and only if needed, zoom out) so every world point plus its padding sits inside the visible rect.
@@ -726,6 +743,9 @@ addEventListener('resize', () => uxApplyPlayView(false));
 // Framing for an open sheet may zoom out; closing the sheet brings the earlier view back, unless the player
 // moved the map in between. Repeated open/close therefore never ratchets the scale down.
 let uxFrameRestore = null;   // { from: view before the first automatic framing, to: view after the latest one }
+// Remember the end state of every camera animation, so "is the view still where our framing put it?" needs no timers.
+let uxLastViewTarget = null;
+(function () { const anim = animateView; animateView = function (t, ms) { uxLastViewTarget = { x: t.x, y: t.y, scale: t.scale }; return anim(t, ms); }; animateView.id = anim.id; Object.defineProperty(animateView, 'id', { get: () => anim.id, set: v => { anim.id = v; } }); })();
 (function () {
   const frame = uxFrame, near = (p, q) => q && Math.abs(p.scale - q.scale) < 1e-3 && Math.abs(p.x - q.x) < 3 && Math.abs(p.y - q.y) < 3;
   uxFrame = function (points, pad) {
@@ -733,13 +753,14 @@ let uxFrameRestore = null;   // { from: view before the first automatic framing,
     frame(points, pad);
     if (animateView.id === id0) return;              // nothing moved
     if (!uxFrameRestore) uxFrameRestore = { from: before, to: null };
-    const r = uxFrameRestore, myId = animateView.id;
-    setTimeout(() => { if (uxFrameRestore === r && animateView.id === myId) r.to = { x: view.x, y: view.y, scale: view.scale }; }, 380);
+    uxFrameRestore.to = uxLastViewTarget;           // where our own framing ends up
   };
   const d = uxEl('details');
   if (d?.getBoundingClientRect && typeof MutationObserver !== 'undefined') new MutationObserver(() => {
     if (!d.hidden || !uxFrameRestore) return;
     const r = uxFrameRestore; uxFrameRestore = null;
+    // The sheet also hides when a line edit starts: the map must stay put under the finger.
+    if (draft || uxExt || bridgeDraft) return;
     // Only undo our own framing: if the player panned or zoomed after it, their view stays.
     if (near(view, r.to)) animateView(r.from, 280);
   }).observe(d, { attributes: true, attributeFilter: ['hidden'] });

@@ -633,3 +633,10 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
   #notice-close{width:28px;height:28px}
 }
 #overview.is-on{background:var(--ink);color:#fff}
+
+/* Portrait, details fully expanded: the strip above the sheet belongs to the selected city, so notices and
+   off-screen pointers step aside until the sheet is collapsed or closed. */
+@media (orientation:portrait) and (max-width:820px){
+  body:has(#details.is-full:not([hidden])) .top-stack,
+  body:has(#details.is-full:not([hidden])) #ux-edge{opacity:0;visibility:hidden}
+}
