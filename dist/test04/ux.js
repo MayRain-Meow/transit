@@ -76,7 +76,7 @@ welcome = function (hasSave) {
   openModal(`<div class="ux-hero"><span class="eyebrow">东岸 · 0.5 城市活动版</span><h1>从一条线，带动一座城。</h1>
 <p class="ux-lead">从一座城市拖向另一座，修出线路、派出车辆，把乘客送到与他们标记同色同形的城市。完成城市任务拿奖金，看小镇长大。</p></div>
 <ul class="ux-points">
-<li><i>¥</i><span><b>起步 ¥500</b>大巴 ¥180，拉线另计建设费，报价就在底栏</span></li>
+<li><i>¥</i><span><b>起步资金有限</b>大巴 ¥${TYPES.bus.vehicle}，拉线另计建设费，报价就在底栏</span></li>
 <li><i>↗</i><span><b>任务推动繁荣</b>点城市或「任务」查看阶段目标，奖金自动到账</span></li>
 <li><i>♥</i><span><b>别让乘客久等</b>候客厅持续满员才会失去生命</span></li>
 </ul>
@@ -105,9 +105,9 @@ ${sec('乘客与任务', [
     '每座城市有 6 个阶段任务，奖金自动到账；连续类任务中断只重置天数，不扣钱。',
     '新城镇需要拉线接通才会产生乘客，接通后有 45 秒宽限。'])}
 ${sec('资金与车辆', [
-    '大巴 ¥180 · 动车 ¥560 · 高铁 ¥900 · 飞机 ¥1600。新车进库存，在线路详情里点「＋」加车（没有库存会直接购买）。',
+    uxTypes().map(t => TYPES[t].name + ' ¥' + TYPES[t].vehicle).join(' · ') + '。新车进库存，在线路详情里点「＋」加车（没有库存会直接购买）。',
     '票款按起终点距离 1 / 2 / 3，乘坐方式加权：动车 ×1.4，高铁 ×1.8，飞机 ×3。',
-    '每 10 天补助 ¥100；道路月底收维护费，账本里可看预计支出、拆除闲置道路。',
+    '每 10 天固定补助；道路月底收维护费，账本里可看预计支出、拆除闲置道路。',
     '动车、高铁可加车厢（最多8节），回库存后保留编组。取消线路可保留资产，或回收闲置道路50%、车辆车厢70%。',
     '刚完成建线、改线、建桥或升级后，20秒内可点右上「撤回」全额退款；已载客、被共用或开始后续付费建设时不适用。'])}
 ${sec('工程与天气', [
@@ -115,7 +115,7 @@ ${sec('工程与天气', [
     '<b>道路升级</b>：线路详情 → 道路升级，施工期间该路段减速 30%。',
     '<b>气象站</b>范围内天气减速减半；<b>交通枢纽</b>候车容量翻倍，基础最多 3 座，六星活动可增加名额；换乘准备−30%，附近进站提速15%。',
     '7 月下旬至 9 月可能有台风；第 150 天后有小概率地震，受损路段可在工程里维修。',
-    '<b>检修中心</b>：中大城市可建，¥500、半径300，新开工升级和抢修工期最多缩短30%，部分覆盖按长度折算。'])}
+    '<b>检修中心</b>：中大城市可建，¥' + (typeof REPAIR_CENTER_COST === 'number' ? REPAIR_CENTER_COST : '') + '、半径300，新开工升级和抢修工期最多缩短30%，部分覆盖按长度折算。'])}
 ${sec('运营与解锁', [
     '<b>商演</b>：运营 → 筹办，观众带音符，前往举办城市后再返程。',
     '<b>服务合同</b>：10 天内完成指定城市的有效运输，达标得奖金，未达标不扣钱。',
@@ -274,7 +274,7 @@ showTasks = function () {
   openModal(`<div class="modal-head"><div><h2>城市任务</h2><small>已完成 ${done} 项 · 点城市在地图上定位</small></div><button class="close" onclick="closeModal()">×</button></div>
 <div class="ux-tasks">${cs.map(c => {
     const spec = c.dormant ? null : missionSpec(c), pct = spec ? Math.min(100, c.mission.progress / spec.goal * 100) : 0;
-    return `<button class="ux-task${c.dormant ? ' is-dormant' : ''}" onclick="uxFocusCity(${c.id})"><span class="ux-task-top"><b>${escapeHTML(c.name)}</b><small>${FEATURES[c.shape].name} · ${LEVELS[c.size]}</small>${spec ? `<em>+¥${spec.reward + (spec.upgrade ? 60 : 0)}</em>` : ''}</span>
+    return `<button class="ux-task${c.dormant ? ' is-dormant' : ''}" onclick="uxFocusCity(${c.id})"><span class="ux-task-top"><b>${escapeHTML(c.name)}</b><small>${FEATURES[c.shape].name} · ${LEVELS[c.size]}</small>${spec ? `<em>+¥${spec.reward + (spec.upgrade ? 600 : 0)}</em>` : ''}</span>
 <span class="ux-task-title">${c.dormant ? '待接入 · '+cityOpeningRemaining(c)+'秒后自动开放' : spec ? `阶段 ${c.mission.step + 1}/6 · ${escapeHTML(spec.title || spec.verb || '')}` : '全部阶段已完成'}</span>
 ${spec ? `<span class="ux-bar"><i style="width:${pct}%"></i></span><small class="ux-task-meta">${uxMissionDetail(c, spec)}${spec.upgrade ? ' · 完成后升级' : ''}</small>` : ''}</button>`;
   }).join('')}</div>`);

@@ -1,0 +1,34 @@
+{
+  "initial": 500,
+  "vehicles": {
+    "bus": 160,
+    "rail": 900,
+    "air": 1600,
+    "emu": 560
+  },
+  "cars": {
+    "emu": 70,
+    "rail": 110
+  },
+  "school": 380,
+  "center": 500,
+  "station": 260,
+  "bridge": 150,
+  "mission": 70,
+  "fare": 1,
+  "cards": [
+    130,
+    180,
+    300,
+    420,
+    600,
+    850
+  ],
+  "contract": 100,
+  "route": 230,
+  "maintenance": 6.87,
+  "upgrade": 111,
+  "repair": 56,
+  "discountBus": 152,
+  "discountUpgrade": 106
+}

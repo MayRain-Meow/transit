@@ -29,7 +29,8 @@ for (const file of ['game','progression','world','economy','management','ux','ev
 const run = code => vm.runInContext(code,context);
 const checks = [];
 function test(name,fn){try{fn();checks.push({name,passed:true});}catch(error){checks.push({name,passed:false,error:error.message});}}
-const fresh = () => run('reset();closeModal();clearSelection();S.points=500;updateUI()');
+// Money follows the game's own prices (1.1 multiplied transport money by 10): START buys three buses, RICH is plenty.
+const fresh = () => run('reset();closeModal();clearSelection();globalThis.START=TYPES.bus.vehicle*3;globalThis.RICH=TYPES.bus.vehicle*60;S.points=START;updateUI()');
 
 test('new route starts drawing directly, without a type dialog',()=>{
   fresh();run('chooseType()');
@@ -39,14 +40,14 @@ test('drawing bar shows an itemised quote and a priced build button',()=>{
   run('draft.stops=[0,1];draftBar()');
   const cost=run('draftCost()');
   assert.equal(node('drawdone').textContent,'建设 ¥'+cost.cash);assert.equal(node('db-cost').hidden,false);
-  assert.match(node('db-cost').innerHTML,/线路 ¥\d+/);assert.match(node('db-cost').innerHTML,/首辆大巴 ¥180/);
+  assert.match(node('db-cost').innerHTML,/线路 ¥\d+/);assert.match(node('db-cost').innerHTML,new RegExp('首辆大巴 ¥'+run('TYPES.bus.vehicle')));
 });
 test('undo removes only the last stop',()=>{
   run('draft.stops=[0,1,2];draftBar()');node('drawundo').onclick();assert.equal(run('JSON.stringify(draft.stops)'),'[0,1]');
 });
 test('build commits from the bar without a confirmation dialog',()=>{
   const cost=run('draftCost().cash');node('drawdone').onclick();
-  assert.equal(run('S.lines.length'),1);assert.equal(run('S.points'),500-cost);assert.equal(node('modal').hidden,true);assert.equal(run('!!draft'),false);
+  assert.equal(run('S.lines.length'),1);assert.equal(run('S.points'),run('START')-cost);assert.equal(node('modal').hidden,true);assert.equal(run('!!draft'),false);
 });
 test('line sheet renders the fleet stepper and route chips once per change',()=>{
   run('selectLine(S.lines[0].id)');const html=node('details').innerHTML;
@@ -54,8 +55,8 @@ test('line sheet renders the fleet stepper and route chips once per change',()=>
   run('for(let i=0;i<5;i++)showDetails(false)');assert.equal(node('details').innerHTML,html);
 });
 test('fleet plus buys when stock is empty and minus returns a vehicle to stock',()=>{
-  run('S.points=1000');const n=run('S.vehicles.length');
-  run('uxFleetPlus(S.lines[0].id)');assert.equal(run('S.vehicles.length'),n+1);assert.equal(run('S.points'),820);
+  run('S.points=RICH');const n=run('S.vehicles.length'),p0=run('S.points'),price=run('TYPES.bus.vehicle');
+  run('uxFleetPlus(S.lines[0].id)');assert.equal(run('S.vehicles.length'),n+1);assert.equal(run('S.points'),p0-price);
   run('uxFleetMinus(S.lines[0].id)');assert.equal(run('S.vehicles.length'),n);assert.equal(run('S.inventory.bus'),1);
 });
 test('line cancellation shows recovery quote and requires explicit confirmation',()=>{
@@ -86,7 +87,7 @@ test('bridge bar does not keep the previous route quote, types or undo',()=>{
   run('bridgeDraft=null;cancelDraft(false)');
 });
 test('add-carriage button follows the balance on passive refreshes',()=>{
-  fresh();run('S.unlocked=["bus","emu"];S.limits.emu=1;S.points=5000;S.inventory.emu=1;draft={type:"emu",name:"动车1线",color:"#4f86a8",stops:[0,1]};commitDraft(true);selectLine(S.lines.at(-1).id)');
+  fresh();run('S.unlocked=["bus","emu"];S.limits.emu=1;S.points=RICH;S.inventory.emu=1;draft={type:"emu",name:"动车1线",color:"#4f86a8",stops:[0,1]};commitDraft(true);selectLine(S.lines.at(-1).id)');
   const price=run('carPrice(S.vehicles.find(v=>v.type==="emu"))');
   const button=()=>node('details').innerHTML.match(/<button onclick="upgradeCar\(\d+\)"([^>]*)>/)[1];
   run(`S.points=${price}-1;showDetails(false)`);assert.match(button(),/disabled/);
@@ -94,18 +95,18 @@ test('add-carriage button follows the balance on passive refreshes',()=>{
 });
 test('UX shop keeps upstream train-car purchasing and refreshes its quote',()=>{
   fresh();run('shop()');assert.match(node('modal-content').innerHTML,/暂无可扩容列车/);
-  run('S.unlocked=["bus","emu","rail"];S.limits.emu=S.limits.rail=2;S.points=20000;beginDraft("emu");draft.stops=[0,1];commitDraft(true);beginDraft("rail");draft.stops=[1,2];commitDraft(true);shop()');
-  const id=run('S.vehicles.find(v=>v.type==="emu").id'), before=run('S.points');
+  run('S.unlocked=["bus","emu","rail"];S.limits.emu=S.limits.rail=2;S.points=RICH;beginDraft("emu");draft.stops=[0,1];commitDraft(true);beginDraft("rail");draft.stops=[1,2];commitDraft(true);shop()');
+  const id=run('S.vehicles.find(v=>v.type==="emu").id'), before=run('S.points'), price=run(`carPrice(S.vehicles.find(v=>v.id===${id}))`);
   assert.match(node('modal-content').innerHTML,new RegExp(`purchaseTrainCar\\(${id},2\\)`));
   assert.match(node('modal-content').innerHTML,/动车 \/ 高铁 · 增加车厢/);
   run(`purchaseTrainCar(${id},2)`);
-  assert.equal(run('S.points'),before-70);assert.equal(run(`S.vehicles.find(v=>v.id===${id}).cars`),3);
+  assert.equal(run('S.points'),before-price);assert.equal(run(`S.vehicles.find(v=>v.id===${id}).cars`),3);
   assert.equal(run('S.vehicles.find(v=>v.type==="rail").cars'),2);
   assert.match(node('modal-content').innerHTML,new RegExp(`purchaseTrainCar\\(${id},3\\)`));
-  assert.match(node('modal-content').innerHTML,/＋1节车厢 · ¥90/);
+  assert.match(node('modal-content').innerHTML,new RegExp('＋1节车厢 · ¥'+run(`carPrice(S.vehicles.find(v=>v.id===${id}))`)));
 });
 test('merged UX keeps school maintenance and repair-centre controls and effects',()=>{
-  fresh();run('S.points=20000;S.cities[0].size=1;confirmSchool(0);cityService(S.cities[0]).rating="良";beginDraft("bus");draft.stops=[0,1];commitDraft(true);showCityEconomy(0)');
+  fresh();run('S.points=RICH;S.cities[0].size=1;confirmSchool(0);cityService(S.cities[0]).rating="良";beginDraft("bus");draft.stops=[0,1];commitDraft(true);showCityEconomy(0)');
   assert.match(node('modal-content').innerHTML,/维护减免生效/);assert.match(node('modal-content').innerHTML,/检修中心/);
   assert(run('maintenanceAssets().some(a=>a.schoolDiscount===.1)'));
   run('var roadKey=Object.keys(S.infrastructure)[0],before=upgradeQuote(roadKey).days;confirmRepairCenter(0);showEngineering()');
@@ -121,7 +122,7 @@ test('portrait rotates the map and screen↔world conversions are inverse',()=>{
   for(const p of JSON.parse(cities)){assert(p.x>=12&&p.x<=378,'x '+p.x);assert(p.y>=band.top&&p.y<=band.bottom,'y '+p.y);}
 });
 test('dragging a line-end handle chains cities and backs off when retraced',()=>{
-  fresh();run('S.points=5000;draft={type:"bus",name:"大巴1线",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection();resize()');
+  fresh();run('S.points=RICH;draft={type:"bus",name:"大巴1线",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection();resize()');
   const tail=run('JSON.stringify(uxHandles().find(h=>h.end==="tail"))');assert(tail,'tail handle exists');
   const at=i=>run(`(()=>{let q=toScreen(S.cities[${i}]);return {clientX:q.x,clientY:q.y}})()`);
   run('beginDraft("bus",S.lines[0].id);uxExt={id:1,line:S.lines[0].id,end:"tail",base:[...S.lines[0].stops],added:[],moved:true}');
@@ -133,14 +134,14 @@ test('dragging a line-end handle chains cities and backs off when retraced',()=>
   run('if(draft)cancelDraft(false)');
 });
 test('extending from the head prepends in travel order',()=>{
-  fresh();run('S.points=5000;draft={type:"bus",name:"大巴1线",color:"#c56544",stops:[1,2]};commitDraft(true);clearSelection();resize()');
+  fresh();run('S.points=RICH;draft={type:"bus",name:"大巴1线",color:"#c56544",stops:[1,2]};commitDraft(true);clearSelection();resize()');
   const at=run('(()=>{let q=toScreen(S.cities[0]);return {clientX:q.x,clientY:q.y}})()');
   run('beginDraft("bus",S.lines[0].id);uxExt={id:1,line:S.lines[0].id,end:"head",base:[...S.lines[0].stops],added:[],moved:true}');
   run(`uxExtMove(${JSON.stringify(at)})`);assert.equal(run('JSON.stringify(draft.stops)'),'[0,1,2]');
   run('uxExt=null;cancelDraft(false)');
 });
 test('overlapping end handles hit the selected (visible) line, never a hidden one',()=>{
-  fresh();run('S.points=9000;for(const n of [1,2]){draft={type:"bus",name:"线"+n,color:n===1?"#c56544":"#4f86a8",stops:[0,1]};commitDraft(true);}clearSelection();resize()');
+  fresh();run('S.points=RICH;for(const n of [1,2]){draft={type:"bus",name:"线"+n,color:n===1?"#c56544":"#4f86a8",stops:[0,1]};commitDraft(true);}clearSelection();resize()');
   const [a,b]=JSON.parse(run('JSON.stringify(S.lines.map(l=>l.id))'));
   const knob=id=>run(`(()=>{let h=uxHandles().find(h=>h.line.id===${id}&&h.end==="tail"),p=toScreen(h);return JSON.stringify(p)})()`);
   assert.equal(knob(a),knob(b),'the two tails coincide');
@@ -164,7 +165,7 @@ test('landscape side details panel trims the right edge, not the map height',()=
   try{
     context.innerWidth=844;context.innerHeight=390;node('header').rect={left:0,right:844,top:0,bottom:54};
     node('routes').rect={left:16,right:216,top:150,bottom:376};node('dock').rect={left:236,right:828,top:338,bottom:380};
-    fresh();run('resize();S.points=9000;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1,2]};commitDraft(true);selectLine(S.lines[0].id)');
+    fresh();run('resize();S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1,2]};commitDraft(true);selectLine(S.lines[0].id)');
     assert.equal(run('view.rot'),0,'landscape is not rotated');
     const d=node('details');d.hidden=false;d.rect={left:536,right:820,top:60,bottom:322};
     const rect=JSON.parse(run('JSON.stringify(uxVisibleRect())'));
@@ -178,7 +179,7 @@ test('landscape side details panel trims the right edge, not the map height',()=
   }finally{context.innerWidth=save.w;context.innerHeight=save.h;node('header').rect=save.header;node('routes').rect=save.routes;node('dock').rect=save.dock;run('resize()');}
 });
 test('vehicles follow their heading: no upright turn inside vehicle drawing, labels still upright in portrait',()=>{
-  fresh();run('resize();S.points=9000;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection()');
+  fresh();run('resize();S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection()');
   const turns=code=>JSON.parse(run(`(()=>{const out=[];ctx.rotate=a=>out.push(a);ctx.getTransform=()=>({a:0,b:1,c:-1,d:0});try{${code}}finally{delete ctx.rotate;delete ctx.getTransform;}return JSON.stringify(out.filter(a=>Math.abs(a+Math.PI/2)<1e-9).length)})()`));
   assert.equal(run('view.rot'),1,'portrait');
   assert.equal(turns('drawVehicle(S.vehicles[0],null)'),0,'bus body/windows must not be turned upright');
@@ -188,7 +189,7 @@ test('vehicles follow their heading: no upright turn inside vehicle drawing, lab
   run('view.rot=0');assert.equal(turns('roundBody(0,0,20,10,3,"#fff")'),0,'landscape never compensates');run('resize()');
 });
 test('extension tabs: quiet while browsing, ~44px target when a line is selected, city node keeps its taps',()=>{
-  fresh();run('resize();S.points=9000;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection()');
+  fresh();run('resize();S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection()');
   assert.equal(run('uxVisibleHandles().length'),0,'browsing: no tabs');
   run('selectLine(S.lines[0].id)');assert.equal(run('uxVisibleHandles().length'),2,'selected: one tab per end');
   const h=JSON.parse(run('JSON.stringify((()=>{let h=uxVisibleHandles().find(h=>h.end==="tail"),p=toScreen(h),c=toScreen(h.city);return {p,c,dx:(p.x-c.x),dy:(p.y-c.y)}})())'));
