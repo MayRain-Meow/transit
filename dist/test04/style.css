@@ -793,3 +793,17 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
 .ux-car-fold summary small{flex:1;margin-left:8px;font-weight:400;color:var(--muted);font-size:11px}
 .ux-car-fold .car-shop{border:0;padding:0;margin:0;background:none}
 .ux-car-fold .car-shop h3,.ux-car-fold .car-shop .eyebrow{display:none}
+
+/* 资金·收支 overview */
+.ux-ledger{padding:10px 0 6px}
+.ux-ledger-head{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.ux-ledger-head div{padding:10px;border-radius:12px;background:#f6f7f2}
+.ux-ledger-head small{display:block;font-size:11px;color:var(--muted)}
+.ux-ledger-head b{display:block;font-size:16px;font-variant-numeric:tabular-nums;margin-top:2px}
+.ux-ledger b.in{color:#4f7f45}.ux-ledger b.out{color:#b5573f}
+.ux-ledger-row{display:grid;grid-template-columns:64px 1fr auto;align-items:center;gap:8px;min-height:26px;font-size:12px}
+.ux-ledger-row i{height:8px;border-radius:4px;background:#9cc08f}
+.ux-ledger-row.out i{background:#e3a593}
+.ux-ledger-row b{font-weight:500;font-variant-numeric:tabular-nums;font-size:12px}
+.ux-ledger-note{margin-top:8px;font-size:11px;color:var(--muted)}
+.ux-ledger-all .finance-summary{margin-top:0}

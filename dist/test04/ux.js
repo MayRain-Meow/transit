@@ -815,7 +815,29 @@ function uxWrapWelcome() {
   };
   if (modalOpen && uxEl('modal-content').innerHTML.includes('startGame()')) welcome(typeof hadSave !== 'undefined' && hadSave);
 }
+/* ---------- 资金·收支: income vs spending first, every line item folded below ---------- */
+const UX_LEDGER = {
+  in: [['fares', '票款'], ['tasks', '城市任务'], ['subsidy', '补助'], ['events', '活动收入'], ['contracts', '服务合同'], ['education', '教育补贴'], ['refunds', '撤回返还']],
+  out: [['construction', '建设'], ['vehicles', '车辆'], ['maintenance', '维护'], ['activityFines', '活动罚款'], ['financialBuildings', '金融设施']],
+};
+function uxLedgerOverview(m) {
+  if (m.querySelector('.ux-ledger') || !S?.ledger) return;
+  const L = S.ledger, sum = list => list.map(([k, n]) => [n, Math.max(0, +L[k] || 0)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
+  const ins = sum(UX_LEDGER.in), outs = sum(UX_LEDGER.out), tin = ins.reduce((n, x) => n + x[1], 0), tout = outs.reduce((n, x) => n + x[1], 0);
+  const max = Math.max(tin, tout, 1), fmt = v => '¥' + Math.round(v).toLocaleString('en-US');
+  const rows = (list, cls) => list.slice(0, 4).map(([n, v]) => `<div class="ux-ledger-row ${cls}"><span>${n}</span><i style="width:${Math.max(3, v / max * 100)}%"></i><b>${fmt(v)}</b></div>`).join('');
+  const box = document.createElement('section'); box.className = 'ux-ledger';
+  box.innerHTML = `<div class="ux-ledger-head"><div><small>累计收入</small><b class="in">${fmt(tin)}</b></div><div><small>累计支出</small><b class="out">${fmt(tout)}</b></div><div><small>经营结余</small><b class="${tin >= tout ? 'in' : 'out'}">${tin >= tout ? '+' : '−'}${fmt(Math.abs(tin - tout))}</b></div></div>
+${rows(ins, 'in')}${rows(outs, 'out')}
+<div class="ux-ledger-note">本月维护预计 ${typeof maintenanceForecast === 'function' ? fmt(maintenanceForecast()) : '—'} · 月底扣款</div>`;
+  const head = m.querySelector('.modal-head'); (head || m.firstChild).after(box);
+  // everything upstream rendered below the overview goes into one "全部明细" fold, links stay outside
+  const d = document.createElement('details'); d.className = 'ux-rules ux-ledger-all'; d.innerHTML = '<summary>全部明细与流水</summary>';
+  for (const n of [...m.children]) if (n !== head && n !== box && !n.classList.contains('ux-hub-tabs') && !n.matches('details.ux-rules:not(.ux-ledger-all)') && !(n.tagName === 'SECTION' && /投资账户/.test(n.textContent))) d.appendChild(n);
+  box.after(d);
+}
 function uxWrapHubs() {
+  uxAfter('showFinance', m => uxLedgerOverview(m));
   // 建造·车辆: the train-car shop repeats the per-train "+车厢" in each line sheet; fold it into one summary row.
   uxAfter('shop', m => {
     const sec = m.querySelector('section.car-shop'); if (!sec || sec.closest('details')) return;
