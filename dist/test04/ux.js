@@ -208,7 +208,7 @@ function uxPlaceToast() {
   const el = uxEl('toast'); if (!el) return;
   if (!portraitMode) { el.style.top = el.style.bottom = ''; return; }
   let top = H;
-  for (const sel of ['#ux-coach', '#details', '#routes', '#drawbar', 'footer .dock']) {
+  for (const sel of ['#ux-coach', '#junction-picker', '#details', '#routes', '#drawbar', 'footer .dock']) {
     const e = document.querySelector(sel);
     if (!e || e.hidden || typeof getComputedStyle !== 'function' || getComputedStyle(e).display === 'none') continue;
     const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
@@ -955,7 +955,74 @@ function uxGameOver(m) {
   const h = m.querySelector('h1, h2'); (h || m.firstChild).after(tiles);
   for (const p of m.querySelectorAll('p')) if (/(维持|坚持)了/.test(p.textContent)) p.remove();
 }
+/* ---------- active city activity: status, progress, stakes ---------- */
+function uxActiveActivity(m) {
+  const st = typeof activityState === 'function' ? activityState() : null, e = st?.active; if (!e || m.querySelector('.ux-act')) return;
+  const card = [...m.querySelectorAll('section.infra-card')].find(x => /定位举办城市/.test(x.textContent)); if (!card) return;
+  const prep = S.day < e.start, days = (prep ? e.start - S.day : Math.max(0, e.end - S.day)).toFixed(1);
+  const pct = Math.min(100, e.delivered / Math.max(1, e.goal) * 100);
+  const box = document.createElement('section'); box.className = 'ux-act';
+  box.innerHTML = `<div class="ux-act-head"><span class="ux-act-stars">${'★'.repeat(e.star)}</span><b>${escapeHTML(e.title)}</b><small>${escapeHTML(S.cities[e.host]?.name || '')}</small><em class="${prep ? 'is-prep' : ''}">${prep ? '准备中 · 还需 ' + days + ' 天' : '进行中 · 剩 ' + days + ' 天'}</em></div>
+<div class="ux-act-progress"><span class="ux-bar"><i style="width:${pct}%"></i></span><span><b>${e.delivered}</b> / ${e.goal} 已送达<small>已出发 ${e.spawned}/${e.total} · 候车合格 ${e.good}/${e.delivered}${e.goodRatio ? '（需 80%）' : ''}</small></span></div>
+<div class="ux-act-stakes"><div class="ok"><small>完成</small><b>${typeof activityRewardText === 'function' ? activityRewardText(e) : ''}</b></div><div class="bad"><small>未完成</small><b>最高 ¥${e.fine}${e.scoreLoss ? ' · 评分 −' + e.scoreLoss : ''}</b></div></div>
+<button class="ux-act-go" onclick="closeModal();openCity(${e.host})">在地图上定位举办城市</button>`;
+  card.replaceWith(box);
+}
+// Activity page footer: an unpaid fine is a warning; with nothing owed only the rule remains, as a footnote.
+// An empty settlement history is not shown.
+function uxActivityFooter(m) {
+  for (const p of m.querySelectorAll('p')) {
+    const t = p.textContent.match(/^待缴活动罚款\s*¥([\d.]+)。(?:未付部分从后续收入补缴。)?(.*)$/); if (!t || p.dataset.ux) continue;
+    p.dataset.ux = '1';
+    if (+t[1] > 0) { p.className = 'ux-warnline'; p.textContent = `待缴活动罚款 ¥${(+t[1]).toFixed(0)} · 从后续收入补缴`; if (t[2]) { const n = document.createElement('p'); n.className = 'ux-footnote'; n.textContent = t[2]; p.after(n); } }
+    else if (t[2]) { p.className = 'ux-footnote'; p.textContent = t[2]; } else p.remove();
+  }
+  for (const h of m.querySelectorAll('h3')) if (/^最近结算$/.test(h.textContent.trim())) { const p = h.nextElementSibling; if (p?.tagName === 'P' && /暂无记录/.test(p.textContent)) { p.remove(); h.remove(); } }
+}
+/* ---------- finance locked: two steps with status ---------- */
+function uxFinanceLock(m) {
+  const fm = m.querySelector('.financial-market') || m; if (fm.querySelector('.ux-steps-fin')) return;
+  const secs = [...fm.querySelectorAll('section.market-product')].filter(x => /银行|证券公司/.test(x.querySelector('h3')?.textContent || ''));
+  if (!secs.length) return;
+  const list = document.createElement('ol'); list.className = 'ux-steps ux-steps-fin';
+  secs.forEach((sec, i) => {
+    const h = sec.querySelector('h3')?.textContent || '', done = /已建设/.test(h), btn = sec.querySelector('button');
+    const li = document.createElement('li'); if (done) li.className = 'is-done';
+    li.innerHTML = `<i>${done ? '✓' : i + 1}</i><span><b>${escapeHTML(h)}</b>${sec.querySelector('p')?.innerHTML || ''}</span>`;
+    if (btn) { btn.className = 'primary'; li.querySelector('span').appendChild(btn); }
+    list.appendChild(li);
+  });
+  secs[0].before(list); secs.forEach(x => x.remove());
+  for (const b of fm.querySelectorAll('button')) if (/^知道了$/.test(b.textContent.trim())) b.remove();   // × already closes
+}
+/* ---------- line name & colour: one row of swatches, current one marked ---------- */
+function uxMarkColor() {
+  const l = S.lines.find(x => x.id === uxMarkColor.id); if (!l) return;
+  const row = document.querySelector('#modal-content .colors'); if (!row) return;
+  let hit = false;
+  for (const b of row.querySelectorAll('button')) { const on = (b.getAttribute('onclick') || '').includes("'" + l.color + "'"); b.classList.toggle('on', on); hit ||= on; }
+  // a colour from an older palette (or an older save) is still shown, first and marked, so "current" is never lost
+  if (!hit && /^#[0-9a-f]{3,8}$/i.test(l.color)) {
+    const b = document.createElement('button'); b.className = 'on'; b.style.background = l.color; b.setAttribute('aria-label', '当前颜色');
+    b.setAttribute('onclick', `setLineColor(${l.id},'${l.color}')`); row.prepend(b);
+  }
+}
 function uxWrapHubs() {
+  if (typeof showJunction === 'function') { const sj = showJunction; showJunction = function (...a) {
+    const r = sj.apply(this, a);
+    if (portraitMode) { const el = uxEl('junction-picker'); if (el?.style) el.style.maxHeight = '';
+      // opening the picker hides the details sheet, which may start a 280ms view restore: frame once that settles
+      setTimeout(() => { if (selected?.type === 'junction' && typeof requestAnimationFrame === 'function') requestAnimationFrame(uxFrameSelection); }, 320); }
+    else { // upstream places the floating picker from an estimated height: keep the real one on screen (short landscape phones)
+      const el = uxEl('junction-picker'), top = el?.getBoundingClientRect ? el.getBoundingClientRect().top : 0, head = (document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8;
+      if (el && !el.hidden) { el.style.maxHeight = (H - head - 12) + 'px'; el.style.overflowY = 'auto'; const h = el.getBoundingClientRect().height; if (top + h > H - 12) el.style.top = Math.max(head, H - 12 - h) + 'px'; }
+    }
+    return r;
+  }; }
+  uxAfter('showActivityCards', m => { uxActiveActivity(m); uxActivityFooter(m); });
+  if (typeof showFinanceLock === 'function') uxAfter('showFinanceLock', m => uxFinanceLock(m));
+  if (typeof renameLine === 'function') { const rn = renameLine; renameLine = function (id, ...a) { uxMarkColor.id = id; const r = rn.call(this, id, ...a); uxMarkColor(); return r; }; }
+  if (typeof setLineColor === 'function') { const sc = setLineColor; setLineColor = function (...a) { const r = sc.apply(this, a); uxMarkColor(); return r; }; }
   uxAfter('showFinancialMarket', m => { uxPolishPortfolio(m); uxPolishCharts(m); });
   if (typeof showCityServices === 'function') uxAfter('showCityServices', m => uxCityServicesList(m));
   if (typeof gameover === 'function') uxAfter('gameover', m => uxGameOver(m));
@@ -1050,7 +1117,7 @@ function uxVisibleRect() {
   const rect = { l: 14, r: W - 14, b: H - 12, t: header };
   // Panels can sit at the bottom (portrait sheets, docks) or at a side (landscape details, route list).
   // For each one that overlaps the map, trim whichever edge keeps the larger usable area.
-  for (const q of ['#details', '#routes', 'footer .dock', '#drawbar']) {
+  for (const q of ['#details', '#junction-picker', '#routes', 'footer .dock', '#drawbar']) {
     const e = document.querySelector(q); if (!e || e.hidden || typeof getComputedStyle === 'function' && getComputedStyle(e).display === 'none') continue;
     const p = e.getBoundingClientRect();
     if (!(p.bottom > p.top && p.right > p.left) || p.right <= rect.l || p.left >= rect.r || p.bottom <= rect.t || p.top >= rect.b) continue;
@@ -1230,6 +1297,13 @@ let uxLastViewTarget = null;
     // Only undo our own framing: if the player panned or zoomed after it, their view stays.
     if (near(view, r.to)) animateView(r.from, 280);
   }).observe(d, { attributes: true, attributeFilter: ['hidden'] });
+  // the portrait line picker is a bottom sheet too: same restore when it closes without a drag
+  const jp = uxEl('junction-picker');
+  if (jp?.getBoundingClientRect && typeof MutationObserver !== 'undefined') new MutationObserver(() => {
+    if (!jp.hidden || !d?.hidden || !uxFrameRestore || draft || uxExt || bridgeDraft) return;
+    const r = uxFrameRestore; uxFrameRestore = null;
+    if (near(view, r.to)) animateView(r.from, 280);
+  }).observe(jp, { attributes: true, attributeFilter: ['hidden'] });
 })();
 
 /* ---------- first-game coach: follows what the player does, then retires ---------- */
@@ -1275,7 +1349,7 @@ function uxCoachRender() {
   uxCoach.step = step;
   if (step) { // float just above whatever sits at the bottom (route strip, draw bar, sheet)
     let top = H;
-    for (const q of ['#drawbar', '#details', '#routes', 'footer .dock']) { const e = document.querySelector(q); if (!e || e.hidden || getComputedStyle(e).display === 'none') continue; const r = e.getBoundingClientRect(); if (r.height && r.top > H * .4) top = Math.min(top, r.top); }
+    for (const q of ['#drawbar', '#junction-picker', '#details', '#routes', 'footer .dock']) { const e = document.querySelector(q); if (!e || e.hidden || getComputedStyle(e).display === 'none') continue; const r = e.getBoundingClientRect(); if (r.height && r.top > H * .4) top = Math.min(top, r.top); }
     el.style.bottom = (H - top + 10) + 'px';
   }
 }
