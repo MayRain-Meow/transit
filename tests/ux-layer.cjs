@@ -238,5 +238,10 @@ test('first-game coach follows the player and retires',()=>{
   run('S.points=RICH;commitDraft(true)');assert.equal(run('uxCoachStep()'),'deliver');
   run('uxCoach.firstLineAt-=10000');assert.equal(run('uxCoachStep()'),'');assert.equal(run('uxCoach.done'),true);
 });
+test('caption diet: line sheet and task list carry no redundant small text',()=>{
+  fresh();run('S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1,2]};commitDraft(true);selectLine(S.lines[0].id)');
+  const h=node('details').innerHTML;assert.doesNotMatch(h,/终点折返/);assert.doesNotMatch(h,/车辆与运行方案/);
+  run('showTasks()');assert.doesNotMatch(node('modal-content').innerHTML,/ux-task-top"><b>[^<]*<\/b><small>/);
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;

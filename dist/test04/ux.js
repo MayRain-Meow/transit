@@ -250,7 +250,7 @@ function uxLineSheet(rebuild) {
   uxLineSheet.sig = sig; el.hidden = false;
   const canAdd = !l.retiring && (inv > 0 || S.points >= T.vehicle);
   el.innerHTML = `<div class="ux-sheet-head"><i class="ux-swatch" style="background:${l.color}"></i>
-<div class="ux-title"><h3>${escapeHTML(l.name)}</h3><small>${T.name} · ${stops.length} 站 · 终点折返${l.retiring ? ' · 撤出中' : ''}</small></div>
+<div class="ux-title"><h3>${escapeHTML(l.name)}</h3><small>${T.name} · ${stops.length} 站${l.retiring ? ' · 撤出中' : ''}</small></div>
 <button class="ux-icon" onclick="renameLine(${l.id})" title="名称 / 颜色" aria-label="修改名称或颜色">✎</button><button class="close" onclick="clearSelection()" aria-label="关闭">×</button></div>
 ${blocked ? '<p class="ux-alert">部分路段停止接入，两侧车辆分段运行。可在「工程」里维修，或重新接桥改线。</p>' : ''}
 ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不会使用这条线路。点「＋」加一辆。</p>' : ''}
@@ -258,7 +258,7 @@ ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不�
 <div class="ux-stepper"><button onclick="uxFleetMinus(${l.id})" ${!vs.some(v => !v.recall) ? 'disabled' : ''} aria-label="回收一辆">−</button><button class="primary" onclick="uxFleetPlus(${l.id})" ${canAdd ? '' : 'disabled'}>＋ ${inv > 0 ? '库存 ' + inv : '¥' + T.vehicle}</button></div></div>
 <div class="ux-route">${stops.map(id => `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`).join('<i>→</i>')}</div>
 
-${vs.length ? `<div class="ux-list"><div class="ux-list-title">车辆与运行方案</div>${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${v.people.length}/${vehCap(v)} 人${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
+${vs.length ? `<div class="ux-list">${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${v.people.length}/${vehCap(v)} 人${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
 <div class="ux-actions-row">${l.type !== 'air' ? `<button onclick="openInfrastructure(${l.id})">道路升级</button>` : ''}<button class="ux-danger" onclick="uxDeleteLine(${l.id})">${uxArmedDelete?.id === l.id && uxArmedDelete.until > performance.now() ? '再点一次确认撤销' : '取消线路'}</button></div>`;
 }
 // Cancellation opens an itemised recovery quote before any assets are retired.
@@ -344,7 +344,7 @@ showTasks = function () {
   openModal(`<div class="modal-head"><div><h2>城市任务</h2><small>已完成 ${done} 项 · 点城市在地图上定位</small></div><button class="close" onclick="closeModal()">×</button></div>
 <div class="ux-tasks">${cs.map(c => {
     const spec = c.dormant ? null : missionSpec(c), pct = spec ? Math.min(100, c.mission.progress / spec.goal * 100) : 0;
-    return `<button class="ux-task${c.dormant ? ' is-dormant' : ''}" onclick="uxFocusCity(${c.id})"><span class="ux-task-top"><b>${escapeHTML(c.name)}</b><small>${FEATURES[c.shape].name} · ${LEVELS[c.size]}</small>${spec ? `<em>+¥${spec.reward + (spec.upgrade ? 600 : 0)}</em>` : ''}</span>
+    return `<button class="ux-task${c.dormant ? ' is-dormant' : ''}" onclick="uxFocusCity(${c.id})"><span class="ux-task-top"><b>${escapeHTML(c.name)}</b>${spec ? `<em>+¥${spec.reward + (spec.upgrade ? 600 : 0)}</em>` : ''}</span>
 <span class="ux-task-title">${c.dormant ? '待接入 · '+cityOpeningRemaining(c)+'秒后自动开放' : spec ? `阶段 ${c.mission.step + 1}/6 · ${escapeHTML(spec.title || spec.verb || '')}` : '全部阶段已完成'}</span>
 ${spec ? `<span class="ux-bar"><i style="width:${pct}%"></i></span><small class="ux-task-meta">${uxMissionDetail(c, spec)}${spec.upgrade ? ' · 完成后升级' : ''}</small>` : ''}</button>`;
   }).join('')}</div>`);
@@ -774,8 +774,8 @@ function uxEngineeringPage(m) {
   // bridges
   const from = t => { try { return bridgePrice({ x: 0, y: 0 }, { x: 38, y: 0 }, t); } catch { return ''; } };
   const old = m.querySelector(':scope > .tabs'); if (old && old.querySelector('[onclick^="beginBridge"]')) old.remove();
-  wrap.insertAdjacentHTML('beforeend', `<div class="ux-eng-title">建桥 <small>从一岸拖到对岸，跨河线路才能通过</small></div>
-<div class="ux-eng-actions"><button onclick="beginBridge('bus')"><b>公路桥</b><small>大巴使用 · ¥${from('bus')} 起</small></button><button onclick="beginBridge('track')"><b>铁路桥</b><small>动车 / 高铁 · ¥${from('track')} 起</small></button></div>`);
+  wrap.insertAdjacentHTML('beforeend', `<div class="ux-eng-title">建桥</div>
+<div class="ux-eng-actions"><button onclick="beginBridge('bus')"><b>公路桥</b><small>¥${from('bus')} 起</small></button><button onclick="beginBridge('track')"><b>铁路桥</b><small>¥${from('track')} 起</small></button></div>`);
   const addSection = (title, nodes, note) => {
     if (!hasContent(nodes)) return;
     const d = document.createElement('section'); d.className = 'ux-eng-sec';
@@ -788,11 +788,11 @@ function uxEngineeringPage(m) {
   const upg = pick(/道路升级|铁路改造/).flatMap(n => [...(n.querySelectorAll?.('button[onclick^="openInfrastructure"]') || [])]);
   if (upg.length) {
     const d = document.createElement('section'); d.className = 'ux-eng-sec';
-    d.innerHTML = '<div class="ux-eng-title">线路提速 <small>拓宽道路、改造铁路，施工期间减速</small></div>';
+    d.innerHTML = '<div class="ux-eng-title">线路提速</div>';
     for (const b of upg) {
       const id = +(b.getAttribute('onclick').match(/\d+/) || [])[0], l = S.lines.find(x => x.id === id);
       const row = document.createElement('button'); row.className = 'ux-eng-row'; row.setAttribute('onclick', b.getAttribute('onclick'));
-      row.innerHTML = `<i style="background:${l?.color || '#999'}"></i><span>${escapeHTML(l?.name || b.textContent)}</span><small>${l ? TYPES[l.type].name + ' · ' + l.stops.length + ' 站' : ''}</small><em>›</em>`;
+      row.innerHTML = `<i style="background:${l?.color || '#999'}"></i><span>${escapeHTML(l?.name || b.textContent)}</span><em>›</em>`;
       d.appendChild(row);
     }
     wrap.appendChild(d);
@@ -841,7 +841,7 @@ function uxLedgerOverview(m) {
   const box = document.createElement('section'); box.className = 'ux-ledger';
   box.innerHTML = `<div class="ux-ledger-head"><div><small>累计收入</small><b class="in">${fmt(tin)}</b></div><div><small>累计支出</small><b class="out">${fmt(tout)}</b></div><div><small>经营结余</small><b class="${tin >= tout ? 'in' : 'out'}">${tin >= tout ? '+' : '−'}${fmt(Math.abs(tin - tout))}</b></div></div>
 ${rows(ins, 'in')}${rows(outs, 'out')}
-<div class="ux-ledger-note">本月维护预计 ${typeof maintenanceForecast === 'function' ? fmt(maintenanceForecast()) : '—'} · 月底扣款</div>`;
+<div class="ux-ledger-note">维护预计 ${typeof maintenanceForecast === 'function' ? fmt(maintenanceForecast()) : '—'} / 月</div>`;
   const head = m.querySelector('.modal-head'); (head || m.firstChild).after(box);
   // everything upstream rendered below the overview goes into one "全部明细" fold, links stay outside
   const d = document.createElement('details'); d.className = 'ux-rules ux-ledger-all'; d.innerHTML = '<summary>全部明细与流水</summary>';
@@ -1225,6 +1225,20 @@ function uxCompactSheet(m) {
     if (uxCompacting || queued) return; queued = true;
     requestAnimationFrame(() => { queued = false; if (!uxEl('modal').hidden) uxCompactSheet(mc); });
   }).observe(mc, { childList: true });
+})();
+
+/* ---------- caption diet on upstream-rendered panels ---------- */
+function uxCaptionDiet() {
+  const d = uxEl('details'); if (!d || d.hidden) return;
+  // city sheet: short metric labels and stage tag
+  for (const sm of d.querySelectorAll('.metric-grid small')) { const t = sm.textContent.trim(); if (t === '候车 / 容量') sm.textContent = '候车'; else if (t === '满员压力') sm.textContent = '满员'; else if (t === '最长等待') sm.textContent = '等待'; }
+  const tag = d.querySelector('.city-mission .eyebrow'); if (tag && /阶段任务/.test(tag.textContent)) tag.textContent = tag.textContent.replace('阶段任务', '任务').replace(/\s*\/\s*/, '/');
+  // vehicle sheet: the passenger list speaks for itself; an empty bus needs no sentence
+  for (const p of d.querySelectorAll('p.detail-sub')) if (/^(车内旅客目的地|当前空车。?)$/.test(p.textContent.trim())) p.remove();
+}
+(function () {
+  const sd = showDetails; showDetails = function (...a) { const r = sd.apply(this, a); try { uxCaptionDiet(); } catch {} return r; };
+  if (typeof showVehicleDetails === 'function') { const sv = showVehicleDetails; showVehicleDetails = function (...a) { const r = sv.apply(this, a); try { uxCaptionDiet(); } catch {} return r; }; }
 })();
 
 /* Re-render surfaces that were drawn before this layer loaded. */

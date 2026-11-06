@@ -838,3 +838,15 @@ select.ux-seg-src{display:none}
 .modal .infra-card:has(> button:only-of-type) > button:disabled{background:var(--chip);color:var(--muted)}
 .modal .infra-card:has(> button:only-of-type) b{font-size:13px}
 .modal .infra-card:has(> button:only-of-type) p{font-size:11px;color:var(--muted)}
+
+/* Caption diet (portrait): header, route chips, market */
+@media (orientation:portrait) and (max-width:820px){
+  .calendar #calendar-tag{display:none}
+  .calendar{display:flex;align-items:center}
+  .stat-money > small:first-child{display:none}
+  .route-panel .route-row small{display:none}
+  .route-panel .route-row{padding:0 14px 0 12px}
+  .financial-market .market-headline > div:nth-child(3){display:none}
+  .financial-market .market-headline{grid-template-columns:auto auto}
+  .financial-market .market-chart figcaption{display:none!important}
+}
