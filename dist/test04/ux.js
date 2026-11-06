@@ -790,6 +790,12 @@ function uxEngineeringPage(m) {
   if (rules) m.appendChild(rules);
 }
 function uxWrapHubs() {
+  // Activity cards (0.5): the deck actions (reveal all / skip) sit right under the tabs so they are always in reach.
+  uxAfter('showActivityCards', m => {
+    const grid = m.querySelector('.activity-grid'), acts = m.querySelector('.activity-deck-actions');
+    if (grid && acts && acts.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING) return;   // already above
+    if (grid && acts) grid.before(acts);
+  });
   uxAfter('showEngineering', m => uxEngineeringPage(m));
   for (const [key, hub] of Object.entries(UX_HUBS)) hub.tabs.forEach(([, fn], i) => {
     if (fn === 'uxMarketWealth' || fn === 'uxMarketStocks') return;

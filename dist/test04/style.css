@@ -766,3 +766,17 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
 }
 .dock-badge{position:absolute;top:6px;right:calc(50% - 22px);width:9px;height:9px;border-radius:5px;background:var(--accent);box-shadow:0 0 0 2px #fffdf6}
 .notice-wrap{cursor:pointer}
+
+/* Portrait activity deck: one-line intro, actions on top, shorter cards with the next one peeking in. */
+@media (orientation:portrait) and (max-width:820px){
+  .modal:has(.activity-grid){padding:0 14px calc(18px + var(--safe-b))}
+  .activity-deck-intro{padding:6px 0 2px}
+  .activity-deck-intro h3{font-size:17px!important;margin:4px 0}
+  .activity-deck-intro p,.activity-deck-intro .card-swipe-hint,.activity-deck-intro small{display:none!important}
+  .activity-deck-actions{justify-content:flex-start;gap:8px;margin:6px 0 2px}
+  .activity-deck-actions button{min-height:36px;padding:0 14px;border-radius:18px;font-size:12px}
+  .activity-grid{grid-auto-columns:78%!important;gap:10px!important;padding:8px 2px 14px!important}
+  .activity-back{min-height:280px!important;padding:18px 12px!important}
+  .activity-front{min-height:280px!important;padding:16px!important}
+  .activity-back svg{max-width:88px;max-height:88px}
+}
