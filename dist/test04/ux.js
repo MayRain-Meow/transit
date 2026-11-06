@@ -520,7 +520,18 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
   if (!document.body?.appendChild) return;
   const layer = document.createElement('div'); layer.id = 'ux-edge'; document.body.appendChild(layer);
   const pills = new Map();
-  layer.addEventListener('click', e => { const b = e.target.closest('[data-city]'); if (b) { haptic(); uxFocusCity(+b.dataset.city); } });
+  // Pills take taps. A drag that starts on a pill belongs to the map: hand the pointer to the canvas (pointer capture)
+  // so panning, pinching and line drawing work even when a pill happens to sit under the finger.
+  let press = null, dragged = false;
+  layer.addEventListener('pointerdown', e => { if (e.target.closest('[data-city]')) { press = { id: e.pointerId, x: e.clientX, y: e.clientY }; dragged = false; } });
+  layer.addEventListener('pointermove', e => {
+    if (!press || e.pointerId !== press.id || Math.hypot(e.clientX - press.x, e.clientY - press.y) < 8) return;
+    const start = { pointerId: press.id, clientX: press.x, clientY: press.y, type: 'pointerdown', preventDefault() {}, stopPropagation() {} };
+    press = null; dragged = true;
+    try { beginPointer(start); movePointer(e); } catch {}
+  });
+  layer.addEventListener('pointerup', () => { press = null; });
+  layer.addEventListener('click', e => { const b = e.target.closest('[data-city]'); if (dragged) { dragged = false; return; } if (b) { haptic(); uxFocusCity(+b.dataset.city); } });
   function update() {
     try {
       const keep = new Set();
@@ -533,7 +544,9 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
           const urgent = !c.dormant && c.warning > 0, fresh = c.dormant;
           if (!urgent && !fresh) continue;
           const p = toScreen(c);
-          if (p.x > 8 && p.x < W - 8 && p.y > band.top + 8 && p.y < band.bottom - 8) continue;
+          // A city the player can see (anywhere below the header, outside the dock) needs no pointer.
+          const headerB = document.querySelector('header')?.getBoundingClientRect().bottom || 60, dockT = document.querySelector('footer .dock')?.getBoundingClientRect().top || H;
+          if (p.x > 8 && p.x < W - 8 && p.y > headerB && p.y < dockT - 8) continue;
           const dx = p.x - cx, dy = p.y - cy, sx = (W / 2 - 64) / Math.abs(dx || 1e-6), sy = ((band.bottom - band.top) / 2 - 22) / Math.abs(dy || 1e-6), k = Math.min(sx, sy, 1);
           let el = pills.get(c.id);
           if (!el) { el = document.createElement('button'); el.dataset.city = c.id; layer.appendChild(el); pills.set(c.id, el); }
@@ -791,7 +804,12 @@ function uxWrapHubs() {
   for (const key of ['goal', 'build', 'money']) { const b = uxEl('hub-' + key); if (b) b.onclick = () => uxOpenHub(key); }
 }
 // events.js loads after this file and redefines some drawers and sheets, so wrap once every script has run.
-function uxLate() { uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); }
+function uxLate() {
+  uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs();
+  // later layers set the notice text inside their own updateUI; rename after all of them
+  const ui = updateUI; updateUI = function (...a) { const r = ui.apply(this, a); const n = uxEl('notice'); if (n && /运营中心|工程采购|交通采购|收支账本/.test(n.textContent)) n.textContent = uxRename(n.textContent); return r; };
+  updateUI();
+}
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', uxLate); else uxLate();
 
 const uxText = text;

@@ -586,7 +586,7 @@ select{font:inherit;color:var(--ink);border:1px solid #dce3d3;background:#fff;pa
 
 /* Off-screen pointers to new or struggling towns (ux.js edgePointers). */
 #ux-edge{position:absolute;inset:0;z-index:6;pointer-events:none}
-.ux-edge-pill{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 8px;border-radius:17px;background:#fffdf5f2;border:1px solid #e3d6b3;color:#7c6544;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 4px 16px #263b421f;animation:ux-pill-in .25s ease-out}
+.ux-edge-pill{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;touch-action:none;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 8px;border-radius:17px;background:#fffdf5f2;border:1px solid #e3d6b3;color:#7c6544;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 4px 16px #263b421f;animation:ux-pill-in .25s ease-out}
 .ux-edge-pill i{font-style:normal;display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;border-radius:9px;background:#f1e7cf;font-size:11px}
 .ux-edge-pill small{font-variant-numeric:tabular-nums;color:#a58a63;font-weight:500}
 .ux-edge-pill.is-urgent{background:#fff1ecf2;border-color:#e7b4a5;color:#b5573f}
@@ -738,3 +738,29 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
 .ux-eng-foot{padding:10px 12px;border-radius:12px;background:#f6f7f2;font-size:12px}
 .ux-eng-foot h3{display:none}
 .ux-eng-foot p{margin:0;font-size:12px;line-height:1.6}
+
+/* Landscape phones: the route list becomes the same one-row strip as portrait, bottom-left beside the dock,
+   so the whole map height is free. The dock keeps its three hubs on the right. */
+@media (orientation:landscape) and (max-height:500px){
+  footer{left:auto;right:calc(var(--gutter) + var(--safe-r));width:auto}
+  footer .dock{width:auto}
+  footer .dock .dock-hub{min-width:84px}
+  .route-panel{display:flex;align-items:center;gap:6px;left:calc(var(--gutter) + var(--safe-l));right:calc(var(--gutter) + var(--safe-r) + 296px);width:auto;bottom:var(--dock-bottom);top:auto;padding:4px;max-height:none;overflow:visible;border-radius:16px}
+  .route-panel .panel-heading{display:none}
+  .route-panel #route-list,.route-panel.collapsed #route-list{display:flex;flex:1;min-width:0;gap:6px;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
+  .route-panel #route-list::-webkit-scrollbar{display:none}
+  .route-panel #route-list:empty{display:none}
+  .route-row{flex:0 0 auto;margin:0;min-height:36px;padding:0 10px 0 8px;gap:6px;border-radius:18px;background:#f3f5ef;border:1px solid transparent}
+  .route-row.active{background:#fff;border-color:currentColor}
+  .route-row .swatch{width:12px;border-top-width:4px}
+  .route-row .name{flex:none;max-width:6.5em;font-size:12px;font-weight:600}
+  .route-row small{font-size:10px}
+  .add-route,.route-panel.collapsed .add-route{flex:0 0 auto;width:36px;min-height:36px;margin:0;padding:0;border:0;border-radius:18px;background:var(--ink);color:#fff;font-size:0}
+  .add-route::before{content:'＋';font-size:18px}
+  .route-panel:not(:has(.route-row)) .add-route{flex:1;font-size:13px}
+  .route-panel:not(:has(.route-row)) .add-route::before{content:''}
+  .route-foot,.route-panel.collapsed .route-foot{display:contents}
+  .route-foot #stock{display:none}
+  .route-foot button{flex:0 0 auto;width:36px;height:36px;border-radius:18px;background:#f3f5ef;font-size:16px}
+  body:has(#drawbar:not([hidden])) #routes{display:none}
+}
