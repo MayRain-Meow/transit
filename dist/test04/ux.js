@@ -208,7 +208,7 @@ function uxPlaceToast() {
   const el = uxEl('toast'); if (!el) return;
   if (!portraitMode) { el.style.top = el.style.bottom = ''; return; }
   let top = H;
-  for (const sel of ['#ux-coach', '#details', '#routes', '#drawbar', 'footer .dock']) {
+  for (const sel of ['.undo-build', '#ux-coach', '#details', '#routes', '#drawbar', 'footer .dock']) {
     const e = document.querySelector(sel);
     if (!e || e.hidden || typeof getComputedStyle !== 'function' || getComputedStyle(e).display === 'none') continue;
     const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
@@ -1088,6 +1088,8 @@ function uxApplyPlayView(animate) {
   const t = uxPlayTarget(); uxOverviewOn = false; uxSyncOverviewButton();
   if (animate) animateView(t); else Object.assign(view, t);
 }
+// ⌖ glyph → a clear 'frame the map' icon (corners around a dot)
+if (uxEl('overview')) uxEl('overview').innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><circle cx="12" cy="12" r="2.2"/></svg>';
 function uxSyncOverviewButton() { const b = uxEl('overview'); if (b) { b.title = uxOverviewOn ? '回到游玩视图' : '查看全图'; b.setAttribute('aria-label', b.title); b.classList.toggle('is-on', uxOverviewOn); } }
 uxEl('overview').onclick = () => {
   if (!uxCompact()) { animateFit(); return; }
@@ -1165,7 +1167,7 @@ function uxCoachRender() {
   uxCoach.step = step;
   if (step) { // float just above whatever sits at the bottom (route strip, draw bar, sheet)
     let top = H;
-    for (const q of ['#drawbar', '#details', '#routes', 'footer .dock']) { const e = document.querySelector(q); if (!e || e.hidden || getComputedStyle(e).display === 'none') continue; const r = e.getBoundingClientRect(); if (r.height && r.top > H * .4) top = Math.min(top, r.top); }
+    for (const q of ['.undo-build', '#drawbar', '#details', '#routes', 'footer .dock']) { const e = document.querySelector(q); if (!e || e.hidden || getComputedStyle(e).display === 'none') continue; const r = e.getBoundingClientRect(); if (r.height && r.top > H * .4) top = Math.min(top, r.top); }
     el.style.bottom = (H - top + 10) + 'px';
   }
 }
