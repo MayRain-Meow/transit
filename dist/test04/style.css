@@ -850,3 +850,65 @@ select.ux-seg-src{display:none}
   .financial-market .market-headline{grid-template-columns:auto auto}
   .financial-market .market-chart figcaption{display:none!important}
 }
+
+/* ============================================================
+   Hub sheets — one design system for 目标 / 建造 / 资金
+   ============================================================ */
+/* header: grabber, then [tabs ……][×] on one row; the tabs are the title */
+.modal-head.has-hub{flex-wrap:nowrap;align-items:center;gap:10px;padding-top:24px;padding-bottom:10px;border-bottom:0}
+.modal-head.has-hub > h2,.modal-head.has-hub > div:first-child:not(.ux-hub-tabs){display:none}
+.modal-head.has-hub .ux-hub-tabs{flex:1 1 auto;margin:0}
+.modal-head.has-hub .close{width:38px;height:38px;flex:0 0 38px}
+/* section labels and cards */
+.ux-card{margin:6px 0 12px;padding:2px 12px;border-radius:14px;background:#f6f7f2}
+.ux-card > .quote-row:last-child{border-bottom:0}
+.ux-card-label,.ux-eng-title,.ux-list-title{font-size:12px!important;font-weight:600!important;color:#6f7d76!important;margin:14px 2px 6px!important;letter-spacing:.5px}
+/* bottom footer for rule/detail folds */
+.ux-foldfoot{margin-top:14px;border-top:1px solid var(--line)}
+.ux-foldfoot details.ux-rules{border-top:0;margin:0}
+.ux-foldfoot details.ux-rules summary{min-height:40px;font-size:12px}
+.ux-footnote{font-size:11px!important;color:var(--muted)!important;margin:10px 2px 0!important}
+/* tasks: glyph · name + stage · reward / bar + count */
+.ux-tasks{display:block!important}
+.ux-task{display:flex!important;align-items:center;gap:12px;padding:12px 4px!important;border-bottom:1px solid var(--line)}
+.ux-glyph svg{width:30px;height:30px;display:block}
+.ux-task-main{flex:1;min-width:0;display:grid;gap:6px}
+.ux-task-top{display:flex;align-items:baseline;gap:8px;min-width:0}
+.ux-task-top b{font-size:14px;white-space:nowrap}
+.ux-task-top .ux-task-title{margin:0;font-size:12px;color:#5f6f68;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.ux-task-top em{font-style:normal;font-weight:600;font-size:12px;color:#9f7948;white-space:nowrap}
+.ux-task-bar{display:flex;align-items:center;gap:10px}
+.ux-task-bar .ux-bar{flex:1;height:6px}
+.ux-task-bar small{font-size:11px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+/* build: light bridge cards with an icon, line upgrades grouped */
+.ux-eng{gap:4px!important;padding-top:0!important}
+.ux-eng-actions button,.ux-eng-actions button:last-child{background:#f6f7f2!important;color:var(--ink)!important;border:1px solid #e3e8de!important;grid-template-columns:28px 1fr;align-items:center;column-gap:10px;min-height:60px}
+.ux-eng-actions button::before{content:'';grid-row:1/span 2;width:28px;height:20px;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 20' fill='none' stroke='%23526d6b' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M2 14h24M4 14V9M24 14V9M2 9h24M7 9a7 6 0 0 1 14 0'/%3E%3C/svg%3E")}
+.ux-eng-actions button:last-child::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 20' fill='none' stroke='%23526d6b' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M2 14h24M2 9h24M6 9v5M11 9v5M17 9v5M22 9v5M4 18h20'/%3E%3C/svg%3E")}
+.ux-eng-actions small{color:#9f7948!important;font-weight:600}
+.ux-eng-sec{padding:2px 12px;border-radius:14px;background:#f6f7f2}
+.ux-eng-sec > .ux-eng-title{margin:12px 0 4px!important}
+.ux-eng-row{border-bottom:1px solid #e9ece4}
+.ux-eng-row:last-child{border-bottom:0}
+/* vehicles: one card, consistent small text */
+.modal .ux-list:has(.ux-product){padding:2px 12px;border-radius:14px;background:#f6f7f2;margin-top:6px}
+.ux-product:last-child{border-bottom:0}
+.ux-product small{font-size:11px;color:var(--muted)}
+.ux-product .ux-lock{color:#a58a63!important}
+/* weather empty state */
+.modal .ux-emptystate{display:grid;justify-items:center;gap:4px;padding:26px 0 10px;text-align:center}
+.ux-emptystate svg{width:34px;height:34px;fill:none;stroke:#c9a35a;stroke-width:1.6;stroke-linecap:round}
+.ux-emptystate b{font-size:15px;color:var(--ink)}
+.ux-emptystate span{font-size:12px;color:var(--muted)}
+/* contract offers grouped in a card */
+.modal .task-cities:has(button[onclick^="acceptContract"]){padding:2px 12px;border-radius:14px;background:#f6f7f2;margin-top:6px}
+.task-cities > section:has(> button[onclick^="acceptContract"]):last-child{border-bottom:0}
+/* build page: every section = label above, card below */
+.ux-eng-sec{padding:0!important;background:none!important}
+.ux-eng-sec > .ux-card{margin-top:0}
+.ux-eng-row{min-height:48px}
+/* finance pages: cash / return as tiles, same as 收支 and 维护 */
+.financial-market .market-headline{display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px!important;padding:4px 0 8px!important;border:0!important}
+.financial-market .market-headline > div{padding:9px 10px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+.financial-market .market-headline small{font-size:11px!important;margin:0 0 2px!important}
+.financial-market .market-headline b{font-size:15px!important}

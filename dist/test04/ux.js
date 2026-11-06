@@ -331,6 +331,12 @@ function uxTidyCitySheet() {
 }
 
 /* ---------- tasks ---------- */
+// The city's own map glyph (shape + colour) so the list matches what the player sees on the map.
+function uxCityGlyph(c) {
+  const col = (typeof COLORS !== 'undefined' && COLORS[c.color]) || '#8a9a90', sh = c.shape;
+  const g = sh === 0 ? '<circle cx="12" cy="12" r="6"/>' : sh === 1 ? '<path d="M12 5.5 18.5 17h-13z"/>' : sh === 2 ? '<path d="M12 4.5 19 12l-7 7.5L5 12z"/>' : '<rect x="6.5" y="6.5" width="11" height="11" rx="1"/>';
+  return `<span class="ux-glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#fff" stroke="#334b4e" stroke-width="2"/><g fill="${col}">${g}</g></svg></span>`;
+}
 function uxMissionDetail(c, spec) {
   const m = c.mission;
   if (spec.mode === 'dual') return `出发 ${m.out || 0}/12 · 到达 ${m.in || 0}/12`;
@@ -344,9 +350,10 @@ showTasks = function () {
   openModal(`<div class="modal-head"><div><h2>城市任务</h2><small>已完成 ${done} 项 · 点城市在地图上定位</small></div><button class="close" onclick="closeModal()">×</button></div>
 <div class="ux-tasks">${cs.map(c => {
     const spec = c.dormant ? null : missionSpec(c), pct = spec ? Math.min(100, c.mission.progress / spec.goal * 100) : 0;
-    return `<button class="ux-task${c.dormant ? ' is-dormant' : ''}" onclick="uxFocusCity(${c.id})"><span class="ux-task-top"><b>${escapeHTML(c.name)}</b>${spec ? `<em>+¥${spec.reward + (spec.upgrade ? 600 : 0)}</em>` : ''}</span>
-<span class="ux-task-title">${c.dormant ? '待接入 · '+cityOpeningRemaining(c)+'秒后自动开放' : spec ? `阶段 ${c.mission.step + 1}/6 · ${escapeHTML(spec.title || spec.verb || '')}` : '全部阶段已完成'}</span>
-${spec ? `<span class="ux-bar"><i style="width:${pct}%"></i></span><small class="ux-task-meta">${uxMissionDetail(c, spec)}${spec.upgrade ? ' · 完成后升级' : ''}</small>` : ''}</button>`;
+    const tag = c.dormant ? '待接入' : spec ? escapeHTML(spec.title || spec.verb || '') : '已完成';
+    return `<button class="ux-task${c.dormant ? ' is-dormant' : ''}" onclick="uxFocusCity(${c.id})">${uxCityGlyph(c)}
+<span class="ux-task-main"><span class="ux-task-top"><b>${escapeHTML(c.name)}</b><span class="ux-task-title">${tag}</span>${spec ? `<em>+¥${spec.reward + (spec.upgrade ? 600 * (+S.moneyScale || 1) / 10 : 0)}</em>` : ''}</span>
+${spec ? `<span class="ux-task-bar"><span class="ux-bar"><i style="width:${pct}%"></i></span><small>${uxMissionDetail(c, spec)}</small></span>` : ''}</span></button>`;
   }).join('')}</div>`);
 };
 openCity = function (id) { uxFocusCity(id); };
@@ -751,12 +758,38 @@ function uxHubBar(key, idx, m) {
   head.querySelectorAll('.close').forEach(b => b.setAttribute('onclick', 'closeModal()'));
   const nav = document.createElement('nav'); nav.className = 'ux-hub-tabs'; nav.setAttribute('role', 'tablist');
   nav.innerHTML = hub.tabs.map(([label], i) => `<button role="tab" aria-selected="${i === idx}" class="${i === idx ? 'on' : ''}" onclick="uxOpenHub('${key}',${i})">${label}</button>`).join('');
-  head.classList.add('has-hub'); head.appendChild(nav);   // tabs live in the sticky header so they stay reachable while scrolling
+  head.classList.add('has-hub'); head.insertBefore(nav, head.querySelector('.close'));   // tabs + × on one row in the sticky header
   // links the tabs replace
   m.querySelectorAll('.ux-links, .market-tabs').forEach(n => { const keep = n.querySelector('[onclick*="portfolio"]'); if (keep && n.classList.contains('market-tabs')) { const row = document.createElement('div'); row.className = 'ux-help-links'; row.appendChild(keep); n.replaceWith(row); } else n.remove(); });
   m.querySelectorAll('button[onclick^="showOperations"], button[onclick^="showMaintenance"], button[onclick^="showFinance()"], button[onclick^="showWeather"], button[onclick^="showEngineering"], button[onclick^="shop()"]').forEach(b => { if (!b.closest('.ux-hub-tabs')) b.remove(); });
   m.querySelectorAll('.tabs').forEach(t => { if (!t.querySelector('button')) t.remove(); });
+  uxHubPolish(m);
   m.scrollTop = 0;
+}
+// Shared polish for every hub page, after the page's own tidy pass.
+function uxHubPolish(m) {
+  // rule / detail folds: one quiet footer at the bottom, in a stable order
+  const folds = [...m.querySelectorAll(':scope > details.ux-rules, :scope > .financial-market > details.ux-rules')];
+  const foot = m.querySelector(':scope > .ux-foldfoot') || Object.assign(document.createElement('div'), { className: 'ux-foldfoot' });
+  // folds with the same title (several layers each made one) merge into the first
+  const byTitle = new Map();
+  for (const d of folds) { const t = d.querySelector('summary')?.textContent.trim(); if (byTitle.has(t)) { [...d.childNodes].filter(n => n.tagName !== 'SUMMARY').forEach(n => byTitle.get(t).appendChild(n)); d.remove(); } else byTitle.set(t, d); }
+  [...byTitle.values()].sort((a, b) => /明细/.test(b.textContent) - /明细/.test(a.textContent)).forEach(d => foot.appendChild(d));
+  if (folds.length) m.appendChild(foot);
+  // weather: a real empty state
+  for (const p of m.querySelectorAll(':scope > p')) if (/目前没有可见天气事件/.test(p.textContent)) {
+    p.className = 'ux-emptystate'; p.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg><b>天气平稳</b><span>预报出现时会在这里和地图上显示</span>';
+  }
+  // maintenance: per-segment costs as one card with a label; empty settlement history as a quiet line
+  const segs = [...m.querySelectorAll(':scope > .quote-row')];
+  if (segs.length && !m.querySelector('.ux-card')) {
+    const label = document.createElement('div'); label.className = 'ux-card-label'; label.textContent = '各路段月费';
+    const card = document.createElement('section'); card.className = 'ux-card';
+    segs[0].before(label); label.after(card); segs.forEach(r => card.appendChild(r));
+  }
+  for (const h of m.querySelectorAll(':scope > h3')) if (/月度结算记录/.test(h.textContent)) { const p = h.nextElementSibling; if (p && /首月尚未结算/.test(p.textContent)) { p.remove(); h.remove(); } }
+  // vehicles: the purchase-discount footnote goes to the footer area
+  for (const p of m.querySelectorAll(':scope > p')) if (/采购优惠/.test(p.textContent)) { p.className = 'ux-footnote'; m.appendChild(p); }
 }
 /* ---------- 建造 · 桥梁与道路: actions first, empty sections gone ---------- */
 // Upstream renders headings with placeholder text ("还没有桥梁", "暂无受损路段"). Rebuild as: two bridge actions with a
@@ -779,8 +812,8 @@ function uxEngineeringPage(m) {
   const addSection = (title, nodes, note) => {
     if (!hasContent(nodes)) return;
     const d = document.createElement('section'); d.className = 'ux-eng-sec';
-    d.innerHTML = `<div class="ux-eng-title">${title}${note ? ` <small>${note}</small>` : ''}</div>`;
-    nodes.forEach(n => d.appendChild(n)); wrap.appendChild(d);
+    d.innerHTML = `<div class="ux-eng-title">${title}${note ? ` <small>${note}</small>` : ''}</div><div class="ux-card"></div>`;
+    nodes.forEach(n => d.lastChild.appendChild(n)); wrap.appendChild(d);
   };
   addSection('已有桥梁', pick(/已有桥梁/), '拓宽提速或拆除');
   addSection('受损路段', pick(/断线|维修/), '抢修后恢复通行');
@@ -788,12 +821,12 @@ function uxEngineeringPage(m) {
   const upg = pick(/道路升级|铁路改造/).flatMap(n => [...(n.querySelectorAll?.('button[onclick^="openInfrastructure"]') || [])]);
   if (upg.length) {
     const d = document.createElement('section'); d.className = 'ux-eng-sec';
-    d.innerHTML = '<div class="ux-eng-title">线路提速</div>';
+    d.innerHTML = '<div class="ux-eng-title">线路提速</div><div class="ux-card"></div>';
     for (const b of upg) {
       const id = +(b.getAttribute('onclick').match(/\d+/) || [])[0], l = S.lines.find(x => x.id === id);
       const row = document.createElement('button'); row.className = 'ux-eng-row'; row.setAttribute('onclick', b.getAttribute('onclick'));
       row.innerHTML = `<i style="background:${l?.color || '#999'}"></i><span>${escapeHTML(l?.name || b.textContent)}</span><em>›</em>`;
-      d.appendChild(row);
+      d.lastChild.appendChild(row);
     }
     wrap.appendChild(d);
   }
@@ -1194,8 +1227,9 @@ function uxCompactSheet(m) {
     const keep = 'details,.ux-ledger,.ux-fac,.ux-eng,.ux-contract,.ux-empty,label';
     const long = [...m.querySelectorAll('p')].filter(p => !p.closest(keep) && !p.querySelector('button,input,select') && (t => t.length > 60 || (t.length > 30 && !/\d/.test(t)))(p.textContent.trim()));   // long rules fold; short numeric facts stay
     if (long.length) {
-      let d = [...m.querySelectorAll(':scope > details.ux-rules')].find(x => !/ux-ledger-all|ux-car-fold|ux-market-build/.test(x.className));
-      if (!d) { d = document.createElement('details'); d.className = 'ux-rules'; d.innerHTML = '<summary>规则说明</summary>'; m.appendChild(d); }
+      // reuse an existing 规则说明 fold anywhere in the sheet (the hub footer may already hold it)
+      let d = [...m.querySelectorAll('details.ux-rules')].find(x => !/ux-ledger-all|ux-car-fold|ux-market-build/.test(x.className) && /规则说明/.test(x.querySelector('summary')?.textContent || ''));
+      if (!d) { d = document.createElement('details'); d.className = 'ux-rules'; d.innerHTML = '<summary>规则说明</summary>'; (m.querySelector('.ux-foldfoot') || m).appendChild(d); }
       long.forEach(p => d.appendChild(p));
     }
     // info cards left with only a heading and no numbers or actions add nothing
