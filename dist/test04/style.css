@@ -788,3 +788,8 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
 .ux-resume b{display:block;margin-top:2px;font-size:16px;font-variant-numeric:tabular-nums}
 .ux-resume-links{display:flex;justify-content:space-between;margin-top:6px}
 .ux-resume-links button{min-height:40px;padding:0 6px;color:var(--muted);font-size:13px;background:none}
+
+.ux-car-fold summary{color:var(--ink);font-weight:600}
+.ux-car-fold summary small{flex:1;margin-left:8px;font-weight:400;color:var(--muted);font-size:11px}
+.ux-car-fold .car-shop{border:0;padding:0;margin:0;background:none}
+.ux-car-fold .car-shop h3,.ux-car-fold .car-shop .eyebrow{display:none}

@@ -811,6 +811,15 @@ function uxWrapWelcome() {
   if (modalOpen && uxEl('modal-content').innerHTML.includes('startGame()')) welcome(typeof hadSave !== 'undefined' && hadSave);
 }
 function uxWrapHubs() {
+  // 建造·车辆: the train-car shop repeats the per-train "+车厢" in each line sheet; fold it into one summary row.
+  uxAfter('shop', m => {
+    const sec = m.querySelector('section.car-shop'); if (!sec || sec.closest('details')) return;
+    const n = sec.querySelectorAll('button[onclick^="purchaseTrainCar"]:not([disabled])').length;
+    const d = document.createElement('details'); d.className = 'ux-rules ux-car-fold';
+    d.innerHTML = `<summary>列车扩编 · ${n ? n + ' 列可加车厢' : '暂无可扩容列车'}<small>线路详情里也能逐车加</small></summary>`;
+    sec.before(d); d.appendChild(sec);
+    sec.querySelectorAll(':scope > p').forEach(p => { if (p.textContent.trim().length > 30) p.remove(); });
+  });
   // Activity cards (0.5): the deck actions (reveal all / skip) sit right under the tabs so they are always in reach.
   uxAfter('showActivityCards', m => {
     const grid = m.querySelector('.activity-grid'), acts = m.querySelector('.activity-deck-actions');
