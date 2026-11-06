@@ -823,8 +823,17 @@ const UX_LEDGER = {
   in: [['fares', '票款'], ['tasks', '城市任务'], ['subsidy', '补助'], ['events', '活动收入'], ['contracts', '服务合同'], ['education', '教育补贴'], ['refunds', '撤回返还']],
   out: [['construction', '建设'], ['vehicles', '车辆'], ['maintenance', '维护'], ['activityFines', '活动罚款'], ['financialBuildings', '金融设施']],
 };
+// progression.js hard-codes the 0.x starting cash (500) in the ledger; a 1.1 save (moneyScale 10) started with 10×.
+function uxFixStartingCash(m) {
+  const k = +S?.moneyScale || 1; if (k === 1) return;
+  for (const sp of m.querySelectorAll('.finance-summary span')) {
+    const b = sp.querySelector('b'); if (!b || !/^初始资金/.test(sp.textContent.trim())) continue;
+    if (b.textContent.trim() === '+500') b.textContent = '+' + 500 * k;
+  }
+}
 function uxLedgerOverview(m) {
   if (m.querySelector('.ux-ledger') || !S?.ledger) return;
+  uxFixStartingCash(m);
   const L = S.ledger, sum = list => list.map(([k, n]) => [n, Math.max(0, +L[k] || 0)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
   const ins = sum(UX_LEDGER.in), outs = sum(UX_LEDGER.out), tin = ins.reduce((n, x) => n + x[1], 0), tout = outs.reduce((n, x) => n + x[1], 0);
   const max = Math.max(tin, tout, 1), fmt = v => '¥' + Math.round(v).toLocaleString('en-US');
