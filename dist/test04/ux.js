@@ -38,6 +38,11 @@ updateUI = function () {
   if (n && /运营中心|工程采购|交通采购|收支账本/.test(n.textContent)) n.textContent = uxRename(n.textContent);
 };
 
+/* ---------- line palette: distinct on small screens, away from the passenger destination hues ---------- */
+// Old palette had three near-identical blues/purples and hues next to passenger colours (blue, gold, purple).
+// The first four are the most distinct. Only new lines use it; saved lines keep their stored colour.
+if (typeof LINECOL !== 'undefined') LINECOL.splice(0, LINECOL.length, '#d36951', '#2f8a78', '#3f5a9e', '#8a9a2e', '#b4487e', '#8a5a3c', '#4f9a4f', '#5f6f78');
+
 /* ---------- retired entry names in upstream texts → the three hubs ---------- */
 const UX_RENAMES = [['运营中心选择', '点「目标」选择'], ['交通采购', '建造·车辆'], ['工程采购', '建造'], ['收支账本', '资金·收支'], ['运营中心', '目标']];
 function uxRename(t) { t = String(t); for (const [a, b] of UX_RENAMES) t = t.split(a).join(b); return t; }
