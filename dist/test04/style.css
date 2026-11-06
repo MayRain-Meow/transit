@@ -807,3 +807,8 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
 .ux-ledger-row b{font-weight:500;font-variant-numeric:tabular-nums;font-size:12px}
 .ux-ledger-note{margin-top:8px;font-size:11px;color:var(--muted)}
 .ux-ledger-all .finance-summary{margin-top:0}
+
+/* First-game coach */
+#ux-coach{position:absolute;z-index:8;left:16px;right:16px;margin:0 auto;width:max-content;display:flex;align-items:center;gap:6px;max-width:calc(100vw - 32px);padding:8px 6px 8px 14px;border-radius:14px;background:#fffdf6f5;border:1px solid #e9d6c4;box-shadow:0 6px 20px #263b4222;font-size:13px;line-height:1.5;color:#5f4a3a;animation:ux-pill-in .25s ease-out}
+#ux-coach b{color:#c56544;margin-right:6px}
+#ux-coach button{flex-shrink:0;width:30px;height:30px;border-radius:15px;color:#a39a8a;font-size:15px}

@@ -34,7 +34,7 @@ const uxUpdateUI = updateUI;
 updateUI = function () {
   uxUpdateUI();
   const p = uxEl('points'); if (p) p.textContent = money(S.points);
-  const n = uxEl('notice'); if (n && n.textContent.startsWith('城市成长测试版')) n.textContent = '点城市查看任务 · 拖线后在底栏点「建设」';
+  const n = uxEl('notice'); if (n && n.textContent.startsWith('城市成长测试版')) n.textContent = uxCoachActive() ? '' : '点城市查看任务 · 拖线后在底栏点「建设」';
   if (n && /运营中心|工程采购|交通采购|收支账本/.test(n.textContent)) n.textContent = uxRename(n.textContent);
 };
 
@@ -50,7 +50,7 @@ function uxRename(t) { t = String(t); for (const [a, b] of UX_RENAMES) t = t.spl
 /* ---------- sheets (modals) ---------- */
 const uxOpenModal = openModal;
 openModal = function (html) {
-  html = uxRename(String(html).split('¥' + S.points).join(money(S.points)));
+  html = uxRename(S ? String(html).split('¥' + S.points).join(money(S.points)) : String(html));
   uxOpenModal(html);
   const m = uxEl('modal-content'); m.scrollTop = 0; m.style.transform = '';
 };
@@ -199,6 +199,7 @@ commitDraft = function (skip = false) {
 const uxToast = toast;
 toast = function (t) {
   t = String(t).replace('点击查看报价后确认建设', '核对底栏报价后点「建设」').replace('；查看报价确认建设', '，然后点底栏「建设」');
+  if (uxCoachActive() && /拖到|线路已规划|报价后|核对底栏/.test(t)) return;   // the coach already says this
   uxToast(uxRename(t));
   uxPlaceToast();
 };
@@ -207,7 +208,7 @@ function uxPlaceToast() {
   const el = uxEl('toast'); if (!el) return;
   if (!portraitMode) { el.style.top = el.style.bottom = ''; return; }
   let top = H;
-  for (const sel of ['#details', '#routes', '#drawbar', 'footer .dock']) {
+  for (const sel of ['#ux-coach', '#details', '#routes', '#drawbar', 'footer .dock']) {
     const e = document.querySelector(sel);
     if (!e || e.hidden || typeof getComputedStyle !== 'function' || getComputedStyle(e).display === 'none') continue;
     const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
@@ -299,8 +300,10 @@ function uxTidyCitySheet() {
       const n = (meta?.textContent || '').match(/(\d+)人/)?.[1] || '', wait = +((meta?.textContent || '').match(/·\s*(\d+)/)?.[1] || 0);
       b.className = 'ux-chip' + (wait > 120 ? ' is-late' : '');
       b.innerHTML = `<span style="color:${who?.style.color || ''}">${who?.innerHTML || ''}</span><b>${n}</b>${wait > 60 ? `<small>${wait}s</small>` : ''}`;
-      box.appendChild(b);
+      b.dataset.wait = wait; b.dataset.n = n;
     }
+    // most urgent first: longest wait, then most people
+    rows.sort((x, y) => (+y.dataset.wait - +x.dataset.wait) || (+y.dataset.n - +x.dataset.n)).forEach(b => box.appendChild(b));
     for (const p of el.querySelectorAll(':scope > p.detail-sub')) if (/候车目的地|没有旅客/.test(p.textContent) && !/没有旅客/.test(p.textContent)) p.remove();
   }
   // facilities: every known entry button becomes a tile
@@ -620,7 +623,7 @@ function uxWrapLateDrawers() {
     drawCityOpening = function (c) { ctx.save(); uprightAround(c.x, c.y); try { open(c); } finally { ctx.restore(); } };
     drawCityOpening.uxUpright = true;
   }
-  if (!drawCityEconomy.uxHandles) { const dce = drawCityEconomy; drawCityEconomy = function (...a) { dce.apply(this, a); uxDrawHandles(); }; drawCityEconomy.uxHandles = true; }
+  if (!drawCityEconomy.uxHandles) { const dce = drawCityEconomy; drawCityEconomy = function (...a) { dce.apply(this, a); uxDrawHandles(); uxDrawCoach(); }; drawCityEconomy.uxHandles = true; }
 }
 /* ---------- tidy sheets that later scripts extend ---------- */
 // Later layers append sections by string. These passes keep one header on top, drop entries that already have a
@@ -1109,6 +1112,65 @@ let uxLastViewTarget = null;
     if (near(view, r.to)) animateView(r.from, 280);
   }).observe(d, { attributes: true, attributeFilter: ['hidden'] });
 })();
+
+/* ---------- first-game coach: follows what the player does, then retires ---------- */
+// No modal, no arrows over controls: one quiet hint above the bottom bar and, before the first line, a pulsing
+// dashed suggestion between the two closest open cities. Stored once finished or dismissed (per browser).
+const UX_COACH_KEY = 'transit-ux-coach-done';
+let uxCoach = { done: false, step: '', firstLineAt: 0 };
+try { uxCoach.done = localStorage.getItem(UX_COACH_KEY) === '1'; } catch {}
+// hoisted, so early callers (before the let above is initialised) get false instead of a TDZ error
+function uxCoachActive() { try { return !uxCoach.done; } catch { return false; } }
+function uxCoachShowing() { try { return !!uxCoach.step; } catch { return false; } }
+function uxCoachFinish() { uxCoach.done = true; try { localStorage.setItem(UX_COACH_KEY, '1'); } catch {} uxCoachRender(); }
+function uxCoachPair() {
+  const cs = realCities().filter(c => !c.dormant); let best = null;
+  for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) { const d = Math.hypot(cs[i].x - cs[j].x, cs[i].y - cs[j].y); if (!best || d < best.d) best = { a: cs[i], b: cs[j], d }; }
+  return best;
+}
+function uxCoachStep() {
+  if (uxCoach.done || !S?.lines || S.day > 6) return '';
+  if (draft && !draft.original) return draft.stops.length < 2 ? 'next' : 'build';
+  if (!S.lines.length) return 'start';
+  if (!uxCoach.firstLineAt) uxCoach.firstLineAt = performance.now();
+  return performance.now() - uxCoach.firstLineAt < 9000 ? 'deliver' : (uxCoachFinish(), '');
+}
+const UX_COACH_TEXT = {
+  start: '<b>第一步</b>从一座城市拖到另一座，修出第一条线路',
+  next: '<b>继续拖</b>到下一座城市，可以连续经过多座',
+  build: '<b>核对报价</b>，点底栏「建设」完成',
+  deliver: '<b>开通了！</b>乘客头上的色块是目的地，送到同色同形的城市；点城市看任务',
+};
+function uxCoachRender() {
+  let el = uxEl('ux-coach');
+  if (!el && document.body?.appendChild) {
+    el = document.createElement('div'); el.id = 'ux-coach'; el.setAttribute('role', 'status');
+    el.innerHTML = '<span></span><button aria-label="关闭引导">×</button>';
+    el.querySelector('button').onclick = uxCoachFinish;
+    document.body.appendChild(el);
+  }
+  if (!el) return;
+  const step = modalOpen ? '' : uxCoachStep();
+  el.hidden = !step;
+  if (step && step !== uxCoach.step) el.querySelector('span').innerHTML = UX_COACH_TEXT[step];
+  uxCoach.step = step;
+  if (step) { // float just above whatever sits at the bottom (route strip, draw bar, sheet)
+    let top = H;
+    for (const q of ['#drawbar', '#details', '#routes', 'footer .dock']) { const e = document.querySelector(q); if (!e || e.hidden || getComputedStyle(e).display === 'none') continue; const r = e.getBoundingClientRect(); if (r.height && r.top > H * .4) top = Math.min(top, r.top); }
+    el.style.bottom = (H - top + 10) + 'px';
+  }
+}
+if (typeof setInterval === "function") setInterval(() => { try { uxCoachRender(); } catch {} }, 300);
+function uxDrawCoach() {
+  if (uxCoach.done || uxCoach.step !== 'start') return;
+  const p = uxCoachPair(); if (!p) return;
+  const k = 1 / view.scale, t = (performance.now() % 1600) / 1600;
+  ctx.save(); ctx.strokeStyle = '#c56544'; ctx.lineWidth = 3 * k; ctx.lineCap = 'round';
+  ctx.setLineDash([2 * k, 9 * k]); ctx.lineDashOffset = -t * 22 * k; ctx.globalAlpha = .85;
+  ctx.beginPath(); ctx.moveTo(p.a.x, p.a.y); ctx.lineTo(p.b.x, p.b.y); ctx.stroke(); ctx.setLineDash([]);
+  for (const c of [p.a, p.b]) { ctx.globalAlpha = .55 * (1 - t); ctx.lineWidth = 2.5 * k; ctx.beginPath(); ctx.arc(c.x, c.y, (radius(c) * (globalThis.CITY_GLYPH?.() ?? 1) + 8 + 16 * t) , 0, Math.PI * 2); ctx.stroke(); }
+  ctx.restore();
+}
 
 /* Re-render surfaces that were drawn before this layer loaded. */
 if (modalOpen && uxEl('modal-content').innerHTML.includes('startGame()')) welcome(typeof hadSave !== 'undefined' && hadSave);

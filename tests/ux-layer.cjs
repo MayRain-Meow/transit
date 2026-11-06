@@ -230,5 +230,13 @@ test('new activity invitations do not pop a sheet mid-play; tapping 目标 still
   run('uxOpenHub("goal",1)');assert.equal(node('modal').hidden,false,'player tap opens the cards');
   run('closeModal()');
 });
+test('first-game coach follows the player and retires',()=>{
+  fresh();run('uxCoach.done=false;uxCoach.firstLineAt=0;S.lines=[];S.day=0');
+  assert.equal(run('uxCoachStep()'),'start');
+  run('beginDraft("bus");draft.stops=[0]');assert.equal(run('uxCoachStep()'),'next');
+  run('draft.stops=[0,1]');assert.equal(run('uxCoachStep()'),'build');
+  run('S.points=RICH;commitDraft(true)');assert.equal(run('uxCoachStep()'),'deliver');
+  run('uxCoach.firstLineAt-=10000');assert.equal(run('uxCoachStep()'),'');assert.equal(run('uxCoach.done'),true);
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
