@@ -1181,6 +1181,52 @@ function uxDrawCoach() {
   ctx.restore();
 }
 
+/* ---------- generic sheet compaction (runs after any sheet finishes rendering) ---------- */
+// Upstream sheets stack stat rows, rule paragraphs and actions, and later layers append more by string. One pass,
+// after the last mutation: long rule text folds into a single 「规则说明」, short facts stay, 3-option dropdowns become
+// segmented controls (the hidden select stays the source of truth), and redundant "back to map" buttons go.
+const UX_DESIGNED = '.ux-hero,.ux-steps,.ux-help,.financial-market,.activity-grid,.ux-tasks,.ux-resume';
+let uxCompacting = false;
+function uxCompactSheet(m) {
+  if (!m || m.querySelector(UX_DESIGNED)) return;
+  uxCompacting = true;
+  try {
+    const keep = 'details,.ux-ledger,.ux-fac,.ux-eng,.ux-contract,.ux-empty,label';
+    const long = [...m.querySelectorAll('p')].filter(p => !p.closest(keep) && !p.querySelector('button,input,select') && (t => t.length > 60 || (t.length > 30 && !/\d/.test(t)))(p.textContent.trim()));   // long rules fold; short numeric facts stay
+    if (long.length) {
+      let d = [...m.querySelectorAll(':scope > details.ux-rules')].find(x => !/ux-ledger-all|ux-car-fold|ux-market-build/.test(x.className));
+      if (!d) { d = document.createElement('details'); d.className = 'ux-rules'; d.innerHTML = '<summary>规则说明</summary>'; m.appendChild(d); }
+      long.forEach(p => d.appendChild(p));
+    }
+    // info cards left with only a heading and no numbers or actions add nothing
+    for (const sec of m.querySelectorAll('section.infra-card, div.infra-card')) {
+      if (sec.querySelector('button,input,select,.quote-row,p')) continue;
+      if (!/\d/.test(sec.textContent)) sec.remove();
+    }
+    for (const b of m.querySelectorAll('button')) if (/^返回地图$/.test(b.textContent.trim())) b.remove();
+    for (const sel of m.querySelectorAll('select')) {
+      if (sel.dataset.uxSeg || sel.options.length < 2 || sel.options.length > 3) continue;
+      sel.dataset.uxSeg = '1';
+      const seg = document.createElement('div'); seg.className = 'ux-seg'; seg.setAttribute('role', 'radiogroup');
+      const sync = () => seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === sel.value));
+      for (const o of sel.options) {
+        const b = document.createElement('button'); b.type = 'button'; b.dataset.v = o.value; b.textContent = o.textContent.trim();
+        b.onclick = () => { sel.value = o.value; sel.dispatchEvent(new Event('input', { bubbles: true })); sel.dispatchEvent(new Event('change', { bubbles: true })); sync(); haptic(); };
+        seg.appendChild(b);
+      }
+      sel.after(seg); sel.classList.add('ux-seg-src'); sync();
+    }
+  } finally { uxCompacting = false; }
+}
+(function watchSheets() {
+  const mc = uxEl('modal-content'); if (!mc || typeof MutationObserver === 'undefined') return;
+  let queued = false;
+  new MutationObserver(() => {
+    if (uxCompacting || queued) return; queued = true;
+    requestAnimationFrame(() => { queued = false; if (!uxEl('modal').hidden) uxCompactSheet(mc); });
+  }).observe(mc, { childList: true });
+})();
+
 /* Re-render surfaces that were drawn before this layer loaded. */
 if (modalOpen && uxEl('modal-content').innerHTML.includes('startGame()')) welcome(typeof hadSave !== 'undefined' && hadSave);
 updateUI();
