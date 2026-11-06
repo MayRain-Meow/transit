@@ -764,3 +764,5 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
   .route-foot button{flex:0 0 auto;width:36px;height:36px;border-radius:18px;background:#f3f5ef;font-size:16px}
   body:has(#drawbar:not([hidden])) #routes{display:none}
 }
+.dock-badge{position:absolute;top:6px;right:calc(50% - 22px);width:9px;height:9px;border-radius:5px;background:var(--accent);box-shadow:0 0 0 2px #fffdf6}
+.notice-wrap{cursor:pointer}

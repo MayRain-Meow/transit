@@ -39,7 +39,7 @@ updateUI = function () {
 };
 
 /* ---------- retired entry names in upstream texts → the three hubs ---------- */
-const UX_RENAMES = [['交通采购', '建造·车辆'], ['工程采购', '建造'], ['收支账本', '资金·收支'], ['运营中心', '目标']];
+const UX_RENAMES = [['运营中心选择', '点「目标」选择'], ['交通采购', '建造·车辆'], ['工程采购', '建造'], ['收支账本', '资金·收支'], ['运营中心', '目标']];
 function uxRename(t) { t = String(t); for (const [a, b] of UX_RENAMES) t = t.split(a).join(b); return t; }
 
 /* ---------- sheets (modals) ---------- */
@@ -795,6 +795,15 @@ function uxWrapHubs() {
     if (fn === 'uxMarketWealth' || fn === 'uxMarketStocks') return;
     uxAfter(fn, m => uxHubBar(key, i, m));
   });
+  // Contract list: 1.1 scaled the reward in acceptContract (1000+600×size) but not the text in chooseContract
+  // (100+60×size). Only a number that still matches the stale formula is corrected, so an upstream fix wins.
+  uxAfter('chooseContract', m => {
+    for (const sec of m.querySelectorAll('section')) {
+      const id = +((sec.querySelector('button[onclick^="acceptContract"]')?.getAttribute('onclick') || '').match(/\d+/) || [NaN])[0], c = S.cities[id];
+      if (!c) continue;
+      const p = sec.querySelector('p'); if (p) p.innerHTML = p.innerHTML.replace('奖金 ¥' + (100 + c.size * 60), '奖金 ¥' + (1000 + c.size * 600));
+    }
+  });
   uxAfter('chooseContract', m => uxHubBar('goal', 2, m));
   uxAfter('showFinancialMarket', m => uxHubBar('money', marketTab === 'stocks' ? 3 : 2, m));
   uxAfter('showFinanceLock', m => uxHubBar('money', /证券|券商/.test(m.textContent) && !/银行尚未/.test(m.textContent) ? 3 : 2, m));
@@ -805,9 +814,31 @@ function uxWrapHubs() {
 }
 // events.js loads after this file and redefines some drawers and sheets, so wrap once every script has run.
 function uxLate() {
+  if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
+  if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs();
   // later layers set the notice text inside their own updateUI; rename after all of them
   const ui = updateUI; updateUI = function (...a) { const r = ui.apply(this, a); const n = uxEl('notice'); if (n && /运营中心|工程采购|交通采购|收支账本/.test(n.textContent)) n.textContent = uxRename(n.textContent); return r; };
+  // New activity invitations no longer pop a full-screen sheet in the middle of play: the game loop's automatic
+  // showActivityCards() right after generateActivityOffers() becomes a badge on 目标 plus a tappable notice.
+  if (typeof generateActivityOffers === 'function' && typeof showActivityCards === 'function') {
+    let quiet = false;
+    const gen = generateActivityOffers;
+    generateActivityOffers = function (...a) { const r = gen.apply(this, a); if (r) { quiet = true; Promise.resolve().then(() => { quiet = false; }); } return r; };
+    const show = showActivityCards;
+    showActivityCards = function (...a) {
+      if (quiet) { quiet = false; toast('三张城市活动邀请已送达 · 点「目标」查看'); updateUI(); return; }
+      return show.apply(this, a);
+    };
+    showActivityCards.uxTidy = show.uxTidy; showActivityCards.uxTidies = show.uxTidies;   // a player's tap (hub tab, notice) still opens it
+  }
+  const ui2 = updateUI; updateUI = function (...a) {
+    const r = ui2.apply(this, a);
+    const b = uxEl('hub-goal')?.querySelector?.('.dock-badge'), s = typeof activityState === 'function' ? activityState() : null;
+    if (b) b.hidden = !(s && s.offers?.length && !s.active);
+    return r;
+  };
+  uxEl('notice')?.closest?.('.notice-wrap')?.addEventListener('click', e => { if (e.target.closest('#notice-close')) return; if (/活动邀请/.test(uxEl('notice').textContent)) uxOpenHub('goal', 1); });
   updateUI();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', uxLate); else uxLate();

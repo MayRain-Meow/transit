@@ -219,8 +219,16 @@ test('hubs: each global page carries its hub tabs; the old operations centre lan
 });
 test('upstream texts that name retired entries point to the three hubs',()=>{
   assert.equal(run('uxRename("跨河前请先在工程采购中手动建桥")'),'跨河前请先在建造中手动建桥');
-  assert.equal(run('uxRename("三张城市活动邀请 · 运营中心选择")'),'三张城市活动邀请 · 目标选择');
+  assert.equal(run('uxRename("三张城市活动邀请 · 运营中心选择")'),'三张城市活动邀请 · 点「目标」选择');
   assert.equal(run('uxRename("可在交通采购中购买")'),'可在建造·车辆中购买');
+});
+test('new activity invitations do not pop a sheet mid-play; tapping 目标 still opens them',()=>{
+  fresh();run('uxLate&&uxLate();S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1,2]};commitDraft(true);clearSelection();S.day=30;let st=activityState();st.offers=[];st.active=null;st.next=0;closeModal()');
+  run('if(generateActivityOffers())showActivityCards()');
+  assert.equal(node('modal').hidden,true,'automatic open is suppressed');
+  assert(run('activityState().offers.length')>0,'offers were generated');
+  run('uxOpenHub("goal",1)');assert.equal(node('modal').hidden,false,'player tap opens the cards');
+  run('closeModal()');
 });
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
