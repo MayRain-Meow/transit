@@ -418,23 +418,30 @@ function uxHandles() {
     for (const end of ['head', 'tail']) {
       const e = S.cities[end === 'tail' ? l.stops.at(-1) : l.stops[0]], n = S.cities[end === 'tail' ? l.stops.at(-2) : l.stops[1]];
       if (!e || !n) continue;
-      const dx = e.x - n.x, dy = e.y - n.y, len = Math.hypot(dx, dy) || 1, reach = uxTabReach(e, dx / len, dy / len) / view.scale;
-      out.push({ line: l, end, city: e, x: e.x + dx / len * reach, y: e.y + dy / len * reach, ux: dx / len, uy: dy / len });
+      const dx = e.x - n.x, dy = e.y - n.y, len = Math.hypot(dx, dy) || 1, p = uxTabPlace(e, dx / len, dy / len);
+      out.push({ line: l, end, city: e, x: e.x + p.ux * p.reach, y: e.y + p.uy * p.reach, ux: p.ux, uy: p.uy });
     }
   }
   return out;
 }
 // Screen distance from the city centre to the tab. Starts just outside the node and slides further out along the
 // line if it would sit on the waiting squares (drawn upright to the node's right, up to two rows).
-function uxTabReach(c, ux, uy) {
+// Returns the tab's world direction and distance for an end city whose line arrives along (ux, uy).
+function uxTabPlace(c, ux, uy) {
   const s = view.scale, g = globalThis.CITY_GLYPH?.() ?? 1, r = radius(c), base = uxNodePx(c) + UX_TAB_GAP;
-  const n = Math.min(c.q?.length || 0, globalThis.QUEUE_SHOWN || 30); if (!n) return base;
+  const n = Math.min(c.q?.length || 0, globalThis.QUEUE_SHOWN || 30);
   const o = toScreen(c), t = toScreen({ x: c.x + ux, y: c.y + uy }), dl = Math.hypot(t.x - o.x, t.y - o.y) || 1, sx = (t.x - o.x) / dl, sy = (t.y - o.y) / dl;
-  const rows = Math.ceil(Math.min(n, 30) / 6), pad = UX_TAB_R + 4;
+  const rows = Math.ceil(Math.min(Math.max(n, 1), 30) / 6), pad = UX_TAB_R + 4;
   const box = { l: (r + 15) * s * g - pad, r: (r + 15 + 6 * 11) * s * g + pad + 22, t: -r * s * g - pad, b: (-r + rows * 12) * s * g + pad };
-  let d = base;
-  while (d < base + 140 && sx * d >= box.l && sx * d <= box.r && sy * d >= box.t && sy * d <= box.b) d += 6;
-  return d;
+  const hits = (x, y) => n && x >= box.l && x <= box.r && y >= box.t && y <= box.b;
+  for (const deg of [0, -40, 40, -80, 80, -120, 120]) {
+    const q = deg * Math.PI / 180, dx = sx * Math.cos(q) - sy * Math.sin(q), dy = sx * Math.sin(q) + sy * Math.cos(q);
+    if (!hits(dx * base, dy * base)) {
+      const w = toWorld({ clientX: o.x + dx * base, clientY: o.y + dy * base }), wx = w.x - c.x, wy = w.y - c.y, wl = Math.hypot(wx, wy) || 1;
+      return { ux: wx / wl, uy: wy / wl, reach: base / view.scale };
+    }
+  }
+  return { ux, uy, reach: base / view.scale };
 }
 // Hit-testing and drawing share this list. Nothing selected → no tabs at all.
 function uxVisibleHandles() { const f = uxHandleFocus(); return f === null ? [] : uxHandles().filter(h => h.line.id === f); }
