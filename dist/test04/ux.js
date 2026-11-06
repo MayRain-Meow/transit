@@ -796,6 +796,20 @@ function uxEngineeringPage(m) {
   if (facilities) { facilities.className = 'ux-eng-foot'; wrap.appendChild(facilities); }
   if (rules) m.appendChild(rules);
 }
+/* ---------- welcome: returning players get a one-tap continue card ---------- */
+// A new game keeps the upstream introduction. With a save, the intro is replaced by where you left off and one button.
+function uxWrapWelcome() {
+  const w = welcome;
+  welcome = function (hasSave) {
+    if (!hasSave || !S?.cities) return w.apply(this, arguments);
+    const d = formatDate(), lines = S.lines.filter(l => !l.retiring).length, open = realCities().filter(c => !c.dormant).length;
+    openModal(`<div class="ux-hero"><span class="eyebrow">东岸 · 继续经营</span><h1>第${d.year}年 ${d.month}月${d.day}日</h1></div>
+<div class="ux-resume"><div><small>资金</small><b>${money(S.points)}</b></div><div><small>线路</small><b>${lines}</b></div><div><small>城市</small><b>${open}</b></div><div><small>已送达</small><b>${S.delivered}</b></div></div>
+<div class="ux-actions"><button class="primary ux-wide" onclick="startGame()">继续</button></div>
+<div class="ux-resume-links"><button onclick="help()">怎么玩</button><button id="ux-new" class="ux-ghost" onclick="uxConfirmNew(this)">重新开始</button></div>`);
+  };
+  if (modalOpen && uxEl('modal-content').innerHTML.includes('startGame()')) welcome(typeof hadSave !== 'undefined' && hadSave);
+}
 function uxWrapHubs() {
   // Activity cards (0.5): the deck actions (reveal all / skip) sit right under the tabs so they are always in reach.
   uxAfter('showActivityCards', m => {
@@ -829,7 +843,7 @@ function uxWrapHubs() {
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
-  uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs();
+  uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
   // later layers set the notice text inside their own updateUI; rename after all of them
   const ui = updateUI; updateUI = function (...a) { const r = ui.apply(this, a); const n = uxEl('notice'); if (n && /运营中心|工程采购|交通采购|收支账本/.test(n.textContent)) n.textContent = uxRename(n.textContent); return r; };
   // New activity invitations no longer pop a full-screen sheet in the middle of play: the game loop's automatic

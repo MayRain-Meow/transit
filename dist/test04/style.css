@@ -780,3 +780,11 @@ body:has(#modal:not([hidden])) .undo-build{display:none!important}
   .activity-front{min-height:280px!important;padding:16px!important}
   .activity-back svg{max-width:88px;max-height:88px}
 }
+
+/* Returning player: where you left off, one button */
+.ux-resume{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 6px}
+.ux-resume div{padding:10px 8px;border-radius:12px;background:#f6f7f2;text-align:center}
+.ux-resume small{display:block;font-size:11px;color:var(--muted)}
+.ux-resume b{display:block;margin-top:2px;font-size:16px;font-variant-numeric:tabular-nums}
+.ux-resume-links{display:flex;justify-content:space-between;margin-top:6px}
+.ux-resume-links button{min-height:40px;padding:0 6px;color:var(--muted);font-size:13px;background:none}
