@@ -881,7 +881,84 @@ ${rows(ins, 'in')}${rows(outs, 'out')}
   for (const n of [...m.children]) if (n !== head && n !== box && !n.classList.contains('ux-hub-tabs') && !n.matches('details.ux-rules:not(.ux-ledger-all)') && !(n.tagName === 'SECTION' && /投资账户/.test(n.textContent))) d.appendChild(n);
   box.after(d);
 }
+/* ---------- finance curves: readable at phone size ---------- */
+// Upstream draws a 720-unit-wide SVG that shows at ~340px, so its 10-unit text is ~4.7px and the line ~1.2px.
+// Same data, re-styled: area fill under the curve, a dot on the latest value, larger axis text (CSS).
+function uxPolishCharts(m) {
+  for (const svg of m.querySelectorAll('.market-chart svg')) {
+    if (svg.dataset.ux) continue; svg.dataset.ux = '1';
+    const line = svg.querySelector('polyline'); if (!line) continue;
+    const pts = line.getAttribute('points').trim().split(/\s+/).map(p => p.split(',').map(Number)); if (!pts.length) continue;
+    const col = line.getAttribute('stroke') || '#34775b', id = 'uxg' + Math.random().toString(36).slice(2, 8), base = 168;
+    const ns = 'http://www.w3.org/2000/svg', el = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+    const defs = el('defs', {}), g = el('linearGradient', { id, x1: 0, y1: 0, x2: 0, y2: 1 });
+    g.append(el('stop', { offset: '0', 'stop-color': col, 'stop-opacity': '.22' }), el('stop', { offset: '1', 'stop-color': col, 'stop-opacity': '0' }));
+    defs.append(g); svg.prepend(defs);
+    const area = el('polygon', { points: [...pts.map(p => p.join(',')), pts.at(-1)[0] + ',' + base, pts[0][0] + ',' + base].join(' '), fill: `url(#${id})` });
+    line.before(area);
+    line.setAttribute('stroke-width', '4'); line.setAttribute('stroke-linecap', 'round');
+    // upstream puts the min-value label and the first-day label in the same corner
+    for (const t of svg.querySelectorAll('text')) if (t.getAttribute('x') === '4' && t.getAttribute('y') === '190') t.setAttribute('y', '158');
+    const last = pts.at(-1); svg.append(el('circle', { cx: last[0], cy: last[1], r: 7, fill: '#fff', stroke: col, 'stroke-width': 4 }));
+  }
+}
+function uxPolishPortfolio(m) {
+  const metrics = m.querySelector('.market-metrics'); if (!metrics || metrics.dataset.ux) return; metrics.dataset.ux = '1';
+  // the headline above already shows 累计投资收益率
+  for (const d of metrics.children) if (/累计投资收益率/.test(d.textContent) && m.querySelector('.market-headline')) d.remove();
+  // a section left with only its heading (paragraphs folded) goes away
+  for (const sec of m.querySelectorAll('.market-product')) if (!sec.querySelector('p, button, input, .market-chart, .market-metrics') && /每日结算/.test(sec.textContent)) sec.remove();
+}
+
+/* ---------- confirmation sheets: one pattern ---------- */
+// [取消]  [ primary action ]  at the bottom; destructive primaries read red; a second real choice stacks as an option.
+function uxConfirmPattern(m) {
+  if (!m || m.querySelector('.ux-hub-tabs, ' + UX_DESIGNED) || m.querySelector('.ux-confirm')) return;
+  const btns = [...m.querySelectorAll('button')].filter(b => !b.closest('.modal-head, .ux-foldfoot, details, .colors, .ux-seg'));
+  const primary = btns.filter(b => b.classList.contains('primary'));
+  if (primary.length !== 1 || btns.length > 6) return;
+  const p = primary[0], cancel = btns.find(b => b !== p && /^(取消|返回|暂不|先不)/.test(b.textContent.trim()));
+  const others = btns.filter(b => b !== p && b !== cancel && b.parentElement === p.parentElement);
+  const row = document.createElement('div'); row.className = 'ux-confirm';
+  if (others.length === 1 && !/预览|地图/.test(others[0].textContent)) { // a second real choice: stack as options
+    row.classList.add('is-options'); row.append(p, others[0]); if (cancel) row.append(cancel);
+  } else { if (cancel) row.append(cancel); row.append(p); }
+  if (/拆除|断线|回收|撤销/.test(p.textContent)) p.classList.add('ux-danger-primary');
+  (m.querySelector('.ux-foldfoot') || null) ? m.querySelector('.ux-foldfoot').before(row) : m.appendChild(row);
+  for (const c of m.querySelectorAll('.construction-actions')) if (!c.querySelector('button')) c.remove();
+}
+
+/* ---------- city services list: one row per city; the shared caveat once ---------- */
+function uxCityServicesList(m) {
+  const secs = [...m.querySelectorAll('.task-cities > section')]; if (!secs.length || m.querySelector('.ux-svc')) return;
+  const lines = secs.map(sec => (sec.querySelector('p')?.innerHTML || '').split(/<br\s*\/?>/));
+  const reasons = lines.map(l => (l[1] || '').trim()), same = reasons.every(r => r && r === reasons[0]);
+  const card = document.createElement('div'); card.className = 'ux-card ux-svc';
+  secs.forEach((sec, i) => {
+    const btn = sec.querySelector('button'), name = sec.querySelector('h3')?.textContent || '';
+    const row = document.createElement('div'); row.className = 'ux-svc-row';
+    row.innerHTML = `<span><b>${escapeHTML(name)}</b><small>${lines[i][0]}${!same && reasons[i] ? ' · ' + reasons[i] : ''}</small></span>`;
+    if (btn) { btn.textContent = '查看'; row.appendChild(btn); }
+    card.appendChild(row);
+  });
+  const grid = m.querySelector('.task-cities'); grid.before(card); grid.remove();
+  if (same) { const note = document.createElement('p'); note.className = 'ux-footnote'; note.innerHTML = reasons[0]; card.after(note); }
+}
+
+/* ---------- game over: the run in numbers ---------- */
+function uxGameOver(m) {
+  if (m.querySelector('.ux-resume')) return;
+  const t = m.textContent, days = t.match(/(?:维持|坚持)了\s*(\d+)\s*天/)?.[1], got = t.match(/送达\s*(\d+)\s*位/)?.[1];
+  if (!days) return;
+  const tiles = document.createElement('div'); tiles.className = 'ux-resume';
+  tiles.innerHTML = `<div><small>坚持</small><b>${days} 天</b></div><div><small>送达</small><b>${got ?? 0} 人</b></div><div><small>线路</small><b>${S.lines.length}</b></div><div><small>城市</small><b>${realCities().filter(c => !c.dormant).length}</b></div>`;
+  const h = m.querySelector('h1, h2'); (h || m.firstChild).after(tiles);
+  for (const p of m.querySelectorAll('p')) if (/(维持|坚持)了/.test(p.textContent)) p.remove();
+}
 function uxWrapHubs() {
+  uxAfter('showFinancialMarket', m => { uxPolishPortfolio(m); uxPolishCharts(m); });
+  if (typeof showCityServices === 'function') uxAfter('showCityServices', m => uxCityServicesList(m));
+  if (typeof gameover === 'function') uxAfter('gameover', m => uxGameOver(m));
   uxAfter('showFinance', m => uxLedgerOverview(m));
   // 建造·车辆: the train-car shop repeats the per-train "+车厢" in each line sheet; fold it into one summary row.
   uxAfter('shop', m => {
@@ -1226,6 +1303,8 @@ function uxCompactSheet(m) {
   try {
     const keep = 'details,.ux-ledger,.ux-fac,.ux-eng,.ux-contract,.ux-empty,label';
     const long = [...m.querySelectorAll('p')].filter(p => !p.closest(keep) && !p.querySelector('button,input,select') && (t => t.length > 60 || (t.length > 30 && !/\d/.test(t)))(p.textContent.trim()));   // long rules fold; short numeric facts stay
+    // a confirmation sheet's first paragraph explains what you are agreeing to: it stays visible
+    if (m.querySelector('button.primary') && !m.querySelector('.ux-hub-tabs')) { const first = m.querySelector('p'); const i = long.indexOf(first); if (i >= 0) long.splice(i, 1); }
     if (long.length) {
       // reuse an existing 规则说明 fold anywhere in the sheet (the hub footer may already hold it)
       let d = [...m.querySelectorAll('details.ux-rules')].find(x => !/ux-ledger-all|ux-car-fold|ux-market-build/.test(x.className) && /规则说明/.test(x.querySelector('summary')?.textContent || ''));
@@ -1238,6 +1317,7 @@ function uxCompactSheet(m) {
       if (!/\d/.test(sec.textContent)) sec.remove();
     }
     for (const b of m.querySelectorAll('button')) if (/^返回地图$/.test(b.textContent.trim())) b.remove();
+    uxConfirmPattern(m);
     for (const sel of m.querySelectorAll('select')) {
       if (sel.dataset.uxSeg || sel.options.length < 2 || sel.options.length > 3) continue;
       sel.dataset.uxSeg = '1';

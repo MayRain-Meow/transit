@@ -912,3 +912,26 @@ select.ux-seg-src{display:none}
 .financial-market .market-headline > div{padding:9px 10px;border-radius:12px;background:#fff;border:1px solid var(--line)}
 .financial-market .market-headline small{font-size:11px!important;margin:0 0 2px!important}
 .financial-market .market-headline b{font-size:15px!important}
+
+/* finance curve: readable at phone size (SVG is 720 units wide) */
+.market-chart svg{background:#fff!important;border:1px solid var(--line);border-radius:12px!important}
+.market-chart svg text{font-size:22px!important;fill:#8a968c!important}
+.market-chart svg path{stroke:#eef1ea!important}
+.market-chart-empty{border-radius:12px!important;background:#f6f7f2!important;padding:36px 16px!important}
+/* confirmation pattern */
+.ux-confirm{display:flex;gap:8px;align-items:center;margin-top:16px}
+.ux-confirm > button{min-height:46px;border-radius:12px;font-size:14px;font-weight:600;padding:0 16px}
+.ux-confirm > button.primary{flex:1;margin:0!important}
+.ux-confirm > button:not(.primary){background:var(--chip);color:#5f6f68}
+.ux-confirm.is-options{flex-direction:column;align-items:stretch}
+.ux-confirm.is-options > button{width:100%}
+.ux-confirm.is-options > button:not(.primary):first-of-type,.ux-confirm.is-options > button:nth-child(2){background:#fff;border:1px solid var(--line);color:var(--ink)}
+.ux-confirm.is-options > button:last-child:not(:nth-child(2)){background:none;color:var(--muted);min-height:38px}
+.ux-confirm .ux-danger-primary{background:#b5573f!important;color:#fff!important}
+/* city services list */
+.ux-svc-row{display:flex;align-items:center;gap:10px;min-height:52px;border-bottom:1px solid #e9ece4}
+.ux-svc-row:last-child{border-bottom:0}
+.ux-svc-row > span{flex:1;min-width:0}
+.ux-svc-row b{display:block;font-size:14px}
+.ux-svc-row small{font-size:11px;color:var(--muted)}
+.ux-svc-row button{min-height:34px;padding:0 14px;border-radius:17px;background:#fff;border:1px solid var(--line);font-size:12px}
