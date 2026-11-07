@@ -1,0 +1,9 @@
+PASS east: start, cadence16/34/52, second seed>=65, per-circle bonus+deferred unlock, render purity, reload
+PASS west: start, cadence16/34/52, second seed>=65, per-circle bonus+deferred unlock, render purity, reload
+PASS independent map saves, explicit restart, best retention
+PASS legacy coast/coordinates retained
+PASS 48 native-vs-optimized routing queries including closures, express and hubs; all multi-river bridge sites checked
+PASS east 400-day spatial growth: 34 towns / 3 circles; fixed membership and clearance
+PASS west 400-day spatial growth: 34 towns / 3 circles; fixed membership and clearance
+PASS actual atlas production entry retains bank100 and farm800 (excluded only in offline comparison)
+PASS merged v1.2 terrain viewport bounds and earthquake target for rotated/unrotated cameras

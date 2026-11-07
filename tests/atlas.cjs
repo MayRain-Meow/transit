@@ -80,3 +80,10 @@ for(let map of ['east','west']){
 run('activateAtlasGeometry("east");reset();closeModal();S.cities[2].shape=2;S.cities[2].size=1;var moneyBeforeBank=S.points;buildFinance(2,"bank");');assert.equal(run('S.points'),run('moneyBeforeBank')-100);assert.equal(run('S.cities[2].financeBuildings.bank'),1);
 run('closeModal();var moneyBeforeFarm=S.points;plantFarm(1);');assert.equal(run('S.points'),run('moneyBeforeFarm')-800);assert(run('!!S.cities[1].farm.crop'));
 console.log('PASS actual atlas production entry retains bank100 and farm800 (excluded only in offline comparison)');
+
+// PR #3 rotation must also work with v1.2 terrain and geographic camera targets.
+for(const rot of [false,true]){run(`view.rot=${rot};view.scale=.7;view.x=330;view.y=250;var rect127=worldViewportRect(20);`);
+ for(const [x,y] of [[0,0],[390,0],[0,844],[390,844]])assert(run(`(()=>{let p=toWorld({clientX:${x},clientY:${y}});return p.x>=rect127.left&&p.x<=rect127.right&&p.y>=rect127.top&&p.y<=rect127.bottom;})()`));
+ run('S.lastEarthquake={x:-300,y:700};focusEarthquake();var target127=quakeCamera.target;var sx127=target127.x+(view.rot?-S.lastEarthquake.y:S.lastEarthquake.x)*target127.scale,sy127=target127.y+(view.rot?S.lastEarthquake.x:S.lastEarthquake.y)*target127.scale;');assert(Math.abs(run('sx127-W/2'))<1e-6);assert(Math.abs(run('sy127-(fitBand().top+fitBand().bottom)/2'))<1e-6);
+}
+console.log('PASS merged v1.2 terrain viewport bounds and earthquake target for rotated/unrotated cameras');

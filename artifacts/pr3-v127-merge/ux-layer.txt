@@ -1,0 +1,146 @@
+[
+  {
+    "name": "closing during automatic framing cancels that animation and restores the original view",
+    "passed": true
+  },
+  {
+    "name": "manual camera input during framing cancels restoration and pending animation",
+    "passed": true
+  },
+  {
+    "name": "starting a line edit during framing freezes the current view without restoring",
+    "passed": true
+  },
+  {
+    "name": "new route starts drawing directly, without a type dialog",
+    "passed": true
+  },
+  {
+    "name": "drawing bar shows an itemised quote and a priced build button",
+    "passed": true
+  },
+  {
+    "name": "undo removes only the last stop",
+    "passed": true
+  },
+  {
+    "name": "build commits from the bar without a confirmation dialog",
+    "passed": true
+  },
+  {
+    "name": "line sheet renders the fleet stepper and route chips once per change",
+    "passed": true
+  },
+  {
+    "name": "fleet plus buys when stock is empty and minus returns a vehicle to stock",
+    "passed": true
+  },
+  {
+    "name": "line cancellation shows recovery quote and requires explicit confirmation",
+    "passed": true
+  },
+  {
+    "name": "switching transport type only offers unlocked types with free slots",
+    "passed": true
+  },
+  {
+    "name": "balance in the header is shown in whole yuan",
+    "passed": true
+  },
+  {
+    "name": "tasks list every real city as a tappable row",
+    "passed": true
+  },
+  {
+    "name": "bridge bar does not keep the previous route quote, types or undo",
+    "passed": true
+  },
+  {
+    "name": "add-carriage button follows the balance on passive refreshes",
+    "passed": true
+  },
+  {
+    "name": "UX shop keeps upstream train-car purchasing and refreshes its quote",
+    "passed": true
+  },
+  {
+    "name": "merged UX keeps school maintenance and repair-centre controls and effects",
+    "passed": true
+  },
+  {
+    "name": "new help explains both school savings and repair centres",
+    "passed": true
+  },
+  {
+    "name": "portrait rotates the map and screen↔world conversions are inverse",
+    "passed": true
+  },
+  {
+    "name": "dragging a line-end handle chains cities and backs off when retraced",
+    "passed": true
+  },
+  {
+    "name": "extending from the head prepends in travel order",
+    "passed": true
+  },
+  {
+    "name": "overlapping end handles hit the selected (visible) line, never a hidden one",
+    "passed": true
+  },
+  {
+    "name": "a fully expanded details sheet bounds the framing area and the selected city ends above it",
+    "passed": true
+  },
+  {
+    "name": "landscape side details panel trims the right edge, not the map height",
+    "passed": true
+  },
+  {
+    "name": "vehicles follow their heading: no upright turn inside vehicle drawing, labels still upright in portrait",
+    "passed": true
+  },
+  {
+    "name": "extension tabs: quiet while browsing, ~44px target when a line is selected, city node keeps its taps",
+    "passed": true
+  },
+  {
+    "name": "full sheet with a notice on top: the sheet still bounds the map and the city is framed above it",
+    "passed": true
+  },
+  {
+    "name": "hubs: each global page carries its hub tabs; the old operations centre lands in the goal hub",
+    "passed": true
+  },
+  {
+    "name": "upstream texts that name retired entries point to the three hubs",
+    "passed": true
+  },
+  {
+    "name": "new activity invitations do not pop a sheet mid-play; tapping 目标 still opens them",
+    "passed": true
+  },
+  {
+    "name": "first-game coach follows the player and retires",
+    "passed": true
+  },
+  {
+    "name": "caption diet: line sheet and task list carry no redundant small text",
+    "passed": true
+  },
+  {
+    "name": "a range preview frames only its own city: switching cities drops it",
+    "passed": true
+  },
+  {
+    "name": "drawn range previews end with their city: switching or closing clears the circle too",
+    "passed": true
+  },
+  {
+    "name": "closing a repair preview clears its hint even after upstream clears the circle",
+    "passed": true
+  },
+  {
+    "name": "landscape focus pan joins the restore session (task list / line picker → city → close)",
+    "passed": true
+  }
+]

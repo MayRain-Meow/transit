@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><meta name="theme-color" content="#fffef9"><title>交通线 · 城市经营 1.2</title><link rel="stylesheet" href="style.css?v=1.1.0"><link rel="stylesheet" href="market.css?v=1.1.2&asset=entry-20261105"><link rel="stylesheet" href="farms.css?v=1.1-farm1"><link rel="stylesheet" href="atlas.css?v=1.1-atlas1"></head>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><meta name="theme-color" content="#fffef9"><title>交通线 · 城市经营 1.2</title><link rel="stylesheet" href="style.css?v=1.1.0&merge=127-pr3"><link rel="stylesheet" href="market.css?v=1.1.2&asset=entry-20261105"><link rel="stylesheet" href="farms.css?v=1.1-farm1"><link rel="stylesheet" href="atlas.css?v=1.1-atlas1"></head>
 <body><canvas id="map"></canvas>
 <header>
   <div class="brand"><span class="brand-symbol">↗</span><div><b>交通线<span id="atlas-header-name">东部</span></b><small>TRANSIT ATLAS / 1.2</small></div></div>
@@ -28,11 +28,14 @@
 <footer>
   <div class="legend"><span><i class="hill-dot"></i>丘陵减速</span><span><i class="mount-dot"></i>山地需隧道</span><span><i class="river-dot"></i>跨河需桥梁</span></div>
   <nav class="dock" aria-label="主要操作">
-    <button id="dock-tasks" class="dock-btn dock-tasks"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></svg><span class="dock-label">任务</span></button>
-    <button id="engineering" class="dock-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 17h20M4 17v-5M20 17v-5M2 12h20M6 12a6 6 0 0 1 12 0"/></svg><span class="dock-label">工程<span class="dock-more"> / 天气</span></span></button>
-    <button id="operations" class="dock-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="dock-label">运营<span class="dock-more">中心</span></span></button>
-    <button id="market" class="dock-btn dock-market" title="金融市场"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 16v-4M10 16V9M15 16V6M20 16V3"/></svg><span class="dock-label">金融</span></button>
-    <button id="shop" class="dock-btn is-primary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg><span class="dock-label"><span class="dock-more">交通</span>采购</span><small id="next-supply">10日补给</small></button>
+    <button id="hub-goal" class="dock-btn dock-hub" data-hub="goal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></svg><span class="dock-label">目标</span><i class="dock-badge" hidden></i></button>
+    <button id="hub-build" class="dock-btn dock-hub is-primary" data-hub="build"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 17h20M4 17v-5M20 17v-5M2 12h20M6 12a6 6 0 0 1 12 0"/></svg><span class="dock-label">建造</span></button>
+    <button id="hub-money" class="dock-btn dock-hub" data-hub="money"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M9 9.5c0-1.2 1.3-2 3-2s3 .8 3 2-1.3 1.7-3 2-3 .8-3 2 1.3 2 3 2 3-.8 3-2M12 6v1.5M12 16.5V18"/></svg><span class="dock-label">资金</span></button>
+    <button id="dock-tasks" class="dock-btn dock-tasks dock-legacy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></svg><span class="dock-label">任务</span></button>
+    <button id="engineering" class="dock-btn dock-legacy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 17h20M4 17v-5M20 17v-5M2 12h20M6 12a6 6 0 0 1 12 0"/></svg><span class="dock-label">工程<span class="dock-more"> / 天气</span></span></button>
+    <button id="operations" class="dock-btn dock-legacy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="dock-label">运营<span class="dock-more">中心</span></span></button>
+    <button id="market" class="dock-btn dock-market dock-legacy" title="金融市场"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 16v-4M10 16V9M15 16V6M20 16V3"/></svg><span class="dock-label">金融</span></button>
+    <button id="shop" class="dock-btn is-primary dock-legacy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M16.5 13.5v6M13.5 16.5h6"/></svg><span class="dock-label"><span class="dock-more">交通</span>采购</span><small id="next-supply">10日补给</small></button>
   </nav>
 </footer>
 <div id="delete-drop" hidden></div>
@@ -42,9 +45,9 @@
   <div class="db-actions"><button id="drawundo" title="撤销上一站" aria-label="撤销上一站" hidden>↶</button><button id="drawcancel">取消</button><button id="drawdone" class="primary">完成线路</button></div>
 </div>
 <div id="modal" class="overlay" hidden><section id="modal-content" class="modal"></section></div>
-<script src="atlas-data.js?v=1.1-atlas1"></script><script src="currency11.js?v=1.1.0"></script><script src="game.js?v=1.1-atlas1"></script><script src="progression.js?v=1.1.0"></script><script src="world.js?v=1.1-atlas1"></script><script src="economy.js?v=1.2.0"></script><script src="management.js?v=1.1-atlas1"></script><script src="ux.js?v=1.1.0"></script><script src="events.js?v=1.1.0"></script>
+<script src="atlas-data.js?v=1.1-atlas1"></script><script src="currency11.js?v=1.1.0"></script><script src="game.js?v=1.1-atlas1&merge=127-pr3"></script><script src="progression.js?v=1.1.0"></script><script src="world.js?v=1.1-atlas1&merge=127-pr3"></script><script src="economy.js?v=1.2.0"></script><script src="management.js?v=1.1-atlas1"></script><script src="ux.js?v=1.1.0&merge=127-pr3"></script><script src="events.js?v=1.1.0"></script>
 <script src="balance1.js?v=1.2.0"></script><script src="market.js?v=1.1.1&asset=stock-v4"></script>
-<script src="performance.js?v=1.1.2"></script><script src="market-ui.js?v=1.1.1"></script><script src="world-upgrade.js?v=1.1-atlas1"></script>
+<script src="performance.js?v=1.1.2"></script><script src="market-ui.js?v=1.1.1"></script><script src="world-upgrade.js?v=1.1-atlas1&merge=127-pr3"></script>
 <script src="region-mobility.js?v=1.2.0"></script><script src="research.js?v=1.2.0"></script>
-<script src="regional-tasks.js?v=1.1-atlas1"></script>
-<script src="map-art.js?v=1.1&asset=landscape-20261106"></script><script src="farms.js?v=1.1-atlas1"></script><script src="atlas-geometry.js?v=1.1-atlas1"></script><script src="atlas-growth.js?v=1.1-atlas1"></script><script src="atlas-art.js?v=1.1-atlas1"></script><script src="atlas-performance.js?v=1.1-atlas1"></script><script src="atlas-ui.js?v=1.1-atlas1"></script><script src="lifecycle12.js?v=1.2.0"></script></body></html>
+<script src="regional-tasks.js?v=1.1-atlas1&merge=127-pr3"></script>
+<script src="map-art.js?v=1.1&asset=landscape-20261106&merge=127-pr3"></script><script src="farms.js?v=1.1-atlas1"></script><script src="atlas-geometry.js?v=1.1-atlas1"></script><script src="atlas-growth.js?v=1.1-atlas1"></script><script src="atlas-art.js?v=1.1-atlas1&merge=127-pr3"></script><script src="atlas-performance.js?v=1.1-atlas1"></script><script src="atlas-ui.js?v=1.1-atlas1"></script><script src="lifecycle12.js?v=1.2.0"></script></body></html>

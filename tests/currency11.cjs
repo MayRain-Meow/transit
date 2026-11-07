@@ -49,7 +49,7 @@ assert.equal(run('JSON.stringify(migrateEconomy11(migrated))'),JSON.stringify(co
 console.log('PASS old transport amounts migrate once; financial assets, transactions, counts and progress are preserved');
 // Use a complete valid old save to exercise the real load/back-up chain.
 run('var oldComplete=fresh();delete oldComplete.moneyScale;oldComplete.points=177;oldComplete.release="1.0";localStorage.setItem("transit-atlas-v1",JSON.stringify(oldComplete));');
-assert.equal(run('load()'),true);assert.equal(run('S.points'),1770);assert.equal(run('S.moneyScale'),10);assert.equal(run('S.release'),'1.1');
+assert.equal(run('load()'),true);assert.equal(run('S.points'),1770);assert.equal(run('S.moneyScale'),10);assert.equal(run('S.release'),'1.2');
 assert.equal(JSON.parse(storage.get('transit-atlas-before-1.1')).points,177);
 assert.equal(run('load()'),true);assert.equal(run('S.points'),1770);assert.equal(JSON.parse(storage.get('transit-atlas-before-1.1')).points,177);
 console.log('PASS real loading backs up the original save and persists the conversion without repeat multiplication');

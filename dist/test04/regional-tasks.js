@@ -46,7 +46,7 @@ function locateActivityCity(id){
  let s=activityState(),e=s.active?.id===id?s.active:s.offers.find(x=>x.id===id&&x.revealed),c=e&&S.cities[e.host];
  if(!c||c.removed)return toast('请先翻开任务卡，查看任务城市');
  closeModal();S.paused=true;quakeCamera=null;
- let band=fitBand();view.scale=Math.max(.65,Math.min(1.1,view.scale));view.x=W/2-c.x*view.scale;view.y=(band.top+band.bottom)/2-c.y*view.scale;
+ let band=fitBand();view.scale=Math.max(.65,Math.min(1.1,view.scale));view.x=W/2+(view.rot?c.y:-c.x)*view.scale;view.y=(band.top+band.bottom)/2-(view.rot?c.x:c.y)*view.scale;
  openCity(c.id);popStation(c,COLORS[c.color]);save();updateUI();toast('已定位任务城市：'+c.name+' · 主世界已暂停');
 }
 const cardBeforeRegionalTask=activityCardHTML;

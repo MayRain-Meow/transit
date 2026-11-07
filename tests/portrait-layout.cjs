@@ -30,7 +30,7 @@ const run = code => vm.runInContext(code,context);
 const checks = [];
 function test(name,fn){try{fn();checks.push({name,passed:true});}catch(error){checks.push({name,passed:false,error:error.message});}}
 function assertCitiesVisible(){
-  const {band,points} = run('({band:fitBand(),points:realCities().map(c=>({x:c.x*view.scale+view.x,y:c.y*view.scale+view.y}))})');
+  const {band,points} = run('({band:fitBand(),points:realCities().map(c=>toScreen(c))})');
   for(const p of points){assert(p.x>=12&&p.x<=378,`city x=${p.x} outside viewport`);assert(p.y>=band.top&&p.y<=band.bottom,`city y=${p.y} outside usable map`);}
 }
 test('opening cities fit above the route sheet',()=>{run('reset();fit()');assertCitiesVisible();});

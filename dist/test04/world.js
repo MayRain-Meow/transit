@@ -32,23 +32,25 @@ function fit(){
   const width=W-2*band.side,height=band.bottom-band.top;
   let minX,minY,maxX,maxY;
   if(portraitMode&&cities.length){
-    // Far cities extend west of x=0 and beyond the initial map's vertical range.
-    minX=Math.min(...cities.map(c=>c.x))-150;
-    maxX=Math.max(...cities.map(c=>c.x))+150;
-    minY=Math.min(...cities.map(c=>c.y))-140;
-    maxY=Math.max(...cities.map(c=>c.y))+110;
+    // Far cities extend west of x=0 and beyond the initial map's vertical range. Margins are added in screen
+    // pixels below (labels under the node, waiting squares to its right), not as large world-unit borders.
+    minX=Math.min(...cities.map(c=>c.x));maxX=Math.max(...cities.map(c=>c.x));
+    minY=Math.min(...cities.map(c=>c.y));maxY=Math.max(...cities.map(c=>c.y));
   }else{
     minX=Math.min(0,...cities.map(c=>c.x-110));minY=Math.min(0,...cities.map(c=>c.y-110));
     maxX=Math.max(1200,...cities.map(c=>c.x+140));maxY=Math.max(710,...cities.map(c=>c.y+100));
   }
-  view.scale=Math.min(width/(maxX-minX),height/(maxY-minY),portraitMode?1.2:9);
-  view.x=band.side+(width-(maxX-minX)*view.scale)/2-minX*view.scale;
-  view.y=band.top+(height-(maxY-minY)*view.scale)/2-minY*view.scale;
+  const across=Math.max(1,view.rot?maxY-minY:maxX-minX),down=Math.max(1,view.rot?maxX-minX:maxY-minY);
+  const pad=portraitMode&&cities.length?{l:34,r:86,t:44,b:58}:{l:0,r:0,t:0,b:0},w=width-pad.l-pad.r,h=height-pad.t-pad.b;
+  view.scale=Math.min(w/across,h/down,portraitMode?1.15:9);
+  // Rotated: screen x = view.x - y*scale, screen y = view.y + x*scale (see toScreen in game.js).
+  view.x=band.side+pad.l+(w-across*view.scale)/2+(view.rot?maxY:-minX)*view.scale;
+  view.y=band.top+pad.t+(h-down*view.scale)/2-(view.rot?minX:minY)*view.scale;
 }
 const cityArt02=drawCityArt;drawCityArt=function(c){if(c.kind!=='bridgehead')cityArt02(c);};
 const missionBadges02=drawMissionBadges;drawMissionBadges=function(){for(let c of realCities()){let spec=missionSpec(c);if(c.dormant){drawCityOpening(c);continue;}let label=c.rewardUntil>S.day?'奖金已到账':spec?c.mission.progress+'/'+spec.goal:'繁荣';roundBody(c.x-28,c.y-85-c.size*9,56,17,5,'#fffdf6','#e1e6d8',.8);text(label,c.x,c.y-73-c.size*9,8,'#879274');}};
 function remoteSpawnPoint(cities){let active=cities.filter(c=>!c.dormant&&(!remoteCity(c)||cityHasRoute(c))),anchor=active.slice().sort((a,b)=>a.x-b.x)[0]||cities[0],stage=active.filter(c=>c.remote||c.x<0||c.name?.endsWith('远城')).length,ranges=[[230,330],[280,410],[350,500],[420,620]],range=ranges[Math.min(stage,3)];for(let n=0;n<350;n++){let d=rand(range[0],range[1]),angle=rand(Math.PI-.65,Math.PI+.65),x=Math.min(-20,anchor.x+Math.cos(angle)*d),y=anchor.y+Math.sin(angle)*d;if(stage===0&&(y<110||y>650))continue;if(!cityBuildable(x,y)||cities.some(c=>Math.hypot(c.x-x,c.y-y)<185||Math.abs(c.x-x)<190&&Math.abs(c.y-y)<145))continue;return {x,y,stage};}return null;}
-spawnCity=function(){let cities=realCities();if(cities.length>=24||cities.filter(c=>c.dormant).length>=2)return;let pendingRemote=cities.some(c=>(c.remote||c.x<0||c.name?.endsWith('远城'))&&!cityHasRoute(c)),far=S.unlocked.includes('rail')&&!pendingRemote&&(!S.farOffered||Math.random()<.35);if(pendingRemote)S.farOffered=true;if(far){let p=remoteSpawnPoint(cities);if(!p)return;let c=makeCity(p.x,p.y,0,Math.floor(rand(0,4)),cities.length%3);Object.assign(c,{remote:true,remoteStage:p.stage,name:names[cities.length%names.length]+'远城',dormant:true,openingAt:S.day+2.5,grace:0});S.cities.push(c);S.farOffered=true;fit();toast('发现'+(p.stage===0?'中距离外围城市 ':'逐步延伸的远城 ')+c.name+' · 接通后再开放更远方向');return;}for(let n=0;n<350;n++){let x=rand(100,Math.min(950,500+S.day*4)),y=rand(265,620);if(!cityBuildable(x,y)||cities.some(c=>Math.hypot(c.x-x,c.y-y)<185||Math.abs(c.x-x)<190&&Math.abs(c.y-y)<145))continue;let c=makeCity(x,y,0,Math.floor(rand(0,4)),cities.length%3);Object.assign(c,{name:names[cities.length%names.length],dormant:true,openingAt:S.day+2.5,grace:0});S.cities.push(c);toast('发现 '+c.name+' · 城市周围已预留成长与拉线空间');return;}};
+spawnCity=function(){let cities=realCities();if(cities.length>=24||cities.filter(c=>c.dormant).length>=2)return;let pendingRemote=cities.some(c=>(c.remote||c.x<0||c.name?.endsWith('远城'))&&!cityHasRoute(c)),far=S.unlocked.includes('rail')&&!pendingRemote&&(!S.farOffered||Math.random()<.35);if(pendingRemote)S.farOffered=true;if(far){let p=remoteSpawnPoint(cities);if(!p)return;let c=makeCity(p.x,p.y,0,Math.floor(rand(0,4)),cities.length%3);Object.assign(c,{remote:true,remoteStage:p.stage,name:names[cities.length%names.length]+'远城',dormant:true,openingAt:S.day+2.5,grace:0});S.cities.push(c);S.farOffered=true;toast('发现'+(p.stage===0?'中距离外围城市 ':'逐步延伸的远城 ')+c.name+' · 接通后再开放更远方向');return;}for(let n=0;n<350;n++){let x=rand(100,Math.min(950,500+S.day*4)),y=rand(265,620);if(!cityBuildable(x,y)||cities.some(c=>Math.hypot(c.x-x,c.y-y)<185||Math.abs(c.x-x)<190&&Math.abs(c.y-y)<145))continue;let c=makeCity(x,y,0,Math.floor(rand(0,4)),cities.length%3);Object.assign(c,{name:names[cities.length%names.length],dormant:true,openingAt:S.day+2.5,grace:0});S.cities.push(c);toast('发现 '+c.name+' · 城市周围已预留成长与拉线空间');return;}};
 const checkUnlocks02=checkUnlocks;checkUnlocks=function(){checkUnlocks02();if(S.unlocked.includes('rail')&&!S.farOffered)spawnCity();};
 function bridgePrice(a,b,type){return 10*Math.ceil((type==='bus'?150:260)+Math.max(0,Math.hypot(a.x-b.x,a.y-b.y)-38)*2);}
 function beginBridge(type){closeModal();cancelDraft(false);bridgeDraft={type,a:null,b:null};$('drawbar').hidden=false;$('drawtext').textContent='建桥：从一侧河岸拖到对岸，两个桥头由你确定';$('drawdone').textContent='确认桥梁';$('drawdone').disabled=true;toast('从河岸拖向对岸 · 桥头自动吸附岸边');}
@@ -136,22 +138,18 @@ const undoBeforeGhost=undoStopRemoval;undoStopRemoval=function(){undoBeforeGhost
 $('engineering').onclick=showEngineering;
 const esc03=e=>{if(e.code==='Escape'&&bridgeDraft){bridgeDraft=null;engineeringPointer=null;$('drawbar').hidden=true;}};document.addEventListener('keydown',esc03);
 
-/* Portrait: keep the selected line / city visible above the details sheet. */
-(function(){let d=typeof document!=='undefined'&&document.getElementById?.('details');if(!d?.getBoundingClientRect||typeof MutationObserver==='undefined')return;let lastKey='';
-function reveal(){if(d.hidden||!selected){lastKey='';return}let k=selected.type+':'+selected.id;if(k===lastKey||!portraitMode)return;lastKey=k;requestAnimationFrame(()=>{let pts=selected.type==='line'?(S.lines.find(l=>l.id===selected.id)?.stops||[]).map(i=>S.cities[i]):selected.type==='city'?[S.cities[selected.id]]:[];pts=pts.filter(Boolean);if(!pts.length)return;let top=(document.querySelector('header')?.getBoundingClientRect().bottom||60)+50,bottom=d.getBoundingClientRect().top-40,ys=pts.map(p=>p.y*view.scale+view.y),lo=Math.min(...ys),hi=Math.max(...ys),dy=0;if(hi-lo>bottom-top)dy=(top+bottom-lo-hi)/2;else if(hi>bottom)dy=bottom-hi;else if(lo<top)dy=top-lo;if(Math.abs(dy)<4)return;let from=view.y,t0=performance.now();(function step(t){let p=Math.min(1,(t-t0)/280);view.y=from+dy*(1-Math.pow(1-p,3));if(p<1)requestAnimationFrame(step)})(t0)})}
-new MutationObserver(reveal).observe(d,{attributes:true,attributeFilter:['hidden'],childList:true});})();
-/* View comfort: smooth "whole map", soft pan limits, and reveal newly unlocked cities. */
+/* Detail-sheet framing lives in ux.js (peek/expand sheet). */
+/* View comfort: smooth "whole map" and soft pan limits (screen space, so it works rotated). */
 function fitTarget(){let v={x:view.x,y:view.y,scale:view.scale};fit();let t={x:view.x,y:view.y,scale:view.scale};view.x=v.x;view.y=v.y;view.scale=v.scale;return t}
-function animateView(t,ms=320){if(typeof requestAnimationFrame==='undefined'){Object.assign(view,t);return}let f={x:view.x,y:view.y,scale:view.scale},t0=performance.now();animateView.id=(animateView.id||0)+1;let id=animateView.id;(function step(n){if(id!==animateView.id)return;let p=Math.min(1,(n-t0)/ms),e=1-Math.pow(1-p,3);view.scale=f.scale+(t.scale-f.scale)*e;view.x=f.x+(t.x-f.x)*e;view.y=f.y+(t.y-f.y)*e;if(p<1)requestAnimationFrame(step)})(t0)}
+function animateView(t,ms=320){if(typeof requestAnimationFrame==='undefined'){Object.assign(view,t);return}let f={x:view.x,y:view.y,scale:view.scale},t0=performance.now();animateView.id=(animateView.id||0)+1;let id=animateView.id;animateView.activeId=id;(function step(n){if(id!==animateView.id)return;let p=Math.min(1,(n-t0)/ms),e=1-Math.pow(1-p,3);view.scale=f.scale+(t.scale-f.scale)*e;view.x=f.x+(t.x-f.x)*e;view.y=f.y+(t.y-f.y)*e;if(p<1)requestAnimationFrame(step);else animateView.activeId=null})(t0)}
 function animateFit(){animateView(fitTarget())}
 if(typeof document!=='undefined'&&document.getElementById?.('overview'))$('overview').onclick=animateFit;
-(function(){if(typeof requestAnimationFrame==='undefined'||!document.querySelector)return;let seen=-1;
-function bounds(){let cs=S?.cities||[],xs=cs.map(c=>c.x),ys=cs.map(c=>c.y);return{x0:Math.min(0,...xs),x1:Math.max(1200,...xs),y0:Math.min(0,...ys),y1:Math.max(710,...ys)}}
-function tick(){try{if(S&&!modalOpen){let b=fitBand(),m=bounds(),k=view.scale,
- /* keep the map reaching the middle of the band covered by the map */
- minX=W*.45-m.x1*k,maxX=W*.55-m.x0*k,minY=b.top+(b.bottom-b.top)*.45-m.y1*k,maxY=b.bottom-(b.bottom-b.top)*.45-m.y0*k;
- if(pointers.size===0){if(view.x<minX)view.x+=(minX-view.x)*.25;else if(view.x>maxX)view.x+=(maxX-view.x)*.25;if(view.y<minY)view.y+=(minY-view.y)*.25;else if(view.y>maxY)view.y+=(maxY-view.y)*.25;}
- let n=realCities().length;if(seen>=0&&n>seen&&portraitMode&&!draft){let off=realCities().some(c=>{let sx=c.x*k+view.x,sy=c.y*k+view.y;return sx<10||sx>W-10||sy<b.top||sy>b.bottom});if(off){animateFit();toast('新城镇出现，已调整视野');}}seen=n;}}catch{}requestAnimationFrame(tick)}
+function mapScreenBox(){let cs=S?.cities||[],xs=cs.map(c=>c.x),ys=cs.map(c=>c.y),x0=Math.min(0,...xs),x1=Math.max(1200,...xs),y0=Math.min(0,...ys),y1=Math.max(710,...ys),pts=[[x0,y0],[x1,y0],[x0,y1],[x1,y1]].map(([x,y])=>toScreen({x,y}));return{l:Math.min(...pts.map(p=>p.x)),r:Math.max(...pts.map(p=>p.x)),t:Math.min(...pts.map(p=>p.y)),b:Math.max(...pts.map(p=>p.y))}}
+(function(){if(typeof requestAnimationFrame==='undefined'||!document.querySelector)return;
+function tick(){try{if(S&&!modalOpen&&pointers.size===0){let band=fitBand(),m=mapScreenBox(),cy0=band.top+(band.bottom-band.top)*.45,cy1=band.bottom-(band.bottom-band.top)*.45;
+ /* keep the map reaching the middle of the usable band */
+ if(m.r<W*.45)view.x+=(W*.45-m.r)*.25;else if(m.l>W*.55)view.x+=(W*.55-m.l)*.25;
+ if(m.b<cy0)view.y+=(cy0-m.b)*.25;else if(m.t>cy1)view.y+=(cy1-m.t)*.25;}}catch{}requestAnimationFrame(tick)}
 requestAnimationFrame(tick)})();
 
 // Discovered cities open after thirty simulation seconds, even without a route.

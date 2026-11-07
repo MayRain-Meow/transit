@@ -6,7 +6,7 @@ import {patch123} from './patch123.mjs';
 import {patch124} from './patch124.mjs';
 import {patch125} from './patch125.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),source=path.resolve(root,'../dist/test04'),out=path.join(root,'www');
-await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});await cp(source,out,{recursive:true});await cp(path.resolve(root,'../dist/updates'),path.join(out,'updates'),{recursive:true});
+await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});await cp(source,out,{recursive:true});await cp(path.join(root,'web-base127'),out,{recursive:true});await cp(path.resolve(root,'../dist/updates'),path.join(out,'updates'),{recursive:true});
 for(const file of await readdir(out)){if(!/\.(js|html|css)$/.test(file))continue;const p=path.join(out,file);let s=await readFile(p,'utf8');s=s.replace(/@import\s+url\(\s*(['"])https?:\/\/[^'"]*\1\s*\)\s*;\s*/g,'');s=s.replaceAll('../updates/','updates/').replaceAll('../updates/index.html','updates/index.html').replaceAll('href="../"','href="index.html"');await writeFile(p,s);}
 let updates=await readFile(path.join(out,'updates/index.html'),'utf8');updates=updates.replace(/<a\b[^>]*>/g,'<span>').replaceAll('</a>','</span>');await writeFile(path.join(out,'updates/index.html'),updates);
 for(const name of ['native-controls.js','portrait-config.js','portrait-layout.js','portrait-layout.css','update123.js','update123.css','update124.js','update124.css','startup124.js','update125.js','update125.css','update126.js','update127.js'])await cp(path.join(root,name),path.join(out,name));

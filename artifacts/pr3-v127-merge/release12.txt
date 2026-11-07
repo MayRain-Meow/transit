@@ -1,0 +1,6 @@
+PASS additive bonuses, floor once, 200% cap all types, current train formation base, no speed NaN
+PASS 8-school gate, research cost/timing, one active, capacity+speed coexist and survive reload/UI
+PASS blur pauses+saves, cancels unpaid draft, no background catchup, focus stays paused, explicit continue
+PASS lifecycle hidden/pagehide/freeze, no auto resume, Space continues exactly once
+PASS market/farm modal close cannot undo interruption pause, save/reload retains resume lock
+PASS long-frame interruption, button Space avoids double toggle, storage failure retains pause and reports failure

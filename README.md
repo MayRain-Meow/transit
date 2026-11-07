@@ -239,3 +239,17 @@ node tests/ux-layer.cjs
 • 仅更新游戏站点，不上传GitHub。原有存档键、地图、金融资产和农田记录保留。
 
 校验：`node tests/release12.cjs`（完整生产脚本顺序，容量叠加与封顶、科研进度与旧档、中断保存与弹窗恢复锁）、`node tests/atlas.cjs`、`node tests/release1.cjs`、`node tests/region-research.cjs`、`node tests/farms.cjs`、`node tests/stocks11-update.cjs`。
+
+## 竖屏体验（分支 ui/portrait-v2，基于 1.1）
+
+手机竖屏时地图顺时针旋转90°（海在下方、北岭在右侧），城镇带竖向铺满屏幕；房屋、文字和标记保持正立，车辆沿线路航向行驶。横屏与电脑端地图方向不变。
+
+- 默认镜头为“游玩视图”：框住已开放城市并保持可读缩放，⌖ 在游玩视图与全图间切换；城市节点、地名、候车方块和线路有屏幕尺寸下限。
+- 城市详情先半展开，选中对象自动框进未被遮挡区域；关闭后回到打开前的视图，不会越开越小。
+- 浏览时地图不显示编辑控件；选中线路后两端出现同色“＋”延长入口（约44px触控区），可连续接多座城市、回拖撤回，建设前仍显示报价。
+- 新城出现不移动镜头，屏幕外的新城与告急城市在边缘提示。
+- 说明：`.agents/notes/implemented/feature/2026-11-05-portrait-rotation.md`；回归：`node tests/ux-layer.cjs`、`node tests/portrait-layout.cjs`。
+
+## PR #3 与 v1.2.7 合并
+
+网页整合三个中心、旋转和面板镜头恢复，保留双地图及1.2玩法；APK继续使用已经验证的1.2.7交互层。详见 [冲突处理与18套回归记录](artifacts/pr3-v127-merge/REPORT.md)。没有重新发布网页或APK。

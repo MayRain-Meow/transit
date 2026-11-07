@@ -53,5 +53,5 @@ paintTerrain=function(){
  ctx.restore();
 };
 // Match the cached region outside its bounds as the city network grows.
-drawTerrain=function(){let left=-view.x/view.scale-20,top=-view.y/view.scale-20,right=(W-view.x)/view.scale+20,bottom=(H-view.y)/view.scale+20;ctx.save();ctx.fillStyle=MAP_ART.land;ctx.fillRect(left,top,right-left,bottom-top);artWater(top,bottom,right);ctx.restore();if(!terrainCache){let cache=document.createElement('canvas');cache.width=2400;cache.height=1440;let live=ctx;try{ctx=cache.getContext('2d');ctx.scale(1.2,1.2);ctx.translate(300,200);paintTerrain();terrainCache=cache;}finally{ctx=live;}}ctx.drawImage(terrainCache,-300,-200,2000,1200);};
+drawTerrain=function(){let {left,top,right,bottom}=worldViewportRect(20);ctx.save();ctx.fillStyle=MAP_ART.land;ctx.fillRect(left,top,right-left,bottom-top);artWater(top,bottom,right);ctx.restore();if(!terrainCache){let cache=document.createElement('canvas');cache.width=2400;cache.height=1440;let live=ctx;try{ctx=cache.getContext('2d');ctx.scale(1.2,1.2);ctx.translate(300,200);paintTerrain();terrainCache=cache;}finally{ctx=live;}}ctx.drawImage(terrainCache,-300,-200,2000,1200);};
 terrainCache=null;

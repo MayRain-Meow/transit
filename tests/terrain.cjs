@@ -34,7 +34,8 @@ const snapshot=run('JSON.stringify(S)'), geometry=run('JSON.stringify({mountains
 run('Math.random=()=>{throw new Error("terrain consumed simulation RNG")};drawTerrain();');
 assert.equal(run('JSON.stringify(S)'),snapshot);
 assert.equal(run('JSON.stringify({mountains,mountainPolygons,hills})'),geometry);
-assert.equal(run('terrainCache.width'),2400);assert.equal(run('terrainCache.height'),1440);
+// v1.2 map-art keeps its world-space cache at 2400×1440; the final canvas transform rotates the output.
+assert.equal(run('terrainCache.width*terrainCache.height'),2400*1440);assert.equal(run('terrainCache.width'),2400);
 run('var cacheBefore=terrainCache;var originalPaint=paintTerrain;paintTerrain=()=>{throw new Error("terrain repainted every frame")};for(var frameNo=0;frameNo<60;frameNo++)drawTerrain();');
 assert(run('terrainCache===cacheBefore'));
 run('paintTerrain=originalPaint;var screenContext=ctx;terrainCache=null;paintTerrain=()=>{throw new Error("paint failure")};try{drawTerrain()}catch(e){}');

@@ -1,0 +1,92 @@
+[
+  {
+    "suite": "activities.cjs",
+    "exit": 0,
+    "seconds": 0.73
+  },
+  {
+    "suite": "atlas.cjs",
+    "exit": 0,
+    "seconds": 4.48
+  },
+  {
+    "suite": "city-economy.cjs",
+    "exit": 0,
+    "seconds": 2.24
+  },
+  {
+    "suite": "currency11.cjs",
+    "exit": 0,
+    "seconds": 0.13
+  },
+  {
+    "suite": "farms.cjs",
+    "exit": 0,
+    "seconds": 0.29
+  },
+  {
+    "suite": "finance-valley.cjs",
+    "exit": 0,
+    "seconds": 0.51
+  },
+  {
+    "suite": "native-mobile.cjs",
+    "exit": 0,
+    "seconds": 6.28
+  },
+  {
+    "suite": "portrait-layout.cjs",
+    "exit": 0,
+    "seconds": 0.09
+  },
+  {
+    "suite": "region-research.cjs",
+    "exit": 0,
+    "seconds": 1.78
+  },
+  {
+    "suite": "regional-tasks.cjs",
+    "exit": 0,
+    "seconds": 7.95
+  },
+  {
+    "suite": "release1.cjs",
+    "exit": 0,
+    "seconds": 21.92
+  },
+  {
+    "suite": "release12.cjs",
+    "exit": 0,
+    "seconds": 0.32
+  },
+  {
+    "suite": "stocks11-update.cjs",
+    "exit": 0,
+    "seconds": 1.35
+  },
+  {
+    "suite": "terrain.cjs",
+    "exit": 0,
+    "seconds": 0.4
+  },
+  {
+    "suite": "upgrade.cjs",
+    "exit": 0,
+    "seconds": 0.33
+  },
+  {
+    "suite": "ux-layer.cjs",
+    "exit": 0,
+    "seconds": 0.77
+  },
+  {
+    "suite": "world03.cjs",
+    "exit": 0,
+    "seconds": 1.67
+  },
+  {
+    "suite": "world04.cjs",
+    "exit": 0,
+    "seconds": 4.02
+  }
+]
