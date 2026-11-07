@@ -243,5 +243,14 @@ test('caption diet: line sheet and task list carry no redundant small text',()=>
   const h=node('details').innerHTML;assert.doesNotMatch(h,/终点折返/);assert.doesNotMatch(h,/车辆与运行方案/);
   run('showTasks()');assert.doesNotMatch(node('modal-content').innerHTML,/ux-task-top"><b>[^<]*<\/b><small>/);
 });
+test('a range preview frames only its own city: switching cities drops it',()=>{
+  fresh();run('uxPreviewFrame={c:S.cities[0],radius:240};selected={type:"city",id:0};uxFrameSelection()');
+  assert.equal(run('!!uxPreviewFrame'),true,'kept while its city is selected');
+  run('selected={type:"city",id:1};uxFrameSelection()');
+  assert.equal(run('uxPreviewFrame'),null,'another city does not inherit the preview');
+  run('uxPreviewFrame={c:S.cities[0],radius:240};selected={type:"junction",id:0};uxFrameSelection()');
+  assert.equal(run('uxPreviewFrame'),null,'nor does the line picker');
+  run('clearSelection()');
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;

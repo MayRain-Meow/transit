@@ -1151,7 +1151,10 @@ function uxSelectionPoints() {
   return [];
 }
 let uxPreviewFrame = null;   // {c, radius} while a range preview is shown
+function uxPreviewOwns() { return !!uxPreviewFrame && ['city', 'stop'].includes(selected?.type) && S.cities[selected.id] === uxPreviewFrame.c; }
 function uxFrameSelection() {
+  // a range preview frames only while its own city is the selection (another city's sheet must not inherit it)
+  if (uxPreviewFrame && !uxPreviewOwns()) uxPreviewFrame = null;
   if (uxPreviewFrame) { const { c, radius: r } = uxPreviewFrame; uxFrame([{ x: c.x - r, y: c.y - r }, { x: c.x + r, y: c.y + r }], 10); return; }
   const full = uxEl('details')?.classList.contains('is-full');
   uxFrame(uxSelectionPoints(), selected?.type === 'line' ? (full ? 30 : 50) : (full ? 36 : 90));
@@ -1168,7 +1171,7 @@ function uxSheetSet(state) {
   new MutationObserver(() => {
     if (d.hidden || !selected) { lastKey = ''; uxPreviewFrame = null; d.classList.remove('is-peek', 'is-full'); return; }
     const k = selected.type + ':' + selected.id;
-    if (k !== lastKey) { lastKey = k; uxSheetSet('peek'); }
+    if (k !== lastKey) { lastKey = k; if (!uxPreviewOwns()) uxPreviewFrame = null; uxSheetSet('peek'); }
   }).observe(d, { attributes: true, attributeFilter: ['hidden'], childList: true });
   let y0 = null, top0 = 0;
   d.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; top0 = d.scrollTop; }, { passive: true });
@@ -1288,22 +1291,21 @@ let uxLastViewTarget = null;
     if (!uxFrameRestore) uxFrameRestore = { from: before, to: null };
     uxFrameRestore.to = uxLastViewTarget;           // where our own framing ends up
   };
-  const d = uxEl('details');
-  if (d?.getBoundingClientRect && typeof MutationObserver !== 'undefined') new MutationObserver(() => {
-    if (!d.hidden || !uxFrameRestore) return;
+  // The details sheet and the line picker are both bottom sheets. The view goes back only when one of them really
+  // closes (open → hidden) and neither is left open: upstream re-sets `hidden = true` on every UI update while the
+  // picker is up, and moving from one sheet to the other keeps the original view to come back to.
+  const d = uxEl('details'), jp = uxEl('junction-picker'), sheets = [d, jp].filter(e => e?.getBoundingClientRect);
+  const wasOpen = new Map(sheets.map(e => [e, !e.hidden]));
+  const onSheet = e => () => {
+    const was = wasOpen.get(e); wasOpen.set(e, !e.hidden);
+    if (!was || !e.hidden || sheets.some(x => !x.hidden) || !uxFrameRestore) return;
     const r = uxFrameRestore; uxFrameRestore = null;
-    // The sheet also hides when a line edit starts: the map must stay put under the finger.
+    // A sheet also hides when a line edit starts: the map must stay put under the finger.
     if (draft || uxExt || bridgeDraft) return;
     // Only undo our own framing: if the player panned or zoomed after it, their view stays.
     if (near(view, r.to)) animateView(r.from, 280);
-  }).observe(d, { attributes: true, attributeFilter: ['hidden'] });
-  // the portrait line picker is a bottom sheet too: same restore when it closes without a drag
-  const jp = uxEl('junction-picker');
-  if (jp?.getBoundingClientRect && typeof MutationObserver !== 'undefined') new MutationObserver(() => {
-    if (!jp.hidden || !d?.hidden || !uxFrameRestore || draft || uxExt || bridgeDraft) return;
-    const r = uxFrameRestore; uxFrameRestore = null;
-    if (near(view, r.to)) animateView(r.from, 280);
-  }).observe(jp, { attributes: true, attributeFilter: ['hidden'] });
+  };
+  if (typeof MutationObserver !== 'undefined') for (const e of sheets) new MutationObserver(onSheet(e)).observe(e, { attributes: true, attributeFilter: ['hidden'] });
 })();
 
 /* ---------- first-game coach: follows what the player does, then retires ---------- */
