@@ -1,0 +1,38 @@
+/* One close action per dialog, always within the safe viewport. */
+.portrait-shell .modal .close,.portrait-shell .modal-head>button,.portrait-shell .modal-head>.close{display:none!important}
+.portrait-shell .overlay{padding-top:calc(var(--safe-t) + 8px)}
+.portrait-shell .portrait-modal-close{top:auto;bottom:calc(var(--app-h) - var(--panel-top,60px) - 42px);right:calc(16px + var(--safe-r));width:38px;height:38px}
+.portrait-shell .modal-head{padding-right:62px;min-height:62px}
+.portrait-shell .modal:has(.activity-grid){padding:0 12px 12px;display:flex;flex-direction:column;height:min(760px,100%);overflow:hidden}
+.portrait-shell .modal:has(.activity-grid) .modal-head{flex:none;margin:0 -12px 0;padding:12px 58px 9px 12px;min-height:50px}
+.portrait-shell .activity-deck-intro{flex:none;margin:4px 0 6px;text-align:left}
+.portrait-shell .activity-deck-intro>.eyebrow,.portrait-shell .activity-deck-intro h3{display:none}
+.portrait-shell .activity-deck-intro p{font-size:11px;line-height:1.5;margin:3px 0}
+.portrait-shell .card-swipe-hint{display:inline;margin-left:5px}
+.portrait-shell .activity-grid{display:grid;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:94%;flex:1;min-height:0;gap:10px;padding:4px 2px 8px;margin:0;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;touch-action:pan-x}
+.portrait-shell .activity-slot{height:100%;min-height:0;scroll-snap-align:center;overflow:hidden}
+.portrait-shell .activity-flipper{height:100%;min-height:0}
+.portrait-shell .activity-back,.portrait-shell .activity-front{height:100%;min-height:0!important;max-height:100%;border-radius:14px}
+.portrait-shell .activity-back{padding:14px 10px;justify-content:space-evenly}
+.portrait-shell .card-sigil{width:80px;height:80px;margin:8px}
+.portrait-shell .card-back-top{font-size:8px;letter-spacing:1px}.portrait-shell .card-back-title{font-size:21px}.portrait-shell .card-back-sub{font-size:10px}
+.portrait-shell .activity-card.activity-front{padding:12px;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:6px}
+.portrait-shell .activity-front h3{font-size:19px;margin:3px 0}.portrait-shell .activity-front p{font-size:11px;margin:3px 0;line-height:1.55}
+.portrait-shell .card-stats{padding:7px 0;gap:5px}.portrait-shell .card-stats b{font-size:17px}.portrait-shell .card-reward{padding:8px}
+.portrait-shell .card-accept{position:sticky;bottom:0;min-height:44px;flex:none;margin-top:auto!important;padding:9px!important;box-shadow:0 -6px 10px #fffef8}
+.portrait-shell .activity-deck-actions{flex:none;padding:6px 0 0;margin:0;gap:6px}.portrait-shell .activity-deck-actions button{min-height:36px;padding:5px 9px;font-size:11px}
+.portrait-shell #drawbar.quote-compact .db-info,.portrait-shell #drawbar.quote-compact #db-types,.portrait-shell #drawbar.quote-compact #drawundo{display:none!important}
+.portrait-shell #drawbar.quote-compact .db-actions{display:flex;flex:1;flex-wrap:wrap;align-items:center;gap:6px}
+.portrait-shell #drawbar.quote-compact #drawdone{flex:1;min-height:42px;width:auto;min-width:100px;font-size:12px}
+.portrait-shell #drawbar.quote-compact #drawcancel{min-width:52px;padding:5px}
+.portrait-shell #quote-expand{min-height:40px;max-width:100%;font-size:11px;padding:5px 8px}
+.portrait-shell #game-exit{grid-column:1;grid-row:1;justify-self:start;align-self:start;min-width:38px;min-height:38px;padding:6px;font-size:23px;background:#fffdf5d9;border:1px solid #d6dfd0}
+.portrait-shell header .calendar{padding-left:45px}
+.portrait-shell #atlas-menu{display:none!important}
+.portrait-shell #tutorial-guide{position:absolute;z-index:10;left:10px;right:10px;top:calc(var(--hud-bottom) + 8px);padding:10px 12px;background:#fffef8f5;border:1px solid #b9c8b4;border-radius:14px;box-shadow:0 4px 18px #263b421c;max-height:min(26%,160px);overflow:auto;font-size:12px;line-height:1.6}
+.portrait-shell #tutorial-guide p{margin:3px 0}.portrait-shell #tutorial-guide button{padding:5px 9px;min-height:34px;background:#e5ecdd;margin:3px 4px 0 0}
+.portrait-shell #tutorial-guide b{color:#294b43}.portrait-shell .tutorial-fog{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at center,#dfe7e95e,#edf2f31a);animation:tutorial-fog 3s ease-in-out infinite alternate}
+@keyframes tutorial-fog{to{opacity:.4}}
+.portrait-shell .card-pagination123{display:flex;justify-content:center;align-items:center;gap:20px;font-size:11px;flex:none;min-height:30px}.portrait-shell .card-pagination123 button{min-width:36px;min-height:30px;background:#e5ecdd}
+.portrait-shell .modal:not(:has(.modal-head)){padding-top:46px}
+@media(max-height:620px){.portrait-shell .activity-deck-intro p{font-size:10px}.portrait-shell .card-sigil{width:52px;height:52px}.portrait-shell .activity-front h3{font-size:16px}.portrait-shell .activity-front p{font-size:10px}.portrait-shell .card-feature{display:none}.portrait-shell #tutorial-guide{max-height:100px;font-size:11px}}

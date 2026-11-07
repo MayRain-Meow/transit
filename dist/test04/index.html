@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><meta name="theme-color" content="#fffef9"><title>交通线 · 城市经营 1.1</title><link rel="stylesheet" href="style.css?v=1.1.0"><link rel="stylesheet" href="market.css?v=1.1.0&asset=entry-20261105"></head>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><meta name="theme-color" content="#fffef9"><title>交通线 · 城市经营 1.2</title><link rel="stylesheet" href="style.css?v=1.1.0"><link rel="stylesheet" href="market.css?v=1.1.2&asset=entry-20261105"><link rel="stylesheet" href="farms.css?v=1.1-farm1"><link rel="stylesheet" href="atlas.css?v=1.1-atlas1"></head>
 <body><canvas id="map"></canvas>
 <header>
-  <div class="brand"><span class="brand-symbol">↗</span><div><b>交通线<span>东岸</span></b><small>NETWORK WORLD / 1.1</small></div></div>
+  <div class="brand"><span class="brand-symbol">↗</span><div><b>交通线<span id="atlas-header-name">东部</span></b><small>TRANSIT ATLAS / 1.2</small></div></div>
   <div class="calendar"><small id="year">第一年 · 一月</small><b id="date">01 / 01 <span>周一</span></b><small id="calendar-tag">距补助10天</small></div>
   <div class="stats">
     <div class="stat stat-delivered"><small>已送达</small><b id="delivered">0</b></div>
@@ -11,9 +11,9 @@
   </div>
   <div class="controls">
     <div class="playback" role="group" aria-label="时间控制"><button id="pause" title="暂停 / 继续" aria-label="暂停或继续">Ⅱ</button><button id="speed" title="切换速度" aria-label="切换速度">1×</button></div>
-    <button id="tasks" class="ctl ctl-text" title="城市任务">任务</button>
+    <button id="atlas-menu" class="ctl ctl-text" title="返回选图">选图</button><button id="tasks" class="ctl ctl-text" title="城市任务">任务</button>
     <button id="help" class="ctl" title="操作说明" aria-label="操作说明">?</button>
-    <button id="fullscreen" class="ctl" title="横屏全屏" aria-label="横屏全屏"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button id="fullscreen" class="ctl" title="全屏" aria-label="全屏"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
   </div>
 </header>
 <div class="map-caption"><span class="eyebrow">东 岸 · 1.1</span><span>沿海平原 · 河谷 · 北岭</span></div>
@@ -42,6 +42,9 @@
   <div class="db-actions"><button id="drawundo" title="撤销上一站" aria-label="撤销上一站" hidden>↶</button><button id="drawcancel">取消</button><button id="drawdone" class="primary">完成线路</button></div>
 </div>
 <div id="modal" class="overlay" hidden><section id="modal-content" class="modal"></section></div>
-<script src="currency11.js?v=1.1.0"></script><script src="game.js?v=1.1.0&asset=valley-20261105"></script><script src="progression.js?v=1.1.0"></script><script src="world.js?v=1.1.0&asset=valley-20261105"></script><script src="economy.js?v=1.1.0"></script><script src="management.js?v=1.1.0"></script><script src="ux.js?v=1.1.0"></script><script src="events.js?v=1.1.0"></script>
-<script src="balance1.js?v=1.1.0&asset=entry-20261105"></script><script src="market.js?v=1.1.0&asset=entry-copy-20261105"></script>
-</body></html>
+<script src="atlas-data.js?v=1.1-atlas1"></script><script src="currency11.js?v=1.1.0"></script><script src="game.js?v=1.1-atlas1"></script><script src="progression.js?v=1.1.0"></script><script src="world.js?v=1.1-atlas1"></script><script src="economy.js?v=1.2.0"></script><script src="management.js?v=1.1-atlas1"></script><script src="ux.js?v=1.1.0"></script><script src="events.js?v=1.1.0"></script>
+<script src="balance1.js?v=1.2.0"></script><script src="market.js?v=1.1.1&asset=stock-v4"></script>
+<script src="performance.js?v=1.1.2"></script><script src="market-ui.js?v=1.1.1"></script><script src="world-upgrade.js?v=1.1-atlas1"></script>
+<script src="region-mobility.js?v=1.2.0"></script><script src="research.js?v=1.2.0"></script>
+<script src="regional-tasks.js?v=1.1-atlas1"></script>
+<script src="map-art.js?v=1.1&asset=landscape-20261106"></script><script src="farms.js?v=1.1-atlas1"></script><script src="atlas-geometry.js?v=1.1-atlas1"></script><script src="atlas-growth.js?v=1.1-atlas1"></script><script src="atlas-art.js?v=1.1-atlas1"></script><script src="atlas-performance.js?v=1.1-atlas1"></script><script src="atlas-ui.js?v=1.1-atlas1"></script><script src="lifecycle12.js?v=1.2.0"></script></body></html>

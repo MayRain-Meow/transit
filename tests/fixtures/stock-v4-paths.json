@@ -1,0 +1,102 @@
+[
+  {
+    "seed": 0,
+    "year": 0,
+    "sha256": "3b54a344a431f92541b24b1f7020e5e5ae0d683a6d0ca34cd3634e866f1c991d"
+  },
+  {
+    "seed": 0,
+    "year": 1,
+    "sha256": "cdad909354bd35681e4dd6220c7852f0b74590a6e6e60c1098f6f39deceb273a"
+  },
+  {
+    "seed": 0,
+    "year": 2,
+    "sha256": "349da5e9adfe9be2b289e57d5e1afe15b8dfa6feaa83530de65d459079a760c5"
+  },
+  {
+    "seed": 0,
+    "year": 3,
+    "sha256": "08d687dcfc98cb9e102a45d34943223d43590d29e427666dfe5f26868965e950"
+  },
+  {
+    "seed": 0,
+    "year": 4,
+    "sha256": "551342ff40dc82426f7c9b6c744f92a26e78c099d3dd6f69e70746c5a3fd1f9b"
+  },
+  {
+    "seed": 88,
+    "year": 0,
+    "sha256": "21e18b1badaa3338897cbab62d6b60e939483458ba43e1a13c89fd842f8c7883"
+  },
+  {
+    "seed": 88,
+    "year": 1,
+    "sha256": "c0b773f660d2a596298280cec591b4e628bcdc1adbf6611b326ea96ddeebf142"
+  },
+  {
+    "seed": 88,
+    "year": 2,
+    "sha256": "a56c943a0f568f6fe5619f8543fb570d8eea22de6c34e6d1b3da22d87f984e40"
+  },
+  {
+    "seed": 88,
+    "year": 3,
+    "sha256": "bdfbf6fd486998749449007e115ca6a8e544fb414486b8e404727b19d0896808"
+  },
+  {
+    "seed": 88,
+    "year": 4,
+    "sha256": "5deba147ba96582dca3cc43e20d9460ab689e29feaf5ef6c14867f6946e54c66"
+  },
+  {
+    "seed": 1210001,
+    "year": 0,
+    "sha256": "70c4a2d3bdbabf7e9cdac56c132a5ff9d0749177c3430063dd634bd09f291d90"
+  },
+  {
+    "seed": 1210001,
+    "year": 1,
+    "sha256": "2e9831ab2c8a388dff60f69d8ee5fde3e5604aa40b2ce8deb20ac62a9575d5d9"
+  },
+  {
+    "seed": 1210001,
+    "year": 2,
+    "sha256": "2f71ddd7bb580ed7e81f2aabde8b3bfa1d76ad9ab56b253f3c209aa48e7532ba"
+  },
+  {
+    "seed": 1210001,
+    "year": 3,
+    "sha256": "67067d2d30c50900e339e057c1a5c1456110015a006c7ff7f3d0572e324ba1af"
+  },
+  {
+    "seed": 1210001,
+    "year": 4,
+    "sha256": "68b3f059636c866d6fbf23336e4d247466dce82f87bf78cab51b558aeebb989b"
+  },
+  {
+    "seed": 1310500,
+    "year": 0,
+    "sha256": "6e63d76b8cf68c242208e74a8fe197d0b1e6d3a8fed35b68b5676a536faf06a7"
+  },
+  {
+    "seed": 1310500,
+    "year": 1,
+    "sha256": "3de2012b4ae4fcb367457e51443ac59684465f063a50d5bfa60a68e7af000cea"
+  },
+  {
+    "seed": 1310500,
+    "year": 2,
+    "sha256": "65d83ad61e4368de61a59d51da0c5c88dd8a268fc7b6075900af3487a3a39226"
+  },
+  {
+    "seed": 1310500,
+    "year": 3,
+    "sha256": "075afc85d6b13ffaa1a26733255104ef9bcf0a24a6ac1ca37e1258667e11e914"
+  },
+  {
+    "seed": 1310500,
+    "year": 4,
+    "sha256": "3af2237bf31513ffeaa83ec9d218f2cdbf539d8342a400ee5b478c98e7412358"
+  }
+]

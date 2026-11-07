@@ -1,0 +1,2 @@
+import {readFile,writeFile} from 'node:fs/promises';import path from 'node:path';
+export async function patch125(out){let p=path.join(out,'game.js'),s=await readFile(p,'utf8'),a="if(gesture.kind==='city-edit'&&draft){let origin=gesture.c,target=hitCity(p);";if(!s.includes(a))throw Error('Missing city-edit entry');s=s.replace(a,"if(gesture.kind==='city-edit'&&draft){if(cityEdit125(p))return;let origin=gesture.c,target=hitCity(p);");await writeFile(p,s);}

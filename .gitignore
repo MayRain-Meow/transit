@@ -7,3 +7,10 @@ node_modules/
 .DS_Store
 __pycache__/
 *.pyc
+*.keystore
+*.jks
+*.apk
+mobile/signing/
+mobile/www/
+mobile/validation/build.log
+dist/apk-layout-qa/

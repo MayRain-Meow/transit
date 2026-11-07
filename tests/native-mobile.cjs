@@ -1,0 +1,136 @@
+// Regression checks for the 0.4 UX layer (ux.js): line building, line sheet, tasks, balance display.
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const root = path.resolve(__dirname, '..');
+const nodes = new Map();
+const canvas = new Proxy({createLinearGradient: () => ({addColorStop(){}}), measureText: t => ({width:t.length*7})}, {get:(x,k)=>x[k]||(()=>{})});
+function node(id) {
+  if (!nodes.has(id)) {
+    const classes = new Set();
+    nodes.set(id, {id, hidden:['details','modal','drawbar','db-types','db-cost','drawundo'].includes(id), style:{getPropertyValue(k){return this[k]||"";},setProperty(k,v){this[k]=v;}}, offsetParent:{}, textContent:'', innerHTML:'', dataset:{},
+      classList:{add:v=>classes.add(v),remove:v=>classes.delete(v),toggle(v,on){on=on??!classes.has(v);on?classes.add(v):classes.delete(v);return on;},contains:v=>classes.has(v)},
+      appendChild(){},remove(){this.removed=true;},setAttribute(k,v){this[k]=v;}, addEventListener(){}, contains(){return false;}, setPointerCapture(){}, querySelector(){return null;},
+      getBoundingClientRect(){return this.rect||{left:0,right:10,top:0,bottom:10};}, getContext:()=>canvas});
+  }
+  return nodes.get(id);
+}
+node('header').rect={left:0,right:390,top:0,bottom:62};
+node('dock').rect={left:12,right:378,top:776,bottom:834};
+node('routes').rect={left:12,right:378,top:610,bottom:766};
+const storage = new Map(),listeners={window:{},document:{}};
+function listen(target,type,fn,capture){(listeners[target][type]??=[]).push({fn,capture:!!capture});}
+function fire(target,type,event={}){event.target??={tagName:'BODY'};event.preventDefault??=()=>{};let stopped=false;event.stopImmediatePropagation=()=>{stopped=true;};for(const x of [...(listeners[target][type]||[])].sort((a,b)=>b.capture-a.capture)){x.fn(event);if(stopped)break;}}
+const context = {console,document:{hidden:false,visibilityState:'visible',hasFocus:()=>context.focused,getElementById:node,createElement:()=>node('offscreen'+nodes.size),addEventListener:(t,f,c)=>listen('document',t,f,c),activeElement:{tagName:'BODY'},
+  querySelector:s=>({'header':node('header'),'footer':node('dock'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details')}[s]||null)},
+  innerWidth:390,innerHeight:844,devicePixelRatio:1,focused:true,window:{addEventListener:(t,f,c)=>listen('window',t,f,c)},screen:{},performance:{now:()=>100},addEventListener(){},
+  localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
+context.document.body=node('body');context.document.body.appendChild=()=>{};context.document.documentElement=node('html');context.navigator={};
+vm.createContext(context);
+const html=fs.readFileSync(path.join(root,'mobile/www/index.html'),'utf8');
+for(const match of html.matchAll(/<script src="([^"?]+)(?:[^"]*)"/g))vm.runInContext(fs.readFileSync(path.join(root,'mobile/www',match[1]),'utf8'),context,{filename:match[1]});
+const run = code => vm.runInContext(code,context);
+
+
+
+
+
+run('activateAtlasGeometry("east");reset();closeModal();atlasMenuOpen=false;S.paused=false;draft={type:"bus",stops:[0,1]};var initialNativeCash=S.points;');
+run('window.transitAndroidControl.pause("原生onPause");');assert.equal(run('S.paused'),true);assert.equal(run('interruptionPending()'),true);assert.equal(run('draft'),null);assert.equal(run('S.points'),run('initialNativeCash'));
+run('window.transitAndroidControl.resume();');assert.equal(run('S.paused'),true);assert.equal(run('resumeAfterInterruption()'),true);
+run('openModal("test native back");');assert.equal(run('window.transitAndroidControl.back()'),false);assert.equal(run('modalOpen'),false);assert.equal(run('S.paused'),true);
+assert.equal(run('window.transitAndroidControl.back()'),false);assert.equal(run('modalOpen'),true);assert.equal(run('atlasMenuOpen'),false);run('saveExit123();');assert.equal(run('atlasMenuOpen'),true);assert.equal(run('window.transitAndroidControl.back()'),true);
+console.log('PASS packaged game entry, native pause/resume lock, unpaid quote cancellation, back closes modal / asks exit / saves to selection / requests minimize');
+run('atlasSelected="west";startAtlasMap();');assert.equal(run('S.mapId'),'west');assert.equal(run('S.lives'),1);assert.equal(run('S.points'),5000);assert.equal(run('S.release'),'1.2');
+run('S.day=45;S.points=3456;window.transitAndroidControl.pause();save();load();');assert.equal(run('S.day'),45);assert.equal(run('S.points'),3456);assert.equal(run('S.paused'),true);
+console.log('PASS west packaged map and local save roundtrip retains day/cash/pause; no gameplay rebalance');
+
+run('showNativeReleaseNotes();');assert.equal(run('modalOpen'),true);assert(nodes.get('modal-content').innerHTML.includes('iframe'));assert.equal(run('window.transitAndroidControl.back()'),false);assert.equal(run('modalOpen'),false);console.log('PASS local release notes stay inside main document and Back closes safely');
+
+for(const map of ['east','west']){run(`activateAtlasGeometry("${map}");reset();`);for(const [w,h] of [[280,480],[320,568],[360,800],[412,915],[480,960],[768,1024]]){context.innerWidth=w;context.innerHeight=h;context.devicePixelRatio=3;run('resize()');assert.equal(run('W'),w);assert.equal(run('H'),h);assert.equal(run('dpr'),2);for(let i=0;i<400;i++){context.fuzz={scale:(i%41)/10,x:(i%2?1:-1)*i*1000,y:(i%3?1:-1)*i*700};run('clampPortraitCamera(fuzz)');assert.equal(run('(()=>{let b=portraitBounds(),t=fuzz,s=t.scale,e=.0001;return t.x+b.xmin*s<=e&&t.x+b.xmax*s>=W-e&&t.y+b.ymin*s<=e&&t.y+b.ymax*s>=H-e})()'),true);}}}
+console.log('PASS 4,800 camera bounds cases, two maps × six viewports, DPR capped at 2');
+run('activateAtlasGeometry("east");reset();atlasSelected="east";atlasRestart=false;startAtlasMap();S.day=12;S.points=4321;save();activateAtlasGeometry("west");reset();S.day=34;S.points=3456;save();atlasSelected="east";atlasRefreshCards();');
+assert.equal(run('portraitCanResume("east")'),true);assert.equal(nodes.get('atlas-start').textContent,'继续游戏');assert.equal(nodes.get('atlas-restart').hidden,false);
+run('portraitResumeMap();');assert.equal(run('S.mapId'),'east');assert.equal(run('S.day'),12);assert.equal(run('S.points'),4321);
+run('showAtlasMaps();portraitAskRestart();');assert.equal(run('modalOpen'),true);assert.equal(run('atlasSaved("east").day'),12);run('portraitCancelRestart();');assert.equal(run('atlasSaved("east").points'),4321);
+run('portraitAskRestart();portraitConfirmRestart("east");');assert.equal(run('S.day'),0);assert.equal(run('S.points'),5000);assert.equal(run('atlasSaved("west").day'),34);assert.equal(run('atlasSaved("west").points'),3456);
+run('beginDraft("bus");draft.stops=[0,1,2];draftBar();var quoteBefore=draftCost(),cashBefore=S.points;');assert.equal(nodes.get('drawdone').disabled,false);assert.match(nodes.get('drawdone').textContent,/建设/);nodes.get('drawdone').onclick();assert.equal(run('S.lines.length'),1);assert.equal(run('S.points'),run('cashBefore-quoteBefore.cash'));assert.equal(run('draft'),null);
+run('beginDraft("bus");draft.stops=[0,2];S.points=0;draftBar();var linesBefore=S.lines.length;');assert.equal(nodes.get('drawdone').disabled,true);nodes.get('drawdone').onclick();assert.equal(run('S.lines.length'),run('linesBefore'));
+run('cancelDraft();activateAtlasGeometry("east");reset();save();atlasRefreshCards();');assert.equal(run('portraitCanResume("east")'),false);assert.equal(nodes.get('atlas-start').textContent,'开始游戏');assert.equal(nodes.get('atlas-restart').hidden,true);
+assert(!run('drawClimate.toString()').includes('ellipse'));assert(run('drawClimate.toString()').includes('climateBeforeRegions();drawQuakeEffect();'));
+console.log('PASS build confirmation charges quote once; insufficient funds blocked; per-map continue/restart/cancel isolate saves; pristine seed shows Start; circle overlay removed with climate/quake retained');
+// 1.2.3 regressions: new input modes, growth, retirement, saving and guided practice.
+run('localStorage.setItem("transit-tutorial123-done","1");activateAtlasGeometry("east");reset();closeModal();atlasMenuOpen=false;S.paused=true;');
+assert.equal(run('S.mapRevision'),2);assert(Math.abs(run('S.cityRegions[0].x')-(650+815+855)/3)<1e-8);
+assert(run('mapSpec.branches[0][0][0]')>1200);assert(run('mapSpec.main.length')>7);
+run('S.day=9.9;spawnCity();');assert.equal(run('realCities().length'),3);
+run('S.day=10;spawnCity();');assert.equal(run('realCities().length'),4);assert.equal(run('growthState().next'),34);assert.equal(run('S.cities.slice(0,3).some(c=>riverSpans(c,S.cities[3]).length===1)'),true);
+run('S.day=33;S.cities[3].dormant=false;spawnCity();');assert.equal(run('realCities().length'),4);run('S.day=34;spawnCity();');assert.equal(run('realCities().length'),5);
+run('reset();closeModal();atlasMenuOpen=false;beginDraft("bus");draft.stops=[0,1];');
+run('var p0={pointerId:1,clientX:view.x+S.cities[2].x*view.scale,clientY:view.y+S.cities[2].y*view.scale};beginPointer(p0);finishPointer({...p0,type:"pointerup"});');assert.equal(run('draft.stops.length'),2);
+run('beginBridge("bus");bridgeDraft.a={x:1,y:2,side:1};bridgeDraft.b={x:3,y:4,side:-1};handleEngineeringPointer("down",{pointerId:7,clientX:100,clientY:200});handleEngineeringPointer("up",{pointerId:7,clientX:100,clientY:200,type:"pointerup"});');assert.equal(run('bridgeDraft.a.x'),1);assert.equal(run('bridgeDraft.b.x'),3);
+run('handleEngineeringPointer("down",{pointerId:7,clientX:100,clientY:200});handleEngineeringPointer("down",{pointerId:8,clientX:200,clientY:200});handleEngineeringPointer("move",{pointerId:8,clientX:250,clientY:200});handleEngineeringPointer("up",{pointerId:7,type:"pointerup"});handleEngineeringPointer("up",{pointerId:8,type:"pointerup"});');assert.equal(run('bridgeDraft.a.x'),1);assert.equal(run('bridgeDraft.b.x'),3);
+run('bridgeDraft=null;cancelDraft(false);S.points=1234;S.paused=false;askExit123();');assert.equal(run('S.paused'),true);assert.equal(run('atlasMenuOpen'),false);run('cancelExit123();');assert.equal(run('S.paused'),false);assert.equal(run('S.points'),1234);run('askExit123();saveExit123();');assert.equal(run('atlasMenuOpen'),true);assert.equal(run('atlasSaved("east").points'),1234);
+run('S.contract={end:-1,reward:9999,count:999,goal:1,good:999};var cashContract=S.points;updateWorld(0,Math.floor(S.day));');assert.equal(run('S.contract'),null);assert.equal(run('S.points'),run('cashContract'));
+run('reset();S.tutorial123={stage:"build",practiceCash:S.points};beginDraft("bus");draft.stops=[0,1,2];commitDraft(true);');assert.equal(run('tutorialStage123()'),'trim-end');assert.equal(run('S.lines.length'),1);
+run('var line124=S.lines[0],end124=S.cities[2],down124={pointerId:31,clientX:view.x+end124.x*view.scale,clientY:view.y+end124.y*view.scale};beginPointer(down124);var prior125=S.cities[1],dx125=prior125.x-end124.x,dy125=prior125.y-end124.y,len125=Math.hypot(dx125,dy125),pull125={...down124,clientX:view.x+prior125.x*view.scale+dx125/len125*14,clientY:view.y+prior125.y*view.scale+dy125/len125*14};movePointer(pull125);finishPointer({...pull125,type:"pointerup"});');assert.equal(run('draft.stops.length'),2);assert.equal(run('draft.stopRemoval.endRemoval'),true);assert.equal(run('S.lines[0].stops.length'),3);assert.equal(run('tutorialStage123()'),'trim-end');run('commitDraft(true);');assert.equal(run('tutorialStage123()'),'restore-end');assert.equal(run('S.lines[0].stops.length'),2);assert.equal(run('selected'),null);assert.equal(nodes.get('details').hidden,true);
+run('beginDraft("bus",S.tutorial123.line);draft.stops=[0,1,2];commitDraft(true);');assert.equal(run('tutorialStage123()'),'wait');assert.equal(run('S.lines.length'),1);
+run('tutorialSet123("fog");');assert.equal(run('S.climate.events.some(e=>e.id==="tutorial-fog")'),true);run('tutorialNext123();');assert.equal(run('meteoPreview.radius'),240);run('tutorialNext123();');assert.equal(run('tutorialStage123()'),'done');assert.equal(run('S.climate.events.some(e=>e.id==="tutorial-fog")'),false);
+run('lineStyle({type:"bus",color:"#123456",retiring:true});');assert.equal(canvas.globalAlpha,.28);
+console.log('PASS v1.2.3 fourth city day10 across river / day34 fifth; seed centroid; rounded extended geometry; taps/pinch preserve quotes; exit/save/cancel; contract disabled; tutorial build/trim-end/restore-end/fog/station; retirement faded');
+run('reset();S.day=10;spawnCity();var fourth=S.cities[3],origin=S.cities.slice(0,3).find(c=>riverSpans(c,fourth).length===1);var span=riverSpans(origin,fourth)[0],mid=(span[0]+span[1])/2,near=nearestRiver({x:origin.x+(fourth.x-origin.x)*mid,y:origin.y+(fourth.y-origin.y)*mid});S.tutorial123={stage:"bridge",city:fourth.id};beginBridge("bus");bridgeDraft.a=snapBank({x:near.x+near.nx*25,y:near.y+near.ny*25});bridgeDraft.b=snapBank({x:near.x-near.nx*25,y:near.y-near.ny*25});updateBridgeBar();');assert.equal(run('bridgeTerrainIssue(bridgeDraft.a,bridgeDraft.b)'),null);assert.equal(nodes.get('drawdone').disabled,false);run('createBridge();');assert.equal(run('S.bridges.length'),1);assert.equal(run('tutorialStage123()'),'connect');run('beginDraft("bus");draft.stops=[origin.id,fourth.id];draftBar();');assert.match(run('draftCost().invalid'),/手动/);run('var heads124=S.bridges[0].heads,entry124=heads124.find(id=>!requirements(origin,S.cities[id],"bus").bridge),exit124=heads124.find(id=>id!==entry124);draft.stops=[origin.id,entry124,exit124,fourth.id];draftBar();');assert.equal(run('draftCost().invalid'),null);run('commitDraft(true);');assert.equal(run('tutorialStage123()'),'fog');
+console.log('PASS actual tutorial bridge construction and routed cross-river line advance into fog teaching');
+run('reset();S.mapRevision=1;activateAtlasGeometry("east");');assert.equal(run('mapSpec.main.length'),7);assert(run('mapSpec.branches[0][0][0]')>1200);run('var a=makeCity(1150,-100);S.cities.push(a);var b=makeCity(1150,-280);S.cities.push(b);S.lines.push({id:99,type:"bus",stops:[a.id,b.id]});activateAtlasGeometry("east");');assert.equal(run('mapSpec.branches[0][0][0]'),1080);
+run('showOperations();');assert(!nodes.get('modal-content').innerHTML.includes('<h3>公共服务合同</h3>'));run('showWeather();');assert(!nodes.get('modal-content').innerHTML.includes('南→北'));
+console.log('PASS old saves retain original river core; unsafe extensions skipped; contract panel and directional weather wording absent');
+// Real pointer sequences, rather than directly assigning bridge stop IDs.
+run('reset();S.tutorial123=null;S.day=10;spawnCity();var dst124=S.cities[3],src124=S.cities.slice(0,3).find(c=>riverSpans(c,dst124).length===1),sp124=riverSpans(src124,dst124)[0],tm124=(sp124[0]+sp124[1])/2,nr124=nearestRiver({x:src124.x+(dst124.x-src124.x)*tm124,y:src124.y+(dst124.y-src124.y)*tm124});S.points=20000;beginBridge("bus");bridgeDraft.a=snapBank({x:nr124.x+nr124.nx*25,y:nr124.y+nr124.ny*25});bridgeDraft.b=snapBank({x:nr124.x-nr124.nx*25,y:nr124.y-nr124.ny*25});createBridge();closeModal();selected=null;atlasMenuOpen=false;var chosen124=S.bridges[0],ha124=chosen124.heads.find(id=>!requirements(src124,S.cities[id],"bus").bridge),hb124=chosen124.heads.find(id=>id!==ha124);');
+for(const scale of [.3,.7,1.5]){context.testScale124=scale;run('cancelDraft(false);gesture=null;pointers.clear();view.scale=testScale124;view.x=150-src124.x*view.scale;view.y=300-src124.y*view.scale;var path124=[src124,S.cities[ha124],S.cities[hb124],dst124];function ev124(c){return {pointerId:66,clientX:view.x+c.x*view.scale,clientY:view.y+c.y*view.scale};}beginPointer(ev124(src124));for(var k124=1;k124<path124.length;k124++){var aa124=path124[k124-1],bb124=path124[k124];for(var j124=1;j124<=14;j124++){var u124=j124/14;movePointer(ev124({x:aa124.x+(bb124.x-aa124.x)*u124,y:aa124.y+(bb124.y-aa124.y)*u124}));}}finishPointer({...ev124(dst124),type:"pointerup"});');assert.equal(run('draftCost().invalid'),null,'drag bridge scale '+scale);assert.equal(run('draft.stops.join(",")'),run('[src124.id,ha124,hb124,dst124.id].join(",")'),'bridge sequence '+scale);assert.equal(run('modalOpen'),false);}
+run('var manual124=routeBridgeStops([src124.id,dst124.id],"bus");');assert.match(run('manual124.invalid'),/手动/);assert.equal(run('manual124.stops.length'),2);run('chosen124.type="track";');assert.match(run('routeBridgeStops([src124.id,ha124,hb124,dst124.id],"bus").invalid'),/车型/);run('chosen124.type="bus";cancelDraft(false);');
+assert(fs.readFileSync(path.join(root,'mobile/www/index.html'),'utf8').includes('class="app-booting124"'));assert(fs.readFileSync(path.join(root,'mobile/www/index.html'),'utf8').indexOf('id="startup-cover124"')<fs.readFileSync(path.join(root,'mobile/www/index.html'),'utf8').indexOf('<canvas'));assert(fs.readFileSync(path.join(root,'mobile/www/startup124.js'),'utf8').includes('requestAnimationFrame(()=>requestAnimationFrame('));
+console.log('PASS actual continuous manual bridge drag at 0.3×/0.7×/1.5×; ordered heads without bouncing; no automatic bridge search; incompatible bridge blocked; startup cover precedes empty game');
+
+run('showAtlasMaps(false);');const bootFrames124=[];context.requestAnimationFrame=fn=>{bootFrames124.push(fn);return bootFrames124.length;};run('document.documentElement.classList.add("app-booting124");releaseStartup124();');assert.equal(run('document.documentElement.classList.contains("app-booting124")'),true);bootFrames124.shift()();assert.equal(run('document.documentElement.classList.contains("app-booting124")'),true);bootFrames124.shift()();assert.equal(run('document.documentElement.classList.contains("app-booting124")'),false);assert.equal(run('window.transitStartupReady124'),true);run('document.documentElement.classList.add("app-booting124");$("map-selection").hidden=true;releaseStartup124();');assert.equal(run('document.documentElement.classList.contains("app-booting124")'),true);assert(nodes.get('startup-cover124').innerHTML.includes('重新加载'));assert.equal(run('confirmLineCancellation===cancellation123'),true);
+console.log('PASS startup remains covered until menu ready plus two paint frames; failure stays covered with retry; whole-line cancellation remains a normal feature without tutorial override');
+
+context.requestAnimationFrame=()=>{};
+for(const sc of [.3,.7,1.5]){context.scale125=sc;run('reset();S.tutorial123=null;atlasMenuOpen=false;closeModal();S.points=20000;beginDraft("bus");draft.stops=[0,1,2];commitDraft(true);selected=null;view.scale=scale125;view.x=100-S.cities[0].x*view.scale;view.y=300-S.cities[0].y*view.scale;function point125(c,id=81){return {pointerId:id,clientX:view.x+c.x*view.scale,clientY:view.y+c.y*view.scale};}var original125=S.lines[0].stops.join(","),money125=S.points;');
+run('var end125=S.cities[2],start125=point125(end125);beginPointer(start125);movePointer({...start125,clientX:start125.clientX+80,clientY:start125.clientY+35});finishPointer({...start125,clientX:start125.clientX+80,clientY:start125.clientY+35,type:"pointerup"});');assert.equal(run('S.lines[0].stops.join(",")'),run('original125'));assert.equal(run('draft'),null);
+run('selected=null;beginPointer(point125(S.cities[2]));var p125={x:S.cities[2].x+(S.cities[1].x-S.cities[2].x)*.8,y:S.cities[2].y+(S.cities[1].y-S.cities[2].y)*.8};movePointer(point125(p125));finishPointer({...point125(p125),type:"pointerup"});');assert.equal(run('draft'),null);assert.equal(run('S.points'),run('money125'));
+run('selected=null;beginPointer(point125(S.cities[2]));var xx125=S.cities[1].x-S.cities[2].x,yy125=S.cities[1].y-S.cities[2].y,ll125=Math.hypot(xx125,yy125),past125={x:S.cities[1].x+xx125/ll125*14/view.scale,y:S.cities[1].y+yy125/ll125*14/view.scale};movePointer(point125(past125));finishPointer({...point125(past125),type:"pointerup"});');assert.equal(run('draft.stopRemoval.backtrack125'),true);assert.equal(run('draft.stops.join(",")'),'0,1');assert.equal(run('S.lines[0].stops.join(",")'),'0,1,2');run('commitDraft(true);');assert.equal(run('S.lines[0].stops.join(",")'),'0,1');assert.equal(nodes.get('details').hidden,true);
+}
+run('reset();atlasMenuOpen=false;S.tutorial123={stage:"view"};beginDraft("bus");draft.stops=[0,1,2];draftBar();');assert.equal(run('tutorialStage123()'),'build');assert(run('guide123.innerHTML').includes('核对报价'));assert(!run('guide123.innerHTML').includes('查看城市'));assert.equal(run('tutorialTarget124().id'),'drawdone');run('commitDraft(true);');assert.equal(run('tutorialStage123()'),'trim-end');
+console.log('PASS v1.2.5: blank drag and pull before previous station do not delete; backward crossing previews then confirms at 0.3×/0.7×/1.5×; direct drag advances View to Build and cues confirmation');
+
+for(const sc of [.3,.7,1.5]){context.turnScale125=sc;run('reset();S.tutorial123=null;atlasMenuOpen=false;closeModal();S.points=20000;beginDraft("bus");draft.stops=[0,1,2];commitDraft(true);selected=null;view.scale=turnScale125;function et125(c){return {pointerId:88,clientX:view.x+c.x*view.scale,clientY:view.y+c.y*view.scale};}beginPointer(et125(S.cities[2]));movePointer(et125(S.cities[1]));');assert.equal(run('draft.stops.length'),3);run('var ex125=S.cities[0].x-S.cities[1].x,ey125=S.cities[0].y-S.cities[1].y,el125=Math.hypot(ex125,ey125),afterTurn125={x:S.cities[1].x+ex125/el125*14/view.scale,y:S.cities[1].y+ey125/el125*14/view.scale};movePointer(et125(afterTurn125));finishPointer({...et125(afterTurn125),type:"pointerup"});');assert.equal(run('draft.stops.join(",")'),'0,1');assert.equal(run('draft.stopRemoval.backtrack125'),true);run('cancelDraft(false);');assert.equal(run('S.lines[0].stops.join(",")'),'0,1,2');}
+console.log('PASS backward drag follows the bend C→B→A, rather than requiring a straight overshoot; reaching B alone does not delete; Cancel preserves line at three scales');
+run('reset();S.tutorial123=null;atlasMenuOpen=false;closeModal();cancelDraft(false);bridgeDraft=null;selected=null;pointers.clear();resumeAfterInterruption();S.agriculture=null;S.points=799;S.cities.forEach(c=>{c.dormant=false;c.farm=null;c.size=1;});');
+assert.equal(run('maybeFarmIntro126()'),false);
+run('S.points=800;S.tutorial123={stage:"view"};');assert.equal(run('maybeFarmIntro126()'),false);
+run('S.tutorial123=null;atlasMenuOpen=true;');assert.equal(run('maybeFarmIntro126()'),false);
+run('atlasMenuOpen=false;openModal("busy");');assert.equal(run('maybeFarmIntro126()'),false);
+run('closeModal();S.cities.forEach(c=>c.dormant=true);');assert.equal(run('maybeFarmIntro126()'),false);
+run('S.cities.find(farmEligible).dormant=false;');assert.equal(run('maybeFarmIntro126()'),true);
+assert.equal(run('S.paused'),true);assert.equal(run('S.points'),800);
+assert(nodes.get('modal-content').innerHTML.includes('农田已可种植'));
+run('closeModal();');assert.equal(run('maybeFarmIntro126()'),false);
+run('save();S.agriculture=null;load();atlasMenuOpen=false;closeModal();');assert.equal(run('agricultureState().introduced126'),true);assert.equal(run('maybeFarmIntro126()'),false);
+run('S.agriculture={planted:1};');assert.equal(run('maybeFarmIntro126()'),false);assert.equal(run('S.agriculture.introduced126'),true);
+run('S.agriculture=null;S.points=800;S.cities.find(farmEligible).dormant=false;S.tutorial123=null;selected=null;');assert.equal(run('maybeFarmIntro126()'),true);
+console.log('PASS farm introduction: requires connected residence and 800 cash; defers during tutorial/menu/modal; pauses without spending; persists once per save; existing growers skipped');
+// Reproduce the screenshot: middle stop removed, then drag the remaining segment back through it.
+for(const sc of [.3,.7,1.5]){context.scale127=sc;
+run('reset();atlasMenuOpen=false;closeModal();selected=null;S.points=20000;S.tutorial123={stage:"build"};beginDraft("bus");draft.stops=[0,1,2];commitDraft(true);view.scale=scale127;selected=null;prepareRemoveStop(S.lines[0].id,1);');
+assert.equal(run('tutorialStage123()'),'restore-end');assert.equal(run('S.tutorial123.end'),1);assert.equal(run('S.lines[0].stops.join(",")'),'0,2');
+run('selected=null;function ev127(p){return {pointerId:91,clientX:view.x+p.x*view.scale,clientY:view.y+p.y*view.scale};}var a127=S.cities[0],z127=S.cities[2],mid127={x:(a127.x+z127.x)/2,y:(a127.y+z127.y)/2};beginPointer(ev127(mid127));movePointer(ev127(S.cities[1]));finishPointer({...ev127(S.cities[1]),type:"pointerup"});');
+assert.equal(run('draft.stops.join(",")'),'0,1,2');assert.equal(run('tutorialStage123()'),'restore-end');run('commitDraft(true);');assert.equal(run('tutorialStage123()'),'wait');assert.equal(run('S.lines[0].stops.join(",")'),'0,1,2');
+}
+run('S.tutorial123={stage:"trim-end",line:S.lines[0].id,end:2};S.lines[0].stops=[0,2];draft=null;save();load();tutorialUI123();');assert.equal(run('tutorialStage123()'),'restore-end');assert.equal(run('S.tutorial123.end'),1);
+run('S.tutorial123=null;closeModal();resumeAfterInterruption();S.paused=false;askExit123();');assert(nodes.get('modal-content').innerHTML.includes('saveContinue127()'));assert.equal(run('saveContinue127()'),true);assert.equal(run('modalOpen'),false);assert.equal(run('S.paused'),false);
+run('S.paused=true;askExit123();saveContinue127();');assert.equal(run('S.paused'),true);
+run('askExit123();var saveGood127=save;save=()=>false;');assert.equal(run('saveContinue127()'),false);assert.equal(run('modalOpen'),true);run('save=saveGood127;closeModal();');
+run('reset();S.tutorial123=null;atlasMenuOpen=false;closeModal();selected=null;S.agriculture=null;S.cities.forEach(c=>{c.size=0;c.farm=null;c.dormant=false;});');assert.equal(run('maybeFarmIntro126()'),false);assert.equal(run('farmEligible(S.cities.find(c=>c.shape===0))'),false);
+run('var residence127=S.cities.find(c=>c.shape===0);residence127.size=1;');assert.equal(run('farmEligible(residence127)'),true);assert.equal(run('maybeFarmIntro126()'),true);
+run('closeModal();residence127.size=0;residence127.farm={round:1,completed:0,profit:0,income:0,history:[],crop:null};var money127=S.points;plantFarm(residence127.id);');assert.equal(run('S.points'),run('money127'));assert.equal(run('residence127.farm.crop'),null);assert.equal(run('farmEligible(residence127)'),true);
+console.log('PASS middle-stop removal advances tutorial; video-style segment drag restores original 3 stops at 3 scales; stuck save recovers; save-and-return closes and preserves pause with failure retained; medium-residence farm gate and old field access');

@@ -1,0 +1,23 @@
+{
+  "appId": "com.transitatlas.playtest",
+  "appName": "交通线试玩",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "errorPath": "webview-error.html"
+  },
+  "android": {
+    "backgroundColor": "#e6edda",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false,
+    "minWebViewVersion": 108
+  },
+  "plugins": {
+    "App": {
+      "disableBackButtonHandler": false
+    },
+    "SystemBars": {
+      "insetsHandling": "css"
+    }
+  }
+}
