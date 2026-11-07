@@ -32,6 +32,51 @@ function test(name,fn){try{fn();checks.push({name,passed:true});}catch(error){ch
 // Money follows the game's own prices (1.1 multiplied transport money by 10): START buys three buses, RICH is plenty.
 const fresh = () => run('reset();closeModal();clearSelection();globalThis.START=TYPES.bus.vehicle*3;globalThis.RICH=TYPES.bus.vehicle*60;S.points=START;updateUI()');
 
+test('closing during automatic framing cancels that animation and restores the original view',()=>{
+  fresh();
+  const raf=context.requestAnimationFrame, frames=[];
+  context.requestAnimationFrame=f=>frames.push(f);
+  try {
+    run('uxFrameRestore=null;view.x=40;view.y=30;view.scale=1;uxAutoMove(()=>animateView({x:200,y:180,scale:.4},300))');
+    frames.shift()(250); // midway through the actual animation, before its target is reached
+    assert.notEqual(run('view.scale'),1);
+    assert.notEqual(run('view.scale'),.4);
+    run('uxEndAutoMove()');
+    while(frames.length)frames.shift()(1000);
+    assert.equal(run('view.x'),40);
+    assert.equal(run('view.y'),30);
+    assert.equal(run('view.scale'),1);
+  } finally { context.requestAnimationFrame=raf; }
+});
+
+test('manual camera input during framing cancels restoration and pending animation',()=>{
+  fresh();
+  const raf=context.requestAnimationFrame, frames=[];
+  context.requestAnimationFrame=f=>frames.push(f);
+  try {
+    run('uxFrameRestore=null;uxAutoMove(()=>animateView({x:200,y:180,scale:.4},300))');
+    frames.shift()(250);
+    run('uxCancelAutoMove();view.x=75;view.y=65;view.scale=.8;uxEndAutoMove()');
+    while(frames.length)frames.shift()(1000);
+    assert.equal(run('view.x'),75);assert.equal(run('view.y'),65);assert.equal(run('view.scale'),.8);
+    assert.equal(run('uxFrameRestore'),null);
+  } finally { context.requestAnimationFrame=raf; }
+});
+test('starting a line edit during framing freezes the current view without restoring',()=>{
+  fresh();
+  const raf=context.requestAnimationFrame, frames=[];
+  context.requestAnimationFrame=f=>frames.push(f);
+  try {
+    run('uxFrameRestore=null;uxAutoMove(()=>animateView({x:200,y:180,scale:.4},300))');
+    frames.shift()(250);
+    const before=run('JSON.stringify(view)');
+    run('draft={type:"bus",stops:[]};uxEndAutoMove()');
+    while(frames.length)frames.shift()(1000);
+    assert.equal(run('JSON.stringify(view)'),before);
+    assert.equal(run('uxFrameRestore'),null);
+  } finally { run('draft=null');context.requestAnimationFrame=raf; }
+});
+
 test('new route starts drawing directly, without a type dialog',()=>{
   fresh();run('chooseType()');
   assert(run('!!draft'),'a draft is started');assert.equal(node('modal').hidden,true);assert.equal(node('drawbar').hidden,false);
@@ -260,6 +305,19 @@ test('drawn range previews end with their city: switching or closing clears the 
   assert.equal(run('repairCenterPreview'),null,'repair circle ends too');
   run('selected={type:"city",id:0};meteoPreview={id:0,radius:240};clearSelection();uxSyncPreviews()');
   assert.equal(run('meteoPreview'),null,'and when the sheet closes');
+});
+test('closing a repair preview clears its hint even after upstream clears the circle',()=>{
+  fresh();run('S.cities[0].size=1;previewRepairCenter(0);uxSyncPreviews()');
+  assert.equal(node('toast').classList.contains('show'),true,'keep the hint while its preview is open');
+  assert(run('!!uxPreviewFrame&&!!repairCenterPreview'),'both preview states are active');
+  run('clearSelection()');
+  assert.equal(run('repairCenterPreview'),null,'upstream clears the circle before the observer runs');
+  run('uxSyncPreviews()');
+  assert.equal(run('uxPreviewFrame'),null);
+  assert.equal(node('toast').classList.contains('show'),false,'closing ends the preview hint immediately');
+  run('previewRepairCenter(0);toast("资金不足");clearSelection();uxSyncPreviews()');
+  assert.equal(node('toast').textContent,'资金不足');
+  assert.equal(node('toast').classList.contains('show'),true,'a newer unrelated message stays visible');
 });
 test('landscape focus pan joins the restore session (task list / line picker → city → close)',()=>{
   fresh();run('globalThis.__raf=requestAnimationFrame;requestAnimationFrame=f=>f();globalThis.__pm=portraitMode;portraitMode=false;uxFrameRestore=null;view.x=40;view.y=30;'+

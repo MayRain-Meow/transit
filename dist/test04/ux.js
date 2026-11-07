@@ -1152,12 +1152,14 @@ function uxSelectionPoints() {
 }
 let uxPreviewFrame = null;   // {c, radius} while a range preview is shown
 // Upstream draws the circles from meteoPreview / repairCenterPreview; they end when their city stops being the selection.
+// Note: preview/session cleanup — .agents/notes/implemented/feature/2026-11-05-portrait-rotation.md
 function uxSyncPreviews() {
   const id = ['city', 'stop'].includes(selected?.type) && !uxEl('details')?.hidden ? selected.id : null;
   let ended = false;
   if (typeof meteoPreview !== 'undefined' && meteoPreview && meteoPreview.id !== id) { meteoPreview = null; ended = true; }
   if (typeof repairCenterPreview !== 'undefined' && repairCenterPreview && repairCenterPreview.id !== id) { repairCenterPreview = null; ended = true; }
-  if (uxPreviewFrame && !uxPreviewOwns()) uxPreviewFrame = null;
+  // clearSelection may already have cleared the upstream circle; the framing state still owns its hint.
+  if (uxPreviewFrame && !uxPreviewOwns()) { uxPreviewFrame = null; ended = true; }
   // the preview's own hint ("气象站覆盖预览 · 再点…", "检修中心半径…覆盖范围") goes with it
   const t = uxEl('toast'); if (ended && t?.classList?.contains('show') && /覆盖预览|覆盖范围/.test(t.textContent)) t.classList.remove('show');
 }
@@ -1293,8 +1295,24 @@ let uxFrameRestore = null;   // { from: view before the first automatic framing,
 // Remember the end state of every camera animation, so "is the view still where our framing put it?" needs no timers.
 let uxLastViewTarget = null;
 (function () { const anim = animateView; animateView = function (t, ms) { uxLastViewTarget = { x: t.x, y: t.y, scale: t.scale }; return anim(t, ms); }; animateView.id = anim.id; Object.defineProperty(animateView, 'id', { get: () => anim.id, set: v => { anim.id = v; } }); })();
+function uxCancelAutoMove() {
+  uxFrameRestore = null;
+  if (animateView.activeId != null) { animateView.id = (animateView.id || 0) + 1; animateView.activeId = null; }
+}
+function uxEndAutoMove() {
+  const r = uxFrameRestore; uxFrameRestore = null;
+  if (!r) return;
+  const running = animateView.activeId != null && animateView.activeId === r.animationId && animateView.id === r.animationId;
+  // Starting an edit must freeze the current view, even if automatic framing has not finished.
+  if (draft || uxExt || bridgeDraft) { if (running) uxCancelAutoMove(); return; }
+  const near = Math.abs(view.scale - r.to.scale) < 1e-3 && Math.abs(view.x - r.to.x) < 3 && Math.abs(view.y - r.to.y) < 3;
+  if (running || near) animateView(r.from, 280);
+}
+// Actual camera input takes ownership; a city tap or panel transition does not.
+cv.addEventListener('pointermove', e => { if (pointers.has(e.pointerId) && ['pan', 'pinch'].includes(gesture?.kind)) uxCancelAutoMove(); }, { capture: true });
+cv.addEventListener('wheel', uxCancelAutoMove, { capture: true, passive: true });
 (function () {
-  const frame = uxFrame, near = (p, q) => q && Math.abs(p.scale - q.scale) < 1e-3 && Math.abs(p.x - q.x) < 3 && Math.abs(p.y - q.y) < 3;
+  const frame = uxFrame;
   // Every automatic camera move (sheet framing, landscape focus pan) joins one restore session: the first move
   // remembers the view before it, later ones only update where the camera was sent.
   uxAutoMove = function (move) {
@@ -1303,6 +1321,7 @@ let uxLastViewTarget = null;
     if (animateView.id === id0) return;              // nothing moved
     if (!uxFrameRestore) uxFrameRestore = { from: before, to: null };
     uxFrameRestore.to = uxLastViewTarget;           // where our own framing ends up
+    uxFrameRestore.animationId = animateView.id;
   };
   uxFrame = function (points, pad) { uxAutoMove(() => frame(points, pad)); };
   // The details sheet and the line picker are both bottom sheets. The view goes back only when one of them really
@@ -1313,11 +1332,7 @@ let uxLastViewTarget = null;
   const onSheet = e => () => {
     const was = wasOpen.get(e); wasOpen.set(e, !e.hidden);
     if (!was || !e.hidden || sheets.some(x => !x.hidden) || !uxFrameRestore) return;
-    const r = uxFrameRestore; uxFrameRestore = null;
-    // A sheet also hides when a line edit starts: the map must stay put under the finger.
-    if (draft || uxExt || bridgeDraft) return;
-    // Only undo our own framing: if the player panned or zoomed after it, their view stays.
-    if (near(view, r.to)) animateView(r.from, 280);
+    uxEndAutoMove();
   };
   if (typeof MutationObserver !== 'undefined') for (const e of sheets) new MutationObserver(onSheet(e)).observe(e, { attributes: true, attributeFilter: ['hidden'] });
 })();
