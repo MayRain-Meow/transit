@@ -20,7 +20,7 @@ function uxFocusCity(id) {
   const c = S.cities[id]; if (!c) return;
   closeModal(); hideJunction(); selected = { type: 'city', id }; showDetails();
   // Portrait: the sheet framing (uxFrameSelection) places the city and remembers the prior view for close.
-  if (!portraitMode) requestAnimationFrame(() => panTo(c.x, c.y));
+  if (!portraitMode) requestAnimationFrame(() => uxAutoMove(() => panTo(c.x, c.y)));
 }
 function uxTypes() { return ['bus', 'emu', 'rail', 'air'].filter(t => TYPES[t]); }
 function uxFreeSlots(t) { return S.limits[t] - S.lines.filter(l => l.type === t && !l.retiring).length; }
@@ -1151,6 +1151,16 @@ function uxSelectionPoints() {
   return [];
 }
 let uxPreviewFrame = null;   // {c, radius} while a range preview is shown
+// Upstream draws the circles from meteoPreview / repairCenterPreview; they end when their city stops being the selection.
+function uxSyncPreviews() {
+  const id = ['city', 'stop'].includes(selected?.type) && !uxEl('details')?.hidden ? selected.id : null;
+  let ended = false;
+  if (typeof meteoPreview !== 'undefined' && meteoPreview && meteoPreview.id !== id) { meteoPreview = null; ended = true; }
+  if (typeof repairCenterPreview !== 'undefined' && repairCenterPreview && repairCenterPreview.id !== id) { repairCenterPreview = null; ended = true; }
+  if (uxPreviewFrame && !uxPreviewOwns()) uxPreviewFrame = null;
+  // the preview's own hint ("气象站覆盖预览 · 再点…", "检修中心半径…覆盖范围") goes with it
+  const t = uxEl('toast'); if (ended && t?.classList?.contains('show') && /覆盖预览|覆盖范围/.test(t.textContent)) t.classList.remove('show');
+}
 function uxPreviewOwns() { return !!uxPreviewFrame && ['city', 'stop'].includes(selected?.type) && S.cities[selected.id] === uxPreviewFrame.c; }
 function uxFrameSelection() {
   // a range preview frames only while its own city is the selection (another city's sheet must not inherit it)
@@ -1169,9 +1179,9 @@ function uxSheetSet(state) {
   const d = uxEl('details'); if (!d?.getBoundingClientRect || typeof MutationObserver === 'undefined') return;
   let lastKey = '';
   new MutationObserver(() => {
-    if (d.hidden || !selected) { lastKey = ''; uxPreviewFrame = null; d.classList.remove('is-peek', 'is-full'); return; }
+    if (d.hidden || !selected) { lastKey = ''; uxSyncPreviews(); d.classList.remove('is-peek', 'is-full'); return; }
     const k = selected.type + ':' + selected.id;
-    if (k !== lastKey) { lastKey = k; if (!uxPreviewOwns()) uxPreviewFrame = null; uxSheetSet('peek'); }
+    if (k !== lastKey) { lastKey = k; uxSyncPreviews(); uxSheetSet('peek'); }
   }).observe(d, { attributes: true, attributeFilter: ['hidden'], childList: true });
   let y0 = null, top0 = 0;
   d.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; top0 = d.scrollTop; }, { passive: true });
@@ -1278,19 +1288,23 @@ addEventListener('resize', () => uxApplyPlayView(false));
 (function () { const start = startGame; startGame = function (...a) { const r = start.apply(this, a); uxApplyPlayView(false); return r; }; })();
 // Framing for an open sheet may zoom out; closing the sheet brings the earlier view back, unless the player
 // moved the map in between. Repeated open/close therefore never ratchets the scale down.
+let uxAutoMove = move => move();   // replaced below by the recording version
 let uxFrameRestore = null;   // { from: view before the first automatic framing, to: view after the latest one }
 // Remember the end state of every camera animation, so "is the view still where our framing put it?" needs no timers.
 let uxLastViewTarget = null;
 (function () { const anim = animateView; animateView = function (t, ms) { uxLastViewTarget = { x: t.x, y: t.y, scale: t.scale }; return anim(t, ms); }; animateView.id = anim.id; Object.defineProperty(animateView, 'id', { get: () => anim.id, set: v => { anim.id = v; } }); })();
 (function () {
   const frame = uxFrame, near = (p, q) => q && Math.abs(p.scale - q.scale) < 1e-3 && Math.abs(p.x - q.x) < 3 && Math.abs(p.y - q.y) < 3;
-  uxFrame = function (points, pad) {
+  // Every automatic camera move (sheet framing, landscape focus pan) joins one restore session: the first move
+  // remembers the view before it, later ones only update where the camera was sent.
+  uxAutoMove = function (move) {
     const before = { x: view.x, y: view.y, scale: view.scale }, id0 = animateView.id;
-    frame(points, pad);
+    move();
     if (animateView.id === id0) return;              // nothing moved
     if (!uxFrameRestore) uxFrameRestore = { from: before, to: null };
     uxFrameRestore.to = uxLastViewTarget;           // where our own framing ends up
   };
+  uxFrame = function (points, pad) { uxAutoMove(() => frame(points, pad)); };
   // The details sheet and the line picker are both bottom sheets. The view goes back only when one of them really
   // closes (open → hidden) and neither is left open: upstream re-sets `hidden = true` on every UI update while the
   // picker is up, and moving from one sheet to the other keeps the original view to come back to.

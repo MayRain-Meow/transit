@@ -252,5 +252,23 @@ test('a range preview frames only its own city: switching cities drops it',()=>{
   assert.equal(run('uxPreviewFrame'),null,'nor does the line picker');
   run('clearSelection()');
 });
+test('drawn range previews end with their city: switching or closing clears the circle too',()=>{
+  fresh();run('selected={type:"city",id:0};showDetails();meteoPreview={id:0,radius:240};repairCenterPreview={id:0};uxSyncPreviews()');
+  assert.equal(run('!!meteoPreview&&!!repairCenterPreview'),true,'kept while their city sheet is open');
+  run('selected={type:"city",id:1};uxSyncPreviews()');
+  assert.equal(run('meteoPreview'),null,'meteo circle ends when another city is selected');
+  assert.equal(run('repairCenterPreview'),null,'repair circle ends too');
+  run('selected={type:"city",id:0};meteoPreview={id:0,radius:240};clearSelection();uxSyncPreviews()');
+  assert.equal(run('meteoPreview'),null,'and when the sheet closes');
+});
+test('landscape focus pan joins the restore session (task list / line picker → city → close)',()=>{
+  fresh();run('globalThis.__raf=requestAnimationFrame;requestAnimationFrame=f=>f();globalThis.__pm=portraitMode;portraitMode=false;uxFrameRestore=null;view.x=40;view.y=30;'+
+    'animateView=t=>{animateView.id=(animateView.id||0)+1;uxLastViewTarget={x:t.x,y:t.y,scale:t.scale};Object.assign(view,t)}');
+  const before=run('({x:view.x,y:view.y,scale:view.scale})');
+  run('uxFocusCity(S.cities.find(c=>!c.dormant&&c.kind!=="bridgehead").id)');
+  assert(run('!!uxFrameRestore'),'the pan is recorded');
+  assert.deepEqual(run('({x:uxFrameRestore.from.x,y:uxFrameRestore.from.y,scale:uxFrameRestore.from.scale})'),before,'with the view from before it');
+  run('requestAnimationFrame=globalThis.__raf;portraitMode=globalThis.__pm;uxFrameRestore=null;clearSelection()');
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
