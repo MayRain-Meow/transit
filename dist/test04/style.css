@@ -1155,3 +1155,19 @@ footer .dock .dock-hub svg{stroke:currentColor}
   body #routes .route-foot{display:none!important}
   body:has(#details:not([hidden])) #routes.route-panel,body:has(#drawbar:not([hidden])) #routes.route-panel{display:none!important}
 }
+/* collapsed tray: the swatches are the point, so the heading gives them the room — the title shrinks to the count,
+   「＋ 新建线路」 to ＋, and swatches wrap onto a second row rather than being clipped */
+body #routes.collapsed .panel-heading{flex-wrap:nowrap;align-items:center}
+body #routes.collapsed .panel-heading > span:first-child{flex:0 0 auto!important;font-size:0!important}
+body #routes.collapsed .panel-heading > span:first-child small{margin:0!important;font-size:12px!important;font-weight:600;color:#5f6f68}
+body #routes.collapsed .ux-swatches{display:flex!important;flex:1 1 auto;min-width:0;flex-wrap:wrap;overflow:visible!important;row-gap:0}
+body #routes.collapsed #route-new130{width:34px!important;min-width:34px!important;padding:0!important;font-size:0!important}
+body #routes.collapsed #route-new130::before{content:'＋';font-size:18px;font-weight:400}
+body #routes #collapse{font-size:15px!important;line-height:1;color:var(--ink)}
+body #routes .ux-swatches{gap:2px!important}
+body #routes .ux-swatches button{width:17px!important}
+body #routes .panel-heading{gap:6px!important}
+/* expand / collapse: a drawn chevron (the text glyph stays for screen readers via aria-label) */
+body #routes #collapse{font-size:0!important;position:relative}
+body #routes #collapse::before{content:'';position:absolute;left:50%;top:50%;width:8px;height:8px;border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:translate(-50%,-70%) rotate(45deg)}
+body #routes.collapsed #collapse::before{transform:translate(-50%,-30%) rotate(-135deg)}

@@ -1079,6 +1079,7 @@ function uxJunctionCity(id) {
   const n = c.q.filter(p => !p.cardId && !p.eventId).length, cap = capacity(c), cls = n >= cap ? 'is-over' : n >= cap * .8 ? 'is-near' : '';
   b.innerHTML = '<span><b>城市详情</b><small>任务、设施与候车明细</small></span><em class="' + cls + '">候车 ' + n + '/' + cap + '</em><i>›</i>';
 }
+let uxLineEdit = null;   // { id, color } while the line settings sheet is open and not yet saved
 function uxWrapHubs() {
   // A trade re-renders the market page: keep the reading position and the quantity the player typed.
   if (typeof tradeStock === 'function') {
@@ -1102,10 +1103,13 @@ function uxWrapHubs() {
       return r;
     };
   }
-  // Line settings: a visible way to leave without saving.
+  // Line settings: a visible way to leave without saving. Picking a colour previews it on the map at once (upstream
+  // writes it straight to the line); only 保存设置 keeps it — 取消, ×, Escape or any other close put the old colour back,
+  // so name and colour share one meaning of "cancel".
   if (typeof renameLine === 'function') {
     const rl = renameLine;
     renameLine = function (id, ...a) {
+      const line = S.lines.find(l => l.id === id); uxLineEdit = line ? { id, color: line.color } : null;
       const r = rl.call(this, id, ...a), m = uxEl('modal-content'), h = m?.querySelector(':scope > h2');
       if (h && !m.querySelector('.modal-head')) { const head = document.createElement('div'); head.className = 'modal-head'; h.before(head); head.append(h); head.insertAdjacentHTML('beforeend', '<button class="close" onclick="closeModal()" aria-label="不保存，关闭">×</button>'); }
       const save = m?.querySelector('button.primary[onclick^="applyName"]');
@@ -1113,6 +1117,14 @@ function uxWrapHubs() {
       return r;
     };
   }
+  if (typeof applyName === 'function') { const an = applyName; applyName = function (...a) { uxLineEdit = null; return an.apply(this, a); }; }
+  { const cm = closeModal; closeModal = function (...a) {
+    const e = uxLineEdit; uxLineEdit = null;
+    const r = cm.apply(this, a);
+    const l = e && S.lines.find(x => x.id === e.id);
+    if (l && l.color !== e.color) { l.color = e.color; updateUI(); if (selected?.type === 'line' && selected.id === l.id) showDetails(); }
+    return r;
+  }; }
   // Build page: with no earthquake there is nothing to warn about; the monitor is one quiet settings row.
   uxAfter('showEngineering', m => {
     const q = m.querySelector('.quake-summary'); if (!q || q.querySelector('[onclick*="focusEarthquake"]')) return;
@@ -1128,7 +1140,10 @@ function uxWrapHubs() {
       setTimeout(() => { if (selected?.type === 'junction' && typeof requestAnimationFrame === 'function') requestAnimationFrame(uxFrameSelection); }, 320); }
     else { // upstream places the floating picker from an estimated height: keep the real one on screen (short landscape phones)
       const el = uxEl('junction-picker'), top = el?.getBoundingClientRect ? el.getBoundingClientRect().top : 0, head = (document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8;
-      if (el && !el.hidden) { el.style.maxHeight = (H - head - 12) + 'px'; el.style.overflowY = 'auto'; const h = el.getBoundingClientRect().height; if (top + h > H - 12) el.style.top = Math.max(head, H - 12 - h) + 'px'; }
+      if (el && !el.hidden) { el.style.maxHeight = (H - head - 12) + 'px'; el.style.overflowY = 'auto'; const h = el.getBoundingClientRect().height; if (top + h > H - 12) el.style.top = Math.max(head, H - 12 - h) + 'px';
+      // the floating picker sits beside the city and is clamped to the screen, so near an edge it can cover the city
+      // (or the city is off-screen): frame the city into the map area the picker leaves free, as in portrait
+      setTimeout(() => { if (selected?.type === 'junction' && typeof requestAnimationFrame === 'function') requestAnimationFrame(uxFrameSelection); }, 320); }
     }
     return r;
   }; }
@@ -1184,6 +1199,11 @@ function uxTray() {
     sw.dataset.key = key;
     sw.innerHTML = S.lines.map(l => `<button style="--c:${l.color}" class="${selected?.type === 'line' && selected.id === l.id ? 'on' : ''}" onclick="selectLine(${l.id})" aria-label="${escapeHTML(l.name)}"></button>`).join('');
   }
+  uxEl('route-new130')?.setAttribute?.('aria-label', '新建线路');
+  // the expand toggle must not read as a second 「＋」 next to 新建: a chevron that points where the list goes
+  const col = uxEl('collapse'), shut = p.classList.contains('collapsed');
+  if (col) { const t = shut ? '⌃' : '⌄'; if (col.textContent !== t) col.textContent = t; col.setAttribute('aria-label', shut ? '展开线路列表' : '收起线路列表'); }
+  const cnt = uxEl('routecount'); if (cnt && shut) { const t = S.lines.length + ' 条'; if (cnt.textContent !== t) cnt.textContent = t; }
   const ov = uxEl('overview'), foot = p.querySelector('.route-foot');
   if (ov && portraitMode && ov.parentElement !== head) head.insertBefore(ov, uxEl('route-new130') || uxEl('collapse'));
   else if (ov && !portraitMode && foot && ov.parentElement !== foot) foot.appendChild(ov);
@@ -1192,7 +1212,7 @@ function uxTrayInit() {
   const btn = uxEl('collapse'), p = uxEl('routes'); if (!btn || !p) return;
   let saved = null; try { saved = localStorage.getItem(UX_TRAY_KEY); } catch {}
   if (saved === '1' && !p.classList.contains('collapsed')) btn.onclick?.();
-  const tap = btn.onclick; btn.onclick = function (...a) { const r = tap?.apply(this, a); try { localStorage.setItem(UX_TRAY_KEY, p.classList.contains('collapsed') ? '1' : '0'); } catch {} return r; };
+  const tap = btn.onclick; btn.onclick = function (...a) { const r = tap?.apply(this, a); try { localStorage.setItem(UX_TRAY_KEY, p.classList.contains('collapsed') ? '1' : '0'); } catch {} updateUI(); return r; };
   const ui = updateUI; updateUI = function (...a) { const r = ui.apply(this, a); uxTray(); return r; };
   uxTray();
 }

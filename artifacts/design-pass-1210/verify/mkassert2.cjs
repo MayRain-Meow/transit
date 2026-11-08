@@ -20,10 +20,20 @@ return { ok: top > 100 && Math.abs(m2.scrollTop - top) < 4 && q2.value === '5' &
 const back = !!document.querySelector('#modal-content .ux-back');
 document.querySelector('#modal-content .modal-head .close').click(); ${W(200)}
 return { ok: back && !modalOpen, back, modalOpen };`,
-  rename: `const l = S.lines[0], name0 = l.name; renameLine(l.id); ${W(200)}
-const m = document.getElementById('modal-content'), x = !!m.querySelector('.modal-head .close'), cancel = [...m.querySelectorAll('button')].find(b => b.textContent.trim() === '取消');
-document.getElementById('linename').value = '改了一半'; cancel.click(); ${W(200)}
-return { ok: x && !!cancel && !modalOpen && l.name === name0, x, cancel: !!cancel, name: l.name };`,
+  // name AND colour, through each exit: 取消 and × keep both as they were; 保存设置 keeps both edits
+  rename: `const l = S.lines[0], name0 = l.name, color0 = l.color, out = {};
+const edit = async () => { renameLine(l.id); ${W(200)} document.getElementById('linename').value = '改了一半';
+  const sw = [...document.querySelectorAll('#modal-content .colors button')].find(b => !(b.getAttribute('onclick') || '').includes("'" + l.color + "'")); sw.click(); ${W(100)}
+  return /'(#[0-9a-f]+)'/i.exec(sw.getAttribute('onclick'))[1]; };
+let picked = await edit(); out.preview = l.color === picked;
+[...document.querySelectorAll('#modal-content button')].find(b => b.textContent.trim() === '取消').click(); ${W(200)}
+out.cancel = !modalOpen && l.name === name0 && l.color === color0;
+picked = await edit(); document.querySelector('#modal-content .modal-head .close').click(); ${W(200)}
+out.close = !modalOpen && l.name === name0 && l.color === color0;
+picked = await edit(); document.querySelector('#modal-content button.primary[onclick^="applyName"]').click(); ${W(200)}
+out.save = !modalOpen && l.name === '改了一半' && l.color === picked;
+l.name = name0; l.color = color0; updateUI();
+return { ok: out.preview && out.cancel && out.close && out.save, ...out };`,
   quake: `uxOpenHub('build', 0); ${W(200)}
 const q = document.querySelector('#modal-content .quake-summary'); return { ok: !!q && q.classList.contains('is-idle') && q.getBoundingClientRect().height < 70, h: q && Math.round(q.getBoundingClientRect().height) };`,
   peek: `if (!portraitMode) return { ok: true, skipped: 'peek is a portrait sheet state' };
@@ -53,10 +63,14 @@ return { ok: before && !during && !document.getElementById('ux-coach').hidden &&
   tray: `const p = document.getElementById('routes'), rows = [...p.querySelectorAll('.route-row')], pr = p.getBoundingClientRect();
 const allIn = rows.every(r => { const b = r.getBoundingClientRect(); return b.top >= pr.top && b.bottom <= pr.bottom + 1 && b.left >= pr.left - 1 && b.right <= pr.right + 1; });
 document.getElementById('collapse').click(); ${W(200)}
-const sw = [...p.querySelectorAll('.ux-swatches button')].filter(b => b.getBoundingClientRect().width > 0).length, h = p.getBoundingClientRect().height;
+// a swatch counts only if the point at its centre really hits it (catches clipping by any ancestor, overlap, off-screen)
+const hit = b => { const r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; return r.width >= 12 && x > 0 && x < innerWidth && y > 0 && y < innerHeight && b.contains(document.elementFromPoint(x, y)); };
+const sws = [...p.querySelectorAll('.ux-swatches button')], sw = sws.filter(hit).length, h = p.getBoundingClientRect().height;
+const newC = document.getElementById('route-new130'), newOk = hit(newC), colOk = hit(document.getElementById('collapse'));
+const last = sws.at(-1); last.click(); ${W(300)} const picked = selected?.type === 'line' && selected.id === S.lines.at(-1).id; clearSelection(); ${W(300)}
 document.getElementById('collapse').click(); ${W(100)}
 const nb = document.getElementById('route-new130').getBoundingClientRect(), fits = nb.right <= p.getBoundingClientRect().right + 1;
-return { ok: rows.length === S.lines.length && allIn && sw === S.lines.length && fits && (!portraitMode || h < 70), rows: rows.length, allIn, swatches: sw, collapsedH: Math.round(h), newBtn: fits };`,
+return { ok: rows.length === S.lines.length && allIn && sw === S.lines.length && picked && newOk && colOk && fits && (!portraitMode || h < 100), rows: rows.length, allIn, swatches: sw + '/' + sws.length, tapLast: picked, newBtn: newOk, collapsedH: Math.round(h) };`,
   wait: `openCity(window.__hub); ${W(600)} const d = document.getElementById('details');
 const rows = [...d.querySelectorAll('.ux-wait-row')].map(r => +r.querySelector('b').textContent), groups = d.querySelectorAll('.ux-wait-group').length;
 const load = d.querySelector('.ux-load em')?.textContent || '';

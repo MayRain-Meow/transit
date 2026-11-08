@@ -37,18 +37,32 @@ async function panEmpty() {
     await ev('clearSelection();uxFrameRestore=null'); await wait(500);
   }
 }
+// Bring a city into the open map (not under a panel) by dragging the map from empty ground, as a player would.
+async function onMap(id) {
+  for (let k = 0; k < 4; k++) {
+    const st = await ev(`const p=toScreen(S.cities[${id}]),e=document.elementFromPoint(p.x,p.y);return {x:Math.round(p.x),y:Math.round(p.y),free:!!e&&e.id==='map'}`);
+    if (st.free) return [st.x, st.y];
+    const tx = Math.round(w * .45), ty = Math.round(h * .45);
+    for (const [fx, fy] of [[.5, .3], [.3, .3], [.7, .3], [.5, .5]]) {
+      await drag(Math.round(w * fx), Math.round(h * fy), Math.max(-200, Math.min(200, tx - st.x)), Math.max(-200, Math.min(200, ty - st.y))); await wait(400);
+      if (!(await ev('return !!selected'))) break;
+      await ev('clearSelection();uxFrameRestore=null'); await wait(400);
+    }
+  }
+  return pos(id);
+}
 async function fresh() { await send('Page.navigate', { url }); for (let i = 0; i < 40; i++) { await wait(250); const ok = await run("return typeof S!=='undefined'&&!!S&&typeof uxVisibleRect==='function'&&typeof addStockAsset==='function'&&document.readyState==='complete'&&typeof startAtlasMap==='function'"); if (ok.value) break; } await ev(setup); await wait(500); }
 // --- bug 2: pan, tap a two-line city, close the picker
 await fresh();
 await panEmpty();
-const before = await ev(V); const j = await pos(1);
+const j = await onMap(1); const before = await ev(V);
 await click(j[0], j[1]); await wait(900); const open = await ev(V);
 await ev(`document.querySelector('#junction-picker .junction-heading button').click()`); await wait(800); const after = await ev(V);
-console.log('BUG2', JSON.stringify({ before, open, after, restored: Math.abs(after.x - before.x) < 4 && Math.abs(after.y - before.y) < 4 }));
+console.log('BUG2', JSON.stringify({ before, open, after, restored: open.jp && Math.abs(after.x - before.x) < 4 && Math.abs(after.y - before.y) < 4 }));
 // --- bug 3: same, but closing by tapping empty map
 await fresh();
 await panEmpty();
-const b3 = await ev(V); const j3 = await pos(1);
+const j3 = await onMap(1); const b3 = await ev(V);
 await click(j3[0], j3[1]); await wait(900);
 await click(30, Math.round(h * .2)); await wait(800); const a3 = await ev(V);
 console.log('BUG2-map', JSON.stringify({ b3, a3, restored: Math.abs(a3.x - b3.x) < 4 && Math.abs(a3.y - b3.y) < 4 }));
@@ -63,7 +77,7 @@ const at = async sel => ev(`const r=document.querySelector(${JSON.stringify(sel)
 const near = (a, b) => Math.abs(a.x - b.x) < 4 && Math.abs(a.y - b.y) < 4 && Math.abs(a.s - b.s) < 1e-3;
 // --- P2 (review f38fbb8): line picker → 城市任务与候车 → close the city sheet with ×
 await fresh();
-const v0 = await ev(V); const jc = await pos(1);
+const jc = await onMap(1); const v0 = await ev(V);
 await click(jc[0], jc[1]); await wait(900);
 const task = await at('#junction-picker .junction-city-task'); await click(task[0], task[1]); await wait(1000); const mid = await ev(V);
 const x = await at('#details .close'); await click(x[0], x[1]); await wait(900); const v1 = await ev(V);
