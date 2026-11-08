@@ -1065,7 +1065,8 @@ function uxMarkColor() {
   const l = S.lines.find(x => x.id === uxMarkColor.id); if (!l) return;
   const row = document.querySelector('#modal-content .colors'); if (!row) return;
   let hit = false;
-  for (const b of row.querySelectorAll('button')) { const on = (b.getAttribute('onclick') || '').includes("'" + l.color + "'"); b.classList.toggle('on', on); hit ||= on; }
+  const cur = uxLineEdit?.id === l.id && uxLineEdit.preview || l.color;
+  for (const b of row.querySelectorAll('button')) { const on = (b.getAttribute('onclick') || '').includes("'" + cur + "'"); b.classList.toggle('on', on); hit ||= on; }
   // a colour from an older palette (or an older save) is still shown, first and marked, so "current" is never lost
   if (!hit && /^#[0-9a-f]{3,8}$/i.test(l.color)) {
     const b = document.createElement('button'); b.className = 'on'; b.style.background = l.color; b.setAttribute('aria-label', '当前颜色');
@@ -1079,7 +1080,7 @@ function uxJunctionCity(id) {
   const n = c.q.filter(p => !p.cardId && !p.eventId).length, cap = capacity(c), cls = n >= cap ? 'is-over' : n >= cap * .8 ? 'is-near' : '';
   b.innerHTML = '<span><b>城市详情</b><small>任务、设施与候车明细</small></span><em class="' + cls + '">候车 ' + n + '/' + cap + '</em><i>›</i>';
 }
-let uxLineEdit = null;   // { id, color } while the line settings sheet is open and not yet saved
+let uxLineEdit = null;   // { id, preview } while the line settings sheet is open; preview = picked, not yet saved colour
 function uxWrapHubs() {
   // A trade re-renders the market page: keep the reading position and the quantity the player typed.
   if (typeof tradeStock === 'function') {
@@ -1103,13 +1104,13 @@ function uxWrapHubs() {
       return r;
     };
   }
-  // Line settings: a visible way to leave without saving. Picking a colour previews it on the map at once (upstream
-  // writes it straight to the line); only 保存设置 keeps it — 取消, ×, Escape or any other close put the old colour back,
-  // so name and colour share one meaning of "cancel".
+  // Line settings: a visible way to leave without saving. A picked colour is pending state of the sheet (drawn on the
+  // map as a preview through lineStyle); the game state — and therefore any save, including the save on close and the
+  // one when the page is left — never holds it. Only 保存设置 writes it to the line, together with the name.
   if (typeof renameLine === 'function') {
     const rl = renameLine;
     renameLine = function (id, ...a) {
-      const line = S.lines.find(l => l.id === id); uxLineEdit = line ? { id, color: line.color } : null;
+      uxLineEdit = S.lines.some(l => l.id === id) ? { id, preview: null } : null;
       const r = rl.call(this, id, ...a), m = uxEl('modal-content'), h = m?.querySelector(':scope > h2');
       if (h && !m.querySelector('.modal-head')) { const head = document.createElement('div'); head.className = 'modal-head'; h.before(head); head.append(h); head.insertAdjacentHTML('beforeend', '<button class="close" onclick="closeModal()" aria-label="不保存，关闭">×</button>'); }
       const save = m?.querySelector('button.primary[onclick^="applyName"]');
@@ -1117,14 +1118,13 @@ function uxWrapHubs() {
       return r;
     };
   }
-  if (typeof applyName === 'function') { const an = applyName; applyName = function (...a) { uxLineEdit = null; return an.apply(this, a); }; }
-  { const cm = closeModal; closeModal = function (...a) {
-    const e = uxLineEdit; uxLineEdit = null;
-    const r = cm.apply(this, a);
-    const l = e && S.lines.find(x => x.id === e.id);
-    if (l && l.color !== e.color) { l.color = e.color; updateUI(); if (selected?.type === 'line' && selected.id === l.id) showDetails(); }
-    return r;
+  if (typeof applyName === 'function') { const an = applyName; applyName = function (id, ...a) {
+    const e = uxLineEdit, l = e && S.lines.find(x => x.id === e.id); uxLineEdit = null;
+    if (l && e.preview) l.color = e.preview;          // committed together with the name; upstream saves on close
+    return an.call(this, id, ...a);
   }; }
+  { const cm = closeModal; closeModal = function (...a) { uxLineEdit = null; return cm.apply(this, a); }; }   // leaving drops the pending colour
+  { const ls = lineStyle; lineStyle = function (l, ...a) { const r = ls.call(this, l, ...a); if (uxLineEdit?.preview && l && l.id === uxLineEdit.id) ctx.strokeStyle = uxLineEdit.preview; return r; }; }
   // Build page: with no earthquake there is nothing to warn about; the monitor is one quiet settings row.
   uxAfter('showEngineering', m => {
     const q = m.querySelector('.quake-summary'); if (!q || q.querySelector('[onclick*="focusEarthquake"]')) return;
@@ -1150,7 +1150,10 @@ function uxWrapHubs() {
   uxAfter('showActivityCards', m => { uxActiveActivity(m); uxActivityFooter(m); });
   if (typeof showFinanceLock === 'function') uxAfter('showFinanceLock', m => uxFinanceLock(m));
   if (typeof renameLine === 'function') { const rn = renameLine; renameLine = function (id, ...a) { uxMarkColor.id = id; const r = rn.call(this, id, ...a); uxMarkColor(); return r; }; }
-  if (typeof setLineColor === 'function') { const sc = setLineColor; setLineColor = function (...a) { const r = sc.apply(this, a); uxMarkColor(); return r; }; }
+  if (typeof setLineColor === 'function') { const sc = setLineColor; setLineColor = function (id, c, ...a) {
+    if (uxLineEdit && uxLineEdit.id === id) { uxLineEdit.preview = c; uxMarkColor(); return; }   // pending, not game state
+    const r = sc.call(this, id, c, ...a); uxMarkColor(); return r;
+  }; }
   uxAfter('showFinancialMarket', m => { uxPolishPortfolio(m); uxPolishCharts(m); });
   if (typeof showCityServices === 'function') uxAfter('showCityServices', m => uxCityServicesList(m));
   if (typeof gameover === 'function') uxAfter('gameover', m => uxGameOver(m));

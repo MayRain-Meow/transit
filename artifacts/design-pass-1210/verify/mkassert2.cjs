@@ -25,7 +25,7 @@ return { ok: back && !modalOpen, back, modalOpen };`,
 const edit = async () => { renameLine(l.id); ${W(200)} document.getElementById('linename').value = '改了一半';
   const sw = [...document.querySelectorAll('#modal-content .colors button')].find(b => !(b.getAttribute('onclick') || '').includes("'" + l.color + "'")); sw.click(); ${W(100)}
   return /'(#[0-9a-f]+)'/i.exec(sw.getAttribute('onclick'))[1]; };
-let picked = await edit(); out.preview = l.color === picked;
+let picked = await edit(); lineStyle(l); out.preview = ctx.strokeStyle === picked && l.color === color0;   // drawn as a preview, the line itself untouched
 [...document.querySelectorAll('#modal-content button')].find(b => b.textContent.trim() === '取消').click(); ${W(200)}
 out.cancel = !modalOpen && l.name === name0 && l.color === color0;
 picked = await edit(); document.querySelector('#modal-content .modal-head .close').click(); ${W(200)}

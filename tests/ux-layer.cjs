@@ -364,13 +364,19 @@ test('help: the quick steps state the real life-loss rule (full hall for 180 s),
   assert.doesNotMatch(h,/候车太久会扣命/);assert.match(h,/满员/);
   run('closeModal()');
 });
-test('line settings: a picked colour is a preview; only 保存设置 keeps it (取消 / × / any close restore it)',()=>{
-  fresh();run('uxLate&&uxLate();S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1,2]};commitDraft(true);clearSelection()');
-  const id=run('S.lines[0].id'),c0=run('S.lines[0].color');
-  run(`renameLine(${id});setLineColor(${id},LINECOL[3])`);assert.equal(run('S.lines[0].color'),run('LINECOL[3]'),'previewed on the map');
-  run('closeModal()');assert.equal(run('S.lines[0].color'),c0,'closing without saving restores the colour');
+test('line settings: a picked colour is a preview only — never in the game state or any save until 保存设置',()=>{
+  fresh();run('uxLate&&uxLate();S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1,2]};commitDraft(true);clearSelection();save()');
+  const id=run('S.lines[0].id'),c0=run('S.lines[0].color'),name0=run('S.lines[0].name'),pick=run('LINECOL[3]');
+  const stored=()=>run('JSON.parse(localStorage.getItem("transit-atlas-v1")).lines[0]');
+  run(`renameLine(${id});setLineColor(${id},LINECOL[3])`);
+  assert.equal(run('S.lines[0].color'),c0,'picking does not touch the line');assert.equal(run('uxLineEdit.preview'),pick,'it is pending in the sheet');
+  run('save()');assert.equal(stored().color,c0,'a save while the sheet is open (page leave, interruption) keeps the old colour');
+  run('load()');assert.equal(run('S.lines[0].color'),c0,'reloading after leaving unsaved keeps the old colour');assert.equal(run('S.lines[0].name'),name0);
+  run(`renameLine(${id});setLineColor(${id},LINECOL[3]);closeModal()`);
+  assert.equal(run('S.lines[0].color'),c0,'closing without saving');assert.equal(stored().color,c0,'and the save made on close');
   node('linename').value='新名字';run(`renameLine(${id});setLineColor(${id},LINECOL[3]);applyName(${id})`);
-  assert.equal(run('S.lines[0].color'),run('LINECOL[3]'),'保存 keeps the colour');assert.equal(run('S.lines[0].name'),'新名字');
+  assert.equal(run('S.lines[0].color'),pick,'保存 keeps the colour');assert.equal(stored().color,pick,'in the save too');
+  run('load()');assert.equal(run('S.lines[0].color'),pick,'and after reloading');assert.equal(run('S.lines[0].name'),'新名字');
   run('clearSelection()');
 });
 console.log(JSON.stringify(checks,null,2));
