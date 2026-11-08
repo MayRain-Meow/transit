@@ -1,0 +1,5 @@
+v1.3.1-playtest / versionCode 13001
+Scope: route-details obstruction during picker drag, no-op/cancel/Apply dismissal; committed-state reconciliation of second-line onboarding.
+New regression uses actual delegated pointerdown button, move/up and Apply click, real MutationObserver and delayed callbacks. Route sheet construction count stays zero during edit; explicit inspection still works. Preview/cancel/first/third-route rejection; alternate entry without picker flag; old saved result migration without duplicate award; unique missing-id recovery and ambiguity refusal; no-op/cancel quiet dismissal.
+Retained v1.3 background/notification policy, bus terminal closure, selected-line lock, bridge/backtrack inputs and recovery guards. No changes to edge-scroll policy, city/economic parameters, weather/card probabilities.
+No Android device/emulator or real layout acceptance. User video is reference evidence, not an automated device replay.

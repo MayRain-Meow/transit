@@ -25,7 +25,7 @@ function fire(target,type,event={}){event.target??={tagName:'BODY'};event.preven
 const context = {console,document:{hidden:false,visibilityState:'visible',hasFocus:()=>context.focused,getElementById:node,createElement:()=>node('offscreen'+nodes.size),addEventListener:(t,f,c)=>listen('document',t,f,c),activeElement:{tagName:'BODY'},
   querySelector:s=>({'header':node('header'),'footer':node('dock'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details')}[s]||null)},
   innerWidth:390,innerHeight:844,devicePixelRatio:1,focused:true,window:{addEventListener:(t,f,c)=>listen('window',t,f,c)},screen:{},performance:{now:()=>100},addEventListener(){},
-  localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
+  localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},cancelAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
 context.document.body=node('body');context.document.body.appendChild=()=>{};context.document.documentElement=node('html');context.navigator={};
 vm.createContext(context);
 const html=fs.readFileSync(path.join(root,'mobile/www/index.html'),'utf8');
@@ -42,7 +42,7 @@ run('window.transitAndroidControl.resume();');assert.equal(run('S.paused'),true)
 run('openModal("test native back");');assert.equal(run('window.transitAndroidControl.back()'),false);assert.equal(run('modalOpen'),false);assert.equal(run('S.paused'),true);
 assert.equal(run('window.transitAndroidControl.back()'),false);assert.equal(run('modalOpen'),true);assert.equal(run('atlasMenuOpen'),false);run('saveExit123();');assert.equal(run('atlasMenuOpen'),true);assert.equal(run('window.transitAndroidControl.back()'),true);
 console.log('PASS packaged game entry, native pause/resume lock, unpaid quote cancellation, back closes modal / asks exit / saves to selection / requests minimize');
-run('atlasSelected="west";startAtlasMap();');assert.equal(run('S.mapId'),'west');assert.equal(run('S.lives'),1);assert.equal(run('S.points'),5000);assert.equal(run('S.release'),'1.2');
+run('atlasSelected="west";startAtlasMap();');assert.equal(run('S.mapId'),'west');assert.equal(run('S.lives'),1);assert.equal(run('S.points'),5000);assert.equal(run('S.release'),'1.3');
 run('S.day=45;S.points=3456;window.transitAndroidControl.pause();save();load();');assert.equal(run('S.day'),45);assert.equal(run('S.points'),3456);assert.equal(run('S.paused'),true);
 console.log('PASS west packaged map and local save roundtrip retains day/cash/pause; no gameplay rebalance');
 

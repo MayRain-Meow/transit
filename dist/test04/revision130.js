@@ -57,19 +57,6 @@ function openBusLoop130() {
     draftBar();
   }
 }
-const barBefore130 = draftBar;
-draftBar = function(...a) {
-  let r = barBefore130(...a), b = $("loop-action130");
-  if (!b) {
-    b = document.createElement("button");
-    b.id = "loop-action130";
-    $("drawbar").append(b);
-  }
-  b.hidden = !draft || draft.type !== "bus" || new Set(draft.stops.filter((id) => S.cities[id]?.kind !== "bridgehead")).size < 3;
-  b.textContent = isLoop130(draft) ? "解除环线" : "闭合为公交环线";
-  b.onclick = isLoop130(draft) ? openBusLoop130 : closeBusLoop130;
-  return r;
-};
 function specialPassengerMark130(p) {
   let m = p.cardId ? "★" : p.schoolId !== void 0 ? "▤" : p.eventId ? "♪" : p.fixedDestination ? "◆" : "";
   return m + (m && (p.returnTrip || p.schoolReturn) ? "↩" : "");
