@@ -10,5 +10,5 @@ if proxy.hostname:
 if env.get('JAVA_TRUST_STORE'):opts+=['-Djavax.net.ssl.trustStore='+env['JAVA_TRUST_STORE']]
 env['GRADLE_OPTS']=env.get('GRADLE_OPTS','')+' '+' '.join(opts)
 log=root/'validation/build.log';log.parent.mkdir(exist_ok=True)
-with log.open('w') as f:r=subprocess.run(['./gradlew','--no-daemon','--console=plain','--max-workers=2','assembleDebug','lintDebug'],cwd=root/'android',env=env,stdout=f,stderr=subprocess.STDOUT)
+with log.open('w') as f:r=subprocess.run(['bash','gradlew','--no-daemon','--console=plain','--max-workers=2','assembleDebug','lintDebug'],cwd=root/'android',env=env,stdout=f,stderr=subprocess.STDOUT)
 print('Android build exit',r.returncode);print(log.read_text()[-5000:]);sys.exit(r.returncode)

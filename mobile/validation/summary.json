@@ -1,15 +1,15 @@
 {
-  "version": "1.2.8-playtest",
+  "version": "1.2.9-playtest",
   "package": "com.transitatlas.playtest",
-  "versionCode": 12009,
-  "bytes": 4395695,
-  "sha256": "f05112142ac2ccf677e4af43581717242df9e98f28f6258c5f485d4de0823e77",
+  "versionCode": 12010,
+  "bytes": 4455288,
+  "sha256": "890e9842f1eea63dbc1143479c67c5a5e60361aecb1fefddf02c025406472a1e",
   "signerSha256": "66fc76cb93344626a1dd0ca7de5ea34ba8a7520361ec8c28eedf88c1f2753261",
   "apkSignature": "v2 verified",
   "orientation": "portrait",
   "keyboard": "adjustResize",
   "systemInsets": "css",
-  "embeddedWebFilesByteMatched": 52,
+  "embeddedWebFilesByteMatched": 54,
   "androidMinSdk": 24,
   "targetSdk": 36,
   "minWebView": 108,
@@ -30,5 +30,5 @@
   "emulatorTested": false,
   "githubUploaded": false,
   "websiteChanged": false,
-  "sourceBaseCommit": "29f586a7b6dd18ce9f0d0921427577bd46c1d5bb"
+  "sourceBaseCommit": "72360c39fa19713ab0c854430fe290337356e074"
 }

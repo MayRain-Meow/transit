@@ -121,14 +121,13 @@ ${sec('资金与车辆', [
     '动车、高铁可加车厢（最多8节），回库存后保留编组。取消线路可保留资产，或回收闲置道路50%、车辆车厢70%。',
     '刚完成建线、改线、建桥或升级后，20秒内可点右上「撤回」全额退款；已载客、被共用或开始后续付费建设时不适用。'])}
 ${sec('工程与天气', [
-    '<b>桥梁</b>：工程 → 拉建公路桥 / 铁路桥，从一岸拖到对岸。',
+    '<b>桥梁</b>：建造 → 桥梁与道路 → 拉建公路桥 / 铁路桥，从一岸拖到对岸。',
     '<b>道路升级</b>：线路详情 → 道路升级，施工期间该路段减速 30%。',
     '<b>气象站</b>范围内天气减速减半；<b>交通枢纽</b>候车容量翻倍，基础最多 3 座，六星活动可增加名额；换乘准备−30%，附近进站提速15%。',
-    '7 月下旬至 9 月可能有台风；第 150 天后有小概率地震，受损路段可在工程里维修。',
+    '7 月下旬至 9 月可能有台风；第 150 天后有小概率地震，拉线时可查看受损路段并支付维修费。',
     '<b>检修中心</b>：中大城市可建，¥' + (typeof REPAIR_CENTER_COST === 'number' ? REPAIR_CENTER_COST : '') + '、半径300，新开工升级和抢修工期最多缩短10%，部分覆盖按长度折算。'])}
 ${sec('运营与解锁', [
     '<b>商演</b>：运营 → 筹办，观众带音符，前往举办城市后再返程。',
-    '<b>服务合同</b>：10 天内完成指定城市的有效运输，达标得奖金，未达标不扣钱。',
     '<b>城市服务与学校</b>：长期差评会让城市降级，改善后可恢复。学校正常招生、评价优或良时，连接本城设施维护费−10%。',
     '<b>解锁</b>：动车 第25天＋送达60人；高铁 第65天＋250人＋3座小城；飞机 第120天＋600人。'])}
 <p class="ux-foot"><a href="../updates/index.html">完整更新说明</a></p>`);
@@ -252,7 +251,7 @@ function uxLineSheet(rebuild) {
   el.innerHTML = `<div class="ux-sheet-head"><i class="ux-swatch" style="background:${l.color}"></i>
 <div class="ux-title"><h3>${escapeHTML(l.name)}</h3><small>${T.name} · ${stops.length} 站${l.retiring ? ' · 撤出中' : ''}</small></div>
 <button class="ux-icon" onclick="renameLine(${l.id})" title="名称 / 颜色" aria-label="修改名称或颜色">✎</button><button class="close" onclick="clearSelection()" aria-label="关闭">×</button></div>
-${blocked ? '<p class="ux-alert">部分路段停止接入，两侧车辆分段运行。可在「工程」里维修，或重新接桥改线。</p>' : ''}
+${blocked ? '<p class="ux-alert">部分路段停止接入，两侧车辆分段运行。拉线时可支付维修费，或重新接桥改线。</p>' : ''}
 ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不会使用这条线路。点「＋」加一辆。</p>' : ''}
 <div class="ux-fleet"><div><small>车辆</small><b>${vs.length}<span> 辆</span></b></div><div><small>载客</small><b>${load}<span> / ${seats}</span></b></div>
 <div class="ux-stepper"><button onclick="uxFleetMinus(${l.id})" ${!vs.some(v => !v.recall) ? 'disabled' : ''} aria-label="回收一辆">−</button><button class="primary" onclick="uxFleetPlus(${l.id})" ${canAdd ? '' : 'disabled'}>＋ ${inv > 0 ? '库存 ' + inv : '¥' + T.vehicle}</button></div></div>
@@ -688,7 +687,7 @@ function uxWrapLatePanels() {
     m.querySelectorAll('.tabs').forEach(t => { if (!t.querySelector('button')) t.remove(); });
     uxFoldRules(m);
   });
-  for (const name of ['showFinance', 'shop', 'showMaintenance', 'showWeather', 'chooseContract', 'showEngineering']) uxAfter(name, m => uxFoldRules(m));
+  for (const name of ['showFinance', 'shop', 'showMaintenance', 'showWeather', 'showEngineering']) uxAfter(name, m => uxFoldRules(m));
   // Finance market (1.0): the "build another bank/broker" box moves to the end once one exists, and long rule lines fold.
   uxAfter('showFinancialMarket', m => {
     const fm = m.querySelector('.financial-market') || m;
@@ -708,7 +707,7 @@ function uxWrapLatePanels() {
     lists.forEach(list => { const h = list.previousElementSibling; if (h?.tagName === 'H3') h.remove(); list.remove(); });
     const cs = realCities().filter(c => !c.dormant);
     const note = document.createElement('section'); note.className = 'infra-card';
-    note.innerHTML = `<h3>城市设施</h3><p>气象站 ${cs.filter(c => c.meteo).length} 座 · 交通枢纽 ${S.hubCount}/3 · 检修中心 ${cs.filter(c => c.repairCenter).length} 座<br>点地图上的城市，在城市详情里建设并预览覆盖范围。</p>`;
+    note.innerHTML = `<h3>城市设施</h3><p>气象站 ${cs.filter(c => c.meteo).length} 座 · 交通枢纽 ${S.hubCount}/${hubLimit()} · 检修中心 ${cs.filter(c => c.repairCenter).length} 座<br>点地图上的城市，在城市详情里建设并预览覆盖范围。</p>`;
     m.appendChild(note);
   });
   uxAfter('help', m => {
@@ -728,28 +727,16 @@ function uxWrapLatePanels() {
 // by the upstream functions; the hub only adds the tab row, the hub title, and removes links that the tabs replace.
 // Per-object actions stay on the object (city facilities in the city sheet, fleet and upgrades in the line sheet).
 const UX_HUBS = {
-  goal: { name: '目标', tabs: [['城市任务', 'showTasks'], ['城市活动', 'showActivityCards'], ['服务合同', 'uxContractPage']] },
+  goal: { name: '目标', tabs: [['城市任务', 'showTasks'], ['城市活动', 'showActivityCards']] },
   build: { name: '建造', tabs: [['桥梁与道路', 'showEngineering'], ['车辆', 'shop'], ['天气', 'showWeather']] },
   money: { name: '资金', tabs: [['收支', 'showFinance'], ['维护', 'showMaintenance'], ['理财', 'uxMarketWealth'], ['股票', 'uxMarketStocks']] },
 };
 function uxMarketWealth() { showFinancialMarket(marketTab === 'portfolio' ? 'portfolio' : 'wealth'); }
 function uxMarketStocks() { showFinancialMarket('stocks'); }
 function uxOpenHub(key, i = 0) { haptic(); globalThis[UX_HUBS[key].tabs[i][1]](); }
-function uxContractPage() {
-  const c = S.contract, open = !c && S.day >= 20 && S.day >= (S.contractCooldown || 0);
-  if (open) { chooseContract(); return; }
-  let body;
-  if (c) {
-    const rate = c.count ? Math.round(c.good / c.count * 100) : 100, pct = Math.min(100, c.count / c.goal * 100);
-    body = `<section class="ux-contract"><b>${escapeHTML(S.cities[c.city]?.name || '')}</b><span>剩余 ${Math.max(0, c.end - S.day).toFixed(1)} 天 · 奖励 ¥${c.reward}</span>
-<span class="ux-bar"><i style="width:${pct}%"></i></span><small>有效运输 ${c.count}/${c.goal} · 候车合格 ${rate}%（需 ≥80%）</small></section>`;
-  } else body = S.day < 20 ? '<p class="ux-empty">第 20 天开放：在 10 天内为一座城市完成运输量，候车不超时就拿奖金，未达标不扣钱。</p>'
-    : `<p class="ux-empty">冷却中，还需 ${Math.ceil(S.contractCooldown - S.day)} 天可再接合同。</p>`;
-  openModal(`<div class="modal-head"><h2>服务合同</h2><button class="close" onclick="closeModal()">×</button></div>${body}`);
-}
 function uxHubBar(key, idx, m) {
   const hub = UX_HUBS[key];
-  if (!m || m.hidden === true || m.querySelector('.ux-hub-tabs')) return;
+  if (!m || m.hidden === true || m.querySelector('.ux-hub-tabs, .deck128')) return;
   let head = m.querySelector('.modal-head');
   if (!head) { head = document.createElement('div'); head.className = 'modal-head'; head.innerHTML = '<h2></h2><button class="close" onclick="closeModal()">×</button>'; m.prepend(head); }
   uxHeadFirst(m);
@@ -853,7 +840,7 @@ function uxWrapWelcome() {
 }
 /* ---------- 资金·收支: income vs spending first, every line item folded below ---------- */
 const UX_LEDGER = {
-  in: [['fares', '票款'], ['tasks', '城市任务'], ['subsidy', '补助'], ['events', '活动收入'], ['contracts', '服务合同'], ['education', '教育补贴'], ['refunds', '撤回返还']],
+  in: [['fares', '票款'], ['tasks', '城市任务'], ['subsidy', '补助'], ['events', '活动收入'], ['education', '教育补贴'], ['refunds', '撤回返还']],
   out: [['construction', '建设'], ['vehicles', '车辆'], ['maintenance', '维护'], ['activityFines', '活动罚款'], ['financialBuildings', '金融设施']],
 };
 // progression.js hard-codes the 0.x starting cash (500) in the ledger; a 1.1 save (moneyScale 10) started with 10×.
@@ -1047,20 +1034,10 @@ function uxWrapHubs() {
     if (fn === 'uxMarketWealth' || fn === 'uxMarketStocks') return;
     uxAfter(fn, m => uxHubBar(key, i, m));
   });
-  // Contract list: 1.1 scaled the reward in acceptContract (1000+600×size) but not the text in chooseContract
-  // (100+60×size). Only a number that still matches the stale formula is corrected, so an upstream fix wins.
-  uxAfter('chooseContract', m => {
-    for (const sec of m.querySelectorAll('section')) {
-      const id = +((sec.querySelector('button[onclick^="acceptContract"]')?.getAttribute('onclick') || '').match(/\d+/) || [NaN])[0], c = S.cities[id];
-      if (!c) continue;
-      const p = sec.querySelector('p'); if (p) p.innerHTML = p.innerHTML.replace('奖金 ¥' + (100 + c.size * 60), '奖金 ¥' + (1000 + c.size * 600));
-    }
-  });
-  uxAfter('chooseContract', m => uxHubBar('goal', 2, m));
   uxAfter('showFinancialMarket', m => uxHubBar('money', marketTab === 'stocks' ? 3 : 2, m));
   uxAfter('showFinanceLock', m => uxHubBar('money', /证券|券商/.test(m.textContent) && !/银行尚未/.test(m.textContent) ? 3 : 2, m));
   // the old operations centre is retired: its callers ("返回" buttons, accepting a contract) land in the goal hub
-  showOperations = function () { uxOpenHub('goal', S.contract ? 2 : 1); };
+  showOperations = function () { uxOpenHub('goal', 1); };
   // dock + header entries
   for (const key of ['goal', 'build', 'money']) { const b = uxEl('hub-' + key); if (b) b.onclick = () => uxOpenHub(key); }
 }
