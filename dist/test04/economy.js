@@ -83,7 +83,10 @@ function finishPassengerAtCity(p,city){if(!p||!city||city.kind==='bridgehead'||!
 function settleDestinationQueues(){let count=0;for(let city of realCities()){if(city.dormant||!city.q.length)continue;let pending=city.q;city.q=[];for(let p of pending){if(finishPassengerAtCity(p,city))count++;else city.q.push(p);}}return count;}
 const tickBeforeArrivalFix=tick;tick=function(dt){settleDestinationQueues();tickBeforeArrivalFix(dt);};
 const loadBeforeArrivalFix=load;load=function(){let ok=loadBeforeArrivalFix();if(ok&&settleDestinationQueues())save();return ok;};
-resize();const hadSave=load();if(!hadSave)reset();updateUI();welcome(hadSave);requestAnimationFrame(frame);
+resize();const hadSave=load();if(!hadSave)reset();updateUI();welcome(hadSave);/* The loop starts once every script layer has run (later layers redefine render helpers), and one failing frame
+   never stops it: the next frame is scheduled before the error propagates. */
+{const frameRaw=frame;frame=function(t){try{return frameRaw(t);}catch(e){if(typeof requestAnimationFrame==="function"){if(typeof cancelAnimationFrame==="function")cancelAnimationFrame(drawFrame);drawFrame=requestAnimationFrame(frame);}throw e;}};}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{drawFrame=requestAnimationFrame(frame);},{once:true});else requestAnimationFrame(frame);
 /* Top notice: closable; hints stay closed for good, live events stay closed until they end. */
 (function(){const KEY='transit04-notice-off',PERM={intro:1,dormant:1};let off={},session={},cur='';try{off=JSON.parse(localStorage.getItem(KEY)||'{}')}catch{}
 const cat=t=>t.startsWith('城市成长测试版')?'intro':t.startsWith('发现待接入')?'dormant':t.startsWith('♪')?'concert':t.startsWith('道路施工')?'construction':t.startsWith('受损')?'blockage':t.startsWith('区域')?'weather':t.slice(0,6);

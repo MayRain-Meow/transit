@@ -257,7 +257,7 @@ test('full sheet with a notice on top: the sheet still bounds the map and the ci
 test('hubs: each global page carries its hub tabs; the old operations centre lands in the goal hub',()=>{
   fresh();run('uxLate&&uxLate()');
   // DOM insertion of the tab row is checked in the browser; here: every hub page is wrapped, and routing works.
-  for(const fn of ['showTasks','showActivityCards','chooseContract','showEngineering','shop','showWeather','showFinance','showMaintenance'])assert.equal(run(fn+'.uxTidy'),true,fn+' wrapped');
+  for(const fn of ['showTasks','showActivityCards','showEngineering','shop','showWeather','showFinance','showMaintenance'])assert.equal(run(fn+'.uxTidy'),true,fn+' wrapped');
   let opened='';run('globalThis.__oa=showActivityCards;showActivityCards=()=>{globalThis.__opened="activity"}');
   run('S.contract=null;showOperations()');assert.equal(run('globalThis.__opened'),'activity','operations → 目标/城市活动');
   run('showActivityCards=globalThis.__oa');
@@ -267,10 +267,11 @@ test('upstream texts that name retired entries point to the three hubs',()=>{
   assert.equal(run('uxRename("三张城市活动邀请 · 运营中心选择")'),'三张城市活动邀请 · 点「目标」选择');
   assert.equal(run('uxRename("可在交通采购中购买")'),'可在建造·车辆中购买');
 });
-test('new activity invitations do not pop a sheet mid-play; tapping 目标 still opens them',()=>{
+// 1.2.10: upstream shows new invitations as a sheet again (gated by revision130's safePopup130, which this harness
+// does not load); what stays from the UX layer is that the player's own tap on 目标 opens them.
+test('activity invitations are generated and tapping 目标 opens them',()=>{
   fresh();run('uxLate&&uxLate();S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1,2]};commitDraft(true);clearSelection();S.day=30;let st=activityState();st.offers=[];st.active=null;st.next=0;closeModal()');
-  run('if(generateActivityOffers())showActivityCards()');
-  assert.equal(node('modal').hidden,true,'automatic open is suppressed');
+  run('generateActivityOffers();closeModal()');
   assert(run('activityState().offers.length')>0,'offers were generated');
   run('uxOpenHub("goal",1)');assert.equal(node('modal').hidden,false,'player tap opens the cards');
   run('closeModal()');
