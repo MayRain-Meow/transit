@@ -24,7 +24,7 @@ function save(){try{localStorage.setItem('transit-atlas-city-beta-v1',JSON.strin
 function load(){try{const x=JSON.parse(localStorage.getItem('transit-atlas-city-beta-v1'));if(x&&x.version===1&&x.economyVersion===3){S=x;S.paused=true;return true}}catch{}return false}
 
 function toast(t){$('toast').classList.remove('undo-enabled');$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),3500)}
-function resize(){W=innerWidth;H=innerHeight;portraitMode=H>W;view.rot=portraitMode?1:0;syncOrientation();dpr=devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;fit()}
+function resize(){W=innerWidth;H=innerHeight;portraitMode=H>W;view.rot=0;syncOrientation();dpr=devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;fit()}
 function fit(){let usableH=H-130;view.scale=Math.min((W-65)/1200,usableH/710);view.x=(W-1200*view.scale)/2;view.y=75+(usableH-710*view.scale)/2;}
 function toWorld(e){let u=(e.clientX-view.x)/view.scale,v=(e.clientY-view.y)/view.scale;return view.rot?{x:v,y:-u}:{x:u,y:v}}
 // Portrait rotation: screen = (view.x - y*scale, view.y + x*scale). Art and labels stay upright via the helpers below.

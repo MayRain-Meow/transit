@@ -78,7 +78,7 @@ for(let map of ['east','west']){
  console.log('PASS '+map+' 400-day spatial growth: '+run('realCities().length')+' towns / '+run('cityRegions().length')+' circles; fixed membership and clearance');
 }
 run('activateAtlasGeometry("east");reset();closeModal();S.cities[2].shape=2;S.cities[2].size=1;var moneyBeforeBank=S.points;buildFinance(2,"bank");');assert.equal(run('S.points'),run('moneyBeforeBank')-100);assert.equal(run('S.cities[2].financeBuildings.bank'),1);
-run('closeModal();var moneyBeforeFarm=S.points;plantFarm(1);');assert.equal(run('S.points'),run('moneyBeforeFarm')-800);assert(run('!!S.cities[1].farm.crop'));
+run('closeModal();var moneyBeforeFarm=S.points;S.cities[1].size=1;plantFarm(1);');assert.equal(run('S.points'),run('moneyBeforeFarm')-800);assert(run('!!S.cities[1].farm.crop'));
 console.log('PASS actual atlas production entry retains bank100 and farm800 (excluded only in offline comparison)');
 
 // PR #3 rotation must also work with v1.2 terrain and geographic camera targets.

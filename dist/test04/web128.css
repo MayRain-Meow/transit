@@ -1,0 +1,35 @@
+/* One portrait composition, sized by the usable viewport rather than a rotated landscape layout. */
+:root{--web128-h:100dvh}
+html,body{overscroll-behavior:none}button{touch-action:manipulation}
+.atlas-selecting #ux-coach{display:none!important}
+.modal:has(.deck128){width:min(520px,calc(100vw - 24px))!important;max-width:520px!important;height:calc(var(--web128-h) - max(24px,env(safe-area-inset-top)) - max(24px,env(safe-area-inset-bottom)))!important;max-height:880px!important;padding:0!important;overflow:hidden!important;background:#f5f6ef;border-radius:24px}
+.modal>.deck128:first-child{margin:0!important}
+.deck128{height:100%;min-height:0;display:flex;flex-direction:column;padding:18px 16px 12px;box-sizing:border-box;gap:10px}
+.deck-heading128{position:static!important;inset:auto!important;width:auto!important;height:auto!important;min-height:0!important;display:flex!important;justify-content:space-between;align-items:center;padding:0!important;background:transparent!important;gap:12px;flex:none;box-shadow:none;backdrop-filter:none}
+.deck-heading128 small{font-size:11px;color:#83907f;letter-spacing:2px}.deck-heading128 h2{font-size:23px!important;margin-top:5px!important;color:#263e42}.deck-heading128 .close{float:none;flex:none;margin:0;width:42px;height:42px;background:#e9ede3;border-radius:50%;font-size:26px}
+.deck128 .deck-tip128{margin:0;font-size:12px;line-height:1.5;color:#778573;flex:none}
+.deck-stage128{flex:1;min-height:0;overflow:hidden;padding:3px;isolation:isolate;touch-action:pan-y}
+.deck-stage128 .activity-slot{height:100%;width:100%;margin:0;animation:none;min-height:0!important;box-sizing:border-box}
+.deck-stage128 .activity-flipper{height:100%;min-height:0!important}
+.deck-stage128 .activity-back,.deck-stage128 .activity-front{min-height:0!important;max-height:100%;height:100%;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;border-radius:19px;padding:18px!important;overscroll-behavior:contain;scrollbar-width:thin}
+.deck-stage128 .activity-front{gap:0;border:1px solid #cbd4c3;box-shadow:0 8px 24px #334e3910}
+.deck-stage128 .activity-front h3{font-size:22px;margin:9px 0 5px}.deck-stage128 .card-city{font-size:14px}.deck-stage128 .card-rarity{padding-bottom:9px}.deck-stage128 .card-stats{margin:12px 0;padding:12px 0}.deck-stage128 .card-stats b{font-size:24px}.deck-stage128 .card-sources{font-size:12px;margin:10px 0}.deck-stage128 .card-risk{margin:10px 0;font-size:12px}.deck-stage128 .card-accept{position:sticky;bottom:0;min-height:48px!important;flex:none;margin-top:12px!important;font-size:15px!important;box-shadow:0 -8px 12px #f5f6efcc}
+.deck-stage128 .activity-front>button:not(.card-accept){flex:none;min-height:40px;padding:9px;margin:6px 0 0;border:1px solid #cbd4c3;border-radius:10px;background:#edf1e6;color:#36594d}
+.deck-stage128 .card-back-title{font-size:23px}.deck-stage128 .card-sigil{flex:1;min-height:70px;display:grid;place-items:center}.deck-stage128 .card-sigil svg{max-height:150px;max-width:45vw}.deck-stage128 .card-back-top{font-size:9px;letter-spacing:2px}
+.deck-pager128{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;flex:none;padding:4px 0;border-top:1px solid #dce2d4}
+.deck-pager128 button{min-height:48px;padding:10px 12px;border-radius:13px;background:#36594d;color:white;font-size:14px;font-weight:650;border:0}.deck-pager128 button:disabled{background:#e6ebdf;color:#9ba793;opacity:1}.deck-pager128 strong{font-size:23px;color:#36594d;min-width:57px;text-align:center}.deck-pager128 strong span{font-size:14px;color:#89957f;font-weight:400}
+.deck-tools128{display:flex;justify-content:space-between;gap:12px;flex:none}.deck-tools128 button{padding:7px 10px;border:0;background:transparent;color:#75836e;min-height:36px;font-size:12px}.deck128 .deck-debt128{margin:0;color:#ab6b4c;font-size:12px}
+#draft-repair128{grid-column:1/-1;grid-row:auto;flex:1 0 100%;width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d2ac72;background:#fff4df;border-radius:12px;clear:both}
+#draft-repair128[hidden]{display:none!important}#draft-repair128>div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0}#draft-repair128 span{min-width:0;flex:1}#draft-repair128 b{display:block;color:#865c35;font-size:12px}#draft-repair128 small{display:block;color:#947c59;font-size:11px;line-height:1.5;margin-top:4px}#drawbar #draft-repair128 button{background:#9b6742;color:white;border:0;border-radius:10px;padding:9px 12px;font-size:12px;min-height:44px;white-space:nowrap}#drawbar #draft-repair128 button:disabled{opacity:.5}
+#drawbar:has(#draft-repair128:not([hidden])){flex-wrap:wrap;max-height:45dvh;overflow-y:auto}
+@media(max-height:650px){.deck128{padding:12px;gap:6px}.deck-heading128 h2{font-size:19px!important}.deck128 .deck-tip128{font-size:11px}.deck-pager128 button{min-height:42px}.deck-stage128 .activity-back,.deck-stage128 .activity-front{padding:13px!important}.deck-stage128 .card-stats{margin:8px 0;padding:8px 0}.deck-tools128 button{min-height:30px;padding:3px 8px}}
+@media(prefers-reduced-motion:reduce){.deck128 .activity-flipper{transition:none}}
+
+/* Keep both location and acceptance outside the scrolling text, without overlapping either action. */
+.deck-stage128 .activity-front{display:flex!important;flex-direction:column;padding:0!important;overflow:hidden!important}
+.card-content128{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:18px 18px 6px;scrollbar-width:thin}
+.card-actions128{flex:none;display:flex;flex-direction:column;gap:8px;padding:8px 18px 18px;background:inherit}
+.deck-stage128 .card-actions128>button{position:static!important;flex:none;width:100%;box-sizing:border-box;margin:0!important;box-shadow:none}
+.deck-stage128 .card-actions128>button:not(.card-accept){min-height:40px;border:1px solid #b8c8b3;border-radius:10px;background:#edf1e6;color:#36594d;font-size:13px}
+.deck-stage128 .card-actions128 .card-accept{min-height:48px!important}
+@media(max-height:650px){.card-content128{padding:13px 13px 4px}.card-actions128{padding:6px 13px 13px;gap:6px}}

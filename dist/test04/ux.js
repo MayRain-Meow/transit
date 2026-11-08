@@ -125,7 +125,7 @@ ${sec('工程与天气', [
     '<b>道路升级</b>：线路详情 → 道路升级，施工期间该路段减速 30%。',
     '<b>气象站</b>范围内天气减速减半；<b>交通枢纽</b>候车容量翻倍，基础最多 3 座，六星活动可增加名额；换乘准备−30%，附近进站提速15%。',
     '7 月下旬至 9 月可能有台风；第 150 天后有小概率地震，受损路段可在工程里维修。',
-    '<b>检修中心</b>：中大城市可建，¥' + (typeof REPAIR_CENTER_COST === 'number' ? REPAIR_CENTER_COST : '') + '、半径300，新开工升级和抢修工期最多缩短30%，部分覆盖按长度折算。'])}
+    '<b>检修中心</b>：中大城市可建，¥' + (typeof REPAIR_CENTER_COST === 'number' ? REPAIR_CENTER_COST : '') + '、半径300，新开工升级和抢修工期最多缩短10%，部分覆盖按长度折算。'])}
 ${sec('运营与解锁', [
     '<b>商演</b>：运营 → 筹办，观众带音符，前往举办城市后再返程。',
     '<b>服务合同</b>：10 天内完成指定城市的有效运输，达标得奖金，未达标不扣钱。',
@@ -283,7 +283,7 @@ const UX_FACILITIES = [
   { on: /^buildMeteo|^previewMeteo/, name: '气象站', why: '范围内雨雾减速减半', icon: '<path d="M7 17h10a4 4 0 0 0 0-8 5 5 0 0 0-9.6-1.5A3.5 3.5 0 0 0 7 17z"/>' },
   { on: /^buildHub/, name: '交通枢纽', why: '候车容量翻倍，换乘更快', icon: '<circle cx="12" cy="12" r="3"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/>' },
   { on: /^showCityEconomy/, name: '服务与学校', why: '评价好可建学校，学生带来票款', icon: '<path d="M3 9l9-5 9 5-9 5-9-5z"/><path d="M7 11v5c3 2 7 2 10 0v-5"/>' },
-  { on: /^buildRepairCenter|^previewRepairCenter/, name: '检修中心', why: '附近施工与抢修工期最多−30%', icon: '<path d="M14 6a4 4 0 0 0-5 5l-5 5 3 3 5-5a4 4 0 0 0 5-5l-2 2-3-3 2-2z"/>' },
+  { on: /^buildRepairCenter|^previewRepairCenter/, name: '检修中心', why: '附近施工与抢修工期最多−10%', icon: '<path d="M14 6a4 4 0 0 0-5 5l-5 5 3 3 5-5a4 4 0 0 0 5-5l-2 2-3-3 2-2z"/>' },
   { on: /^buildFinance|^showFinanceConstruction|^openStockMarket|^showFinancialMarket/, name: '金融设施', why: '银行理财、证券交易', icon: '<path d="M3 20h18M5 16v-5M10 16V8M15 16V5M20 16v-8"/>' },
 ];
 function uxTidyCitySheet() {

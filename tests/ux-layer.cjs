@@ -159,8 +159,8 @@ test('merged UX keeps school maintenance and repair-centre controls and effects'
   run('previewRepairCenter(0);render();showMaintenance()');assert.match(node('modal-content').innerHTML,/学校−10%/);
 });
 test('new help explains both school savings and repair centres',()=>{fresh();run('help()');assert.match(node('modal-content').innerHTML,/检修中心/);assert.match(node('modal-content').innerHTML,/维护费−10%/);});
-test('portrait rotates the map and screen↔world conversions are inverse',()=>{
-  run('resize()');assert.equal(run('view.rot'),1);
+test('portrait keeps map direction and screen↔world conversions are inverse',()=>{
+  run('resize()');assert.equal(run('view.rot'),0);
   const err=run('(()=>{let p={x:313.5,y:-87.25},q=toScreen(p),w=toWorld({clientX:q.x,clientY:q.y});return Math.hypot(w.x-p.x,w.y-p.y)})()');
   assert(err<1e-9,'round trip error '+err);
   run('fit()');const cities=run('JSON.stringify(realCities().map(c=>toScreen(c)))');const band=run('fitBand()');
@@ -226,11 +226,11 @@ test('landscape side details panel trims the right edge, not the map height',()=
 test('vehicles follow their heading: no upright turn inside vehicle drawing, labels still upright in portrait',()=>{
   fresh();run('resize();S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1]};commitDraft(true);clearSelection()');
   const turns=code=>JSON.parse(run(`(()=>{const out=[];ctx.rotate=a=>out.push(a);ctx.getTransform=()=>({a:0,b:1,c:-1,d:0});try{${code}}finally{delete ctx.rotate;delete ctx.getTransform;}return JSON.stringify(out.filter(a=>Math.abs(a+Math.PI/2)<1e-9).length)})()`));
-  assert.equal(run('view.rot'),1,'portrait');
+  assert.equal(run('view.rot'),0,'portrait stays unrotated');
   assert.equal(turns('drawVehicle(S.vehicles[0],null)'),0,'bus body/windows must not be turned upright');
   run('S.unlocked.push("emu");S.inventory.emu=2;draft={type:"emu",name:"动车1线",color:"#4f86a8",stops:[1,2]};commitDraft(true);clearSelection();S.vehicles.at(-1).cars=4');
   assert.equal(turns('drawVehicle(S.vehicles.at(-1),null)'),0,'train cars must not be turned upright');
-  assert.equal(turns('roundBody(0,0,20,10,3,"#fff")'),1,'a label plate is still turned upright in portrait');
+  assert.equal(turns('roundBody(0,0,20,10,3,"#fff")'),0,'unrotated portrait labels need no compensation');
   run('view.rot=0');assert.equal(turns('roundBody(0,0,20,10,3,"#fff")'),0,'landscape never compensates');run('resize()');
 });
 test('extension tabs: quiet while browsing, ~44px target when a line is selected, city node keeps its taps',()=>{
