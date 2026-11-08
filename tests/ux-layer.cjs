@@ -379,5 +379,32 @@ test('line settings: a picked colour is a preview only — never in the game sta
   run('load()');assert.equal(run('S.lines[0].color'),pick,'and after reloading');assert.equal(run('S.lines[0].name'),'新名字');
   run('clearSelection()');
 });
+test('line identity: codes come from the name (number, plus type when numbers repeat across types)',()=>{
+  fresh();run('S.points=RICH;draft={type:"bus",name:"大巴1线",color:"#c56544",stops:[0,1]};commitDraft(true);draft={type:"bus",name:"大巴2线",color:"#2f8a78",stops:[1,2]};commitDraft(true)');
+  assert.equal(run('uxLineCode(S.lines[0])'),'1');assert.equal(run('uxLineCode(S.lines[1])'),'2');
+  run('S.lines[1].name="动车1线";S.lines[1].type="emu"');
+  assert.equal(run('uxLineCode(S.lines[0])'),'巴1','same number, different type: the type disambiguates');assert.equal(run('uxLineCode(S.lines[1])'),'动1');
+  run('S.lines[1].name="海滨专线"');assert.equal(run('uxLineCode(S.lines[1])'),'海滨','no number: first characters');
+  run('S.lines.length=0;S.vehicles.length=0');
+});
+test('dense map: zoomed out or eight cities, any queue over one row folds to one row + pill',()=>{
+  fresh();run('S.cities[0].q=Array.from({length:8},()=>({color:0,shape:0,wait:0}));view.scale=1.2');
+  const few=run('realCities().filter(c=>!c.dormant).length')<8;
+  if(few)assert.equal(run('QUEUE_SHOWN_FOR(S.cities[0])'),12,'close-up, few cities: two rows');
+  run('view.scale=.8');assert.equal(run('QUEUE_SHOWN_FOR(S.cities[0])'),6,'zoomed out: one row');
+  run('S.cities[0].q=[];view.scale=1');
+});
+test('line picker at a station: lines through it stay strong, others fade; a selected line wins',()=>{
+  fresh();run('S.points=RICH;draft={type:"bus",name:"线1",color:"#c56544",stops:[0,1]};commitDraft(true);draft={type:"bus",name:"线2",color:"#2f8a78",stops:[1,2]};commitDraft(true)');
+  run('selected={type:"junction",id:0}');assert.equal(run('LINE_ALPHA(S.lines[0],null)'),1);assert(run('LINE_ALPHA(S.lines[1],null)')<.5);
+  assert.equal(run('LINE_ALPHA(S.lines[1],S.lines[1].id)'),1);assert(run('LINE_ALPHA(S.lines[0],S.lines[1].id)')<.5);
+  run('selected=null;S.lines.length=0;S.vehicles.length=0');
+});
+test('play view never shows ground beyond the map edge when the map can cover the screen',()=>{
+  fresh();run('globalThis.__ms=globalThis.mapSpec;mapSpec={bounds:{xmin:-1000,xmax:1200,ymin:-300,ymax:1200}}');
+  const t=run('uxClampToMap({x:5000,y:5000,scale:1})');assert(t.x<=1000&&t.y<=300,'pulled back inside');
+  const c=run('uxClampToMap({x:0,y:0,scale:.05})');assert.equal(Math.round(c.x),Math.round(run('(W-200*.05)/2')),'a map smaller than the screen is centred');
+  run('mapSpec=globalThis.__ms');
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;

@@ -82,9 +82,25 @@ return { ok: !!em && em.classList.contains('is-over') && visible, pill: em?.text
   ended: `${W(2800)} S.lives = 0; updateUI(); toast('已回到游戏 · 当前暂停，点 ▶ 继续');
 let opened = false; const go = gameover; gameover = () => { opened = true; }; document.getElementById('pause').click(); gameover = go;
 return { ok: document.getElementById('pause').textContent === '结算' && /本局已结束/.test(document.getElementById('toast').textContent) && opened };`,
+  hubframe: `const tops = [];
+for (const [k, i] of [['money', 0], ['money', 1], ['money', 2], ['money', 3], ['build', 0], ['build', 1], ['build', 2], ['goal', 0]]) {
+  uxOpenHub(k, i); ${W(300)} document.getAnimations().forEach(a => a.finish());
+  const t = document.querySelector('.ux-hub-tabs').getBoundingClientRect(), c = document.querySelector('#modal-content .modal-head .close').getBoundingClientRect();
+  tops.push(Math.round(t.top) + '/' + Math.round(c.left));
+}
+closeModal(); return { ok: new Set(tops).size === 1, tops };`,
+  edge: `${W(300)} const b = mapSpec.bounds, s = view.scale, tl = toScreen({ x: b.xmin, y: b.ymin }), br = toScreen({ x: b.xmax, y: b.ymax });
+const covers = (b.xmax - b.xmin) * s >= innerWidth && (b.ymax - b.ymin) * s >= innerHeight;
+return { ok: !covers || (tl.x <= .5 && tl.y <= .5 && br.x >= innerWidth - .5 && br.y >= innerHeight - .5), covers, tl: [Math.round(tl.x), Math.round(tl.y)], br: [Math.round(br.x), Math.round(br.y)] };`,
+  cardfacts: `if (!(innerWidth > innerHeight && innerHeight <= 500)) return { ok: true, skipped: 'landscape phone only' };
+S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers();
+${W(100)} closeModal(); uxOpenHub('goal', 1); ${W(500)}
+document.querySelector('#modal-content .activity-back')?.click(); ${W(900)} document.getAnimations().forEach(a => a.finish());
+const box = document.querySelector('#modal-content .card-content128').getBoundingClientRect(), inside = sel => { const r = document.querySelector('#modal-content .card-content128 ' + sel)?.getBoundingClientRect(); return !!r && r.top >= box.top - 1 && r.bottom <= box.bottom + 1; };
+return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-risk') && inside('h3'), stats: inside('.card-stats'), reward: inside('.card-reward'), risk: inside('.card-risk') };`
 };
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
-mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards']);
+mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts']);
 mk('scenA_F.json', ['coach']);
-mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended']);
+mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge']);
 console.log('built');

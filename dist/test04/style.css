@@ -1171,3 +1171,114 @@ body #routes .panel-heading{gap:6px!important}
 body #routes #collapse{font-size:0!important;position:relative}
 body #routes #collapse::before{content:'';position:absolute;left:50%;top:50%;width:8px;height:8px;border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:translate(-50%,-70%) rotate(45deg)}
 body #routes.collapsed #collapse::before{transform:translate(-50%,-30%) rotate(-135deg)}
+/* ---------- line sheet: the numbers and the route read first; adding a vehicle is a clear but quieter control ---------- */
+#details .ux-fleet{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto;align-items:end;gap:14px;margin:10px 0 6px;padding:12px;border-radius:14px;background:#f6f7f2;border:0!important}
+#details .ux-fleet > div > small{display:block;font-size:12px;color:#5f6f68;margin-bottom:2px}
+#details .ux-fleet > div > b{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);line-height:1.1}
+#details .ux-fleet > div > b span{font-size:13px;font-weight:500;color:#5f6f68}
+#details .ux-fleet-load{min-width:0}
+#details .ux-fleet-load .ux-bar{display:block;height:5px;margin-top:6px}
+#details .ux-fleet-load .ux-bar i{background:var(--lc)}
+#details .ux-stepper{align-self:center;display:flex;gap:6px}
+#details .ux-stepper button{min-height:40px!important;border-radius:12px!important;font-size:13px!important}
+#details .ux-stepper button:first-child{width:40px;background:#fff!important;border:1px solid var(--line)!important;color:var(--ink)!important}
+#details .ux-stepper button.primary{padding:0 12px!important;background:#fff!important;color:var(--ink)!important;border:1.5px solid var(--ink)!important;font-weight:650}
+#details .ux-stepper button.primary:disabled{border-color:var(--line)!important;color:#9aa69f!important}
+/* route: stations on a line in the line's own colour */
+#details .ux-route{display:flex;flex-wrap:wrap;align-items:center;row-gap:8px;column-gap:0;margin:10px 0 4px}
+#details .ux-route > i{flex:0 0 14px;height:4px;margin:0 2px;border-radius:2px;background:var(--lc);font-size:0;color:transparent}
+#details .ux-stop{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 6px 0 10px;border-radius:16px;background:#fff;border:2px solid var(--lc);font-size:13px;font-weight:600;color:var(--ink)}
+#details .ux-stop button{width:22px;height:22px;min-height:0;padding:0;border-radius:11px;background:transparent;color:#8a968c;font-size:13px}
+/* vehicles */
+#details .ux-list .ux-row{min-height:44px}
+#details .ux-list .ux-row b{font-size:13px}
+#details .ux-list .ux-row span{font-size:13px}
+#details .ux-list .ux-row small{font-size:12px;color:#5f6f68}
+#details .ux-fleet{align-items:start!important}
+#details .ux-stepper{align-self:center!important}
+#details .ux-route{column-gap:0!important}
+#details .ux-hop{display:inline-flex;align-items:center}
+#details .ux-hop > i{display:block;width:14px;height:4px;margin:0 2px;border-radius:2px;background:var(--lc)}
+#details .ux-stop{border-width:1.5px!important;font-size:13px!important}
+
+/* collapsed tray: each entry is a coded pill in the line colour (same code as on the map) */
+body #routes .ux-swatches button{width:auto!important;min-width:24px;height:24px!important;padding:0 6px!important;margin:2px 0;border-radius:12px!important;background:var(--c)!important;color:#fff!important;font-size:11px!important;font-weight:700;line-height:24px;letter-spacing:.2px}
+body #routes .ux-swatches button::before{content:none!important}
+body #routes .ux-swatches button.on{box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--ink)}
+body #routes .ux-swatches{gap:4px!important;row-gap:2px!important}
+body #routes.collapsed .panel-heading > span:first-child{display:none!important}
+/* upstream 1.3 (revision13.css) styles every heading span as flex: keep the code strip for the collapsed state only */
+body #routes .panel-heading > span.ux-swatches{display:none!important}
+body #routes.collapsed .panel-heading > span.ux-swatches{display:flex!important;flex-wrap:wrap;align-items:center}
+/* ---------- hub sheets: one frame per hub — every page opens at the same height (and width), so the tabs and ×
+   stay where the thumb left them while switching 收支 / 维护 / 理财 / 股票; content scrolls inside ---------- */
+.modal:has(.ux-hub-tabs){height:min(84dvh,820px);width:min(820px,calc(100vw - 40px))!important;max-width:820px!important}
+@media (orientation:portrait) and (max-width:820px){
+  .modal:has(.ux-hub-tabs){height:86dvh!important;max-height:86dvh!important;width:100%!important;max-width:100%!important}
+}
+@media (orientation:landscape) and (max-height:500px){
+  .modal:has(.ux-hub-tabs){height:calc(100dvh - 16px)!important;max-height:calc(100dvh - 16px)!important}
+}
+@media (orientation:portrait) and (max-width:820px){ .modal:has(.ux-hub-tabs){padding-left:18px!important;padding-right:18px!important} }
+.modal:has(.ux-hub-tabs){background:#fff!important}
+/* activity card on short landscape screens: the basis for the decision (stakes, target, timing, reward, penalty) is
+   on the first screen next to 承接 — a two-column fact layout instead of the portrait card's tall stack */
+@media (orientation:landscape) and (max-height:500px){
+  .deck-stage128 .card-content128{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:12px;row-gap:6px;align-content:start}
+  .deck-stage128 .card-content128 > .card-rarity{grid-column:1;grid-row:1;min-height:0!important;padding:0!important;border:0!important;margin:0!important}
+  .deck-stage128 .card-content128 > .card-rarity span{font-size:14px!important}
+  .deck-stage128 .card-content128 > .card-feature{grid-column:2;grid-row:1;justify-self:end;align-self:center;margin:0!important;font-size:11px!important}
+  .deck-stage128 .card-content128 > h3{grid-column:1;grid-row:2;margin:0!important;font-size:19px!important;line-height:1.25}
+  .deck-stage128 .card-content128 > .card-city{grid-column:2;grid-row:2;align-self:center;justify-self:start;font-size:13px!important}
+  .deck-stage128 .card-content128 > .card-stats{grid-column:1/-1;grid-row:3;display:flex!important;gap:6px;margin:2px 0 0!important;padding:0!important;border:0!important}
+  .deck-stage128 .card-content128 > .card-stats span{flex:1;display:flex;align-items:baseline;justify-content:center;gap:3px;padding:6px 4px;border-radius:10px;background:#ffffff14;font-size:11px;white-space:nowrap}
+  .deck-stage128 .card-content128 > .card-stats b{font-size:17px!important}
+  .deck-stage128 .card-content128 > .card-reward{grid-column:1;grid-row:4;margin:0!important;padding:8px 10px!important;border-radius:10px}
+  .deck-stage128 .card-content128 > .card-reward p{margin:2px 0 0!important;font-size:14px!important}
+  .deck-stage128 .card-content128 > .card-risk{grid-column:2;grid-row:4;margin:0!important;padding:8px 10px;border-radius:10px;background:#ffffff0d;font-size:12px!important;line-height:1.45}
+  .deck-stage128 .card-content128 > .card-sources{grid-column:1/-1;grid-row:5;margin:4px 0 0!important;font-size:12px!important}
+}
+@media (orientation:landscape) and (max-height:500px){
+  .deck-stage128 .card-content128 > .card-stats span{display:flex!important;flex-direction:row!important;align-items:baseline!important;justify-content:center!important;gap:3px!important;padding:5px 4px!important;text-align:left!important}
+  .deck-stage128 .card-content128 > .card-stats b{display:inline!important;font-size:16px!important;line-height:1!important}
+  .deck-stage128 .card-content128{padding-top:10px!important;row-gap:5px!important}
+  .deck-stage128 .card-content128 > h3{font-size:18px!important}
+}
+
+/* maintenance: transport mode on each bill */
+.ux-mode{display:inline-block;margin-right:8px;padding:1px 7px;border-radius:9px;font-style:normal;font-size:11px;font-weight:650;vertical-align:1px}
+.ux-mode.is-road{background:#efe9dc;color:#7a5f3a}
+.ux-mode.is-rail{background:#e1ebf2;color:#3f5a7a}
+.ux-mode.is-bridge{background:#e5ece7;color:#4f6f60}
+/* roads page: facility count as three tiles */
+.ux-tiles3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:10px 0 2px}
+.ux-tiles3 div{padding:8px 10px;border-radius:10px;background:#fff}
+.ux-tiles3 small{display:block;font-size:11.5px;color:#5f6f68}
+.ux-tiles3 b{font-size:17px;font-variant-numeric:tabular-nums}
+.ux-fac-count .ux-footnote{margin:6px 2px 10px!important}
+/* locked vehicles: future content — full-colour icon, the unlock path as one tagged line, price as information */
+.ux-product.is-locked .transport-icon{color:#7c8f88!important;opacity:.85}
+.ux-product.is-locked b{color:var(--ink)}
+.ux-product .ux-lock{display:block;margin-top:3px;line-height:1.5}
+.ux-product .ux-lock i{display:inline-block;margin-right:6px;padding:0 6px;border-radius:8px;background:#f3e6cf;color:#8a6232;font-style:normal;font-size:10.5px;font-weight:650}
+.ux-product.is-locked button:disabled{background:transparent!important;border:1px dashed #d8d2c3!important;color:#8a7a5c!important;opacity:1!important}
+/* stocks with no settled day yet */
+.market-chart.ux-nohist{display:grid;place-items:center;min-height:150px;border-radius:12px;background:#f6f7f2}
+.market-chart.ux-nohist .ux-emptystate{padding:18px 0}
+.market-chart.ux-nohist svg{width:30px;height:30px;fill:none;stroke:#7f9a8c;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ux-hidden{display:none!important}
+@media (orientation:landscape) and (max-height:500px){
+  .deck-stage128 .card-content128 > .card-reward{padding:6px 10px!important;display:flex!important;flex-direction:column;justify-content:center}
+  .deck-stage128 .card-content128 > .card-reward small{font-size:10.5px!important}
+  .deck-stage128 .card-content128 > .card-reward p{font-size:13px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3!important}
+  .deck-stage128 .card-content128 > .card-risk{padding:6px 10px!important;font-size:11.5px!important;line-height:1.35!important}
+  .deck-stage128 .card-content128 > .card-risk small{font-size:10.5px!important;line-height:1.3!important}
+  .deck-stage128 .card-content128 > .card-stats span{padding:4px!important}
+}
+@media (orientation:landscape) and (max-height:500px){ .deck-stage128 .card-content128 > .card-reward p{white-space:normal!important;overflow:visible!important} }
+/* drawing bar: upstream 1.3 lays the actions out for Android's quote-summary button (#quote-expand) beside 取消.
+   On the web (no such button) that left 取消 alone on a row: here the actions are one row — 取消 and a wide 建设 */
+#drawbar .db-actions:not(:has(#quote-expand)){display:flex!important;flex-direction:row!important;align-items:stretch;gap:8px!important;width:100%}
+#drawbar .db-actions:not(:has(#quote-expand)) #drawundo{flex:0 0 44px}
+#drawbar .db-actions:not(:has(#quote-expand)) #drawcancel{flex:0 0 auto;width:auto!important;min-width:76px!important;grid-column:auto!important;grid-row:auto!important}
+#drawbar .db-actions:not(:has(#quote-expand)) #drawdone{flex:1 1 auto;width:auto!important;grid-column:auto!important;grid-row:auto!important}

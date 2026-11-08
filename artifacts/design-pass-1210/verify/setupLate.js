@@ -29,6 +29,8 @@ routeBridgeStops = rbs;
 // queues: the hub well over capacity, a few busy neighbours
 for (let i = 0; i < 181; i++) try { newPassenger(hub); } catch (e) {}
 for (const c of cs.filter(c => c !== hub).slice(0, 5)) for (let i = 0; i < 12 + c.id % 9; i++) try { newPassenger(c); } catch (e) {}
+// a late network: established cities have no join countdown or protection left; the newest one still does
+for (const c of realCities()) { c.grace = 0; c.shield = 0; } { const nw = realCities().at(-1); if (nw) nw.grace = 22; }
 S.points = 9392; S.paused = true; clearSelection(); updateUI(); dispatchEvent(new Event('resize'));
 window.__hub = hub.id; window.__hubLines = cityLines(hub.id).length;
 await new Promise(r => setTimeout(r, 300));

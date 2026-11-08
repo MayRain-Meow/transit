@@ -280,9 +280,9 @@ function uxLineSheet(rebuild) {
 <button class="ux-icon" onclick="renameLine(${l.id})" title="名称 / 颜色" aria-label="修改名称或颜色">✎</button><button class="close" onclick="clearSelection()" aria-label="关闭">×</button></div>
 ${blocked ? '<p class="ux-alert">部分路段停止接入，两侧车辆分段运行。拉线时可支付维修费，或重新接桥改线。</p>' : ''}
 ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不会使用这条线路。点「＋」加一辆。</p>' : ''}
-<div class="ux-fleet"><div><small>车辆</small><b>${vs.length}<span> 辆</span></b></div><div><small>载客</small><b>${load}<span> / ${seats}</span></b></div>
+<div class="ux-fleet" style="--lc:${l.color}"><div><small>车辆</small><b>${vs.length}<span> 辆</span></b></div><div class="ux-fleet-load"><small>载客${seats ? ' · ' + Math.round(load / seats * 100) + '%' : ''}</small><b>${load}<span> / ${seats}</span></b><span class="ux-bar"><i style="width:${seats ? Math.min(100, load / seats * 100) : 0}%"></i></span></div>
 <div class="ux-stepper"><button onclick="uxFleetMinus(${l.id})" ${!vs.some(v => !v.recall) ? 'disabled' : ''} aria-label="回收一辆">−</button><button class="primary" onclick="uxFleetPlus(${l.id})" ${canAdd ? '' : 'disabled'}>＋ ${inv > 0 ? '库存 ' + inv : '¥' + T.vehicle}</button></div></div>
-<div class="ux-route">${stops.map(id => `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`).join('<i>→</i>')}</div>
+<div class="ux-route" style="--lc:${l.color}">${stops.map((id, k) => `<span class="ux-hop">${k ? '<i></i>' : ''}<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span></span>`).join('')}</div>
 
 ${vs.length ? `<div class="ux-list">${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${vs.length > 1 ? v.people.length + '/' + vehCap(v) + ' 人' : ''}${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
 <div class="ux-actions-row">${l.type !== 'air' ? `<button onclick="openInfrastructure(${l.id})">道路升级</button>` : ''}<button class="ux-danger" onclick="uxDeleteLine(${l.id})">${uxArmedDelete?.id === l.id && uxArmedDelete.until > performance.now() ? '再点一次确认撤销' : '取消线路'}</button></div>`;
@@ -425,7 +425,7 @@ shop = function () {
   openModal(`<div class="modal-head"><div><h2>交通采购</h2><small>余额 ${money(S.points)} · 新车进入库存，在线路详情点「＋」派车</small></div><button class="close" onclick="closeModal()">×</button></div>
 <div class="ux-list">${uxTypes().map(t => {
     const on = S.unlocked.includes(t), T = TYPES[t];
-    return `<div class="ux-product${on ? '' : ' is-locked'}">${transportIcon(t)}<div><b>${T.name}</b><small>${isTrain(t) ? '初始 2 节，最多 8 节' : T.cap + ' 人'} · 票价 ×${T.fare ?? 1}${on ? ' · 库存 ' + S.inventory[t] : ''}</small>${on ? '' : `<small class="ux-lock">解锁：${unlockText(t)}</small>`}</div><button class="${on ? 'primary' : ''}" onclick="purchase('v-${t}')" ${!on || S.points < T.vehicle ? 'disabled' : ''}>¥${T.vehicle}</button></div>`;
+    return `<div class="ux-product${on ? '' : ' is-locked'}">${transportIcon(t)}<div><b>${T.name}</b><small>${isTrain(t) ? '初始 2 节，最多 8 节' : T.cap + ' 人'} · 票价 ×${T.fare ?? 1}${on ? ' · 库存 ' + S.inventory[t] : ''}</small>${on ? '' : `<small class="ux-lock"><i>未解锁</i>${unlockText(t)}</small>`}</div><button class="${on ? 'primary' : ''}" onclick="purchase('v-${t}')" ${!on || S.points < T.vehicle ? 'disabled' : ''}>¥${T.vehicle}</button></div>`;
   }).join('')}</div>
 ${shopTrainCarsHTML()}
 <div class="ux-links"><button onclick="showEngineering()"><span>工程</span><small>桥梁 · 道路升级 · 气象站 · 枢纽 · 检修中心</small><i>›</i></button><button onclick="showFinance()"><span>收支账本</span><small>收入、支出与月底维护</small><i>›</i></button></div>`);
@@ -532,6 +532,51 @@ function uxHandleAt(sx, sy) {
   }
   return best;
 }
+// Line identity: a short code from the line's name — its number ("3"), with the vehicle type ("巴1", "动1") once a
+// network mixes types and numbers repeat; otherwise the first characters. The same code labels the line's ends on
+// the map (as on a metro map) and its entry in the collapsed tray, so a colour always comes with a name.
+const UX_TYPE_CHAR = { bus: '巴', emu: '动', rail: '铁', air: '航' };
+function uxLineCode(l) {
+  const num = l => (String(l.name).match(/\d+/) || [])[0];
+  const n = num(l);
+  if (!n) return String(l.name).replace(/线$/, '').slice(0, 2) || '·';
+  const clash = S.lines.some(x => x !== l && num(x) === n);
+  return clash ? (UX_TYPE_CHAR[l.type] || '') + n : n;
+}
+// Codes at both ends of every line (one for a loop), just outside the end city along the line, using the same
+// placement as the extension tabs (clear of the waiting squares). The selected line shows its ＋ tabs instead.
+function uxDrawLineCodes() {
+  if (draft || bridgeDraft || !S?.lines?.length || view.scale < .42) return;
+  const focus = uxHandleFocus(), k = 1 / view.scale, placed = [];
+  for (const h of uxHandles()) {
+    if (h.line.id === focus) continue;
+    if (h.end === 'tail' && h.line.stops[0] === h.line.stops.at(-1)) continue;
+    // clear of the node and (when the line leaves downward) of the city name under it
+    const out = (uxNodePx(h.city) + 18 + (h.uy > .55 ? 22 : 0)) * k;
+    let x = h.city.x + h.ux * out, y = h.city.y + h.uy * out;
+    for (let i = 0; i < 3 && placed.some(p => Math.hypot(p.x - x, p.y - y) < 18 * k); i++) { x += h.ux * 15 * k; y += h.uy * 15 * k; }
+    placed.push({ x, y });
+    const code = uxLineCode(h.line), w = (code.length > 1 ? 9 + code.length * 7.5 : 16) * k, hh = 16 * k;
+    const dim = typeof LINE_ALPHA === 'function' ? LINE_ALPHA(h.line, focus) : 1;
+    ctx.save(); ctx.globalAlpha = Math.max(.25, dim);
+    ctx.lineCap = 'round'; ctx.strokeStyle = h.line.color; ctx.lineWidth = 2.4 * k; ctx.setLineDash([]);
+    const from = (uxNodePx(h.city) + 2) * k; ctx.beginPath(); ctx.moveTo(h.city.x + h.ux * from, h.city.y + h.uy * from);
+    ctx.lineTo(x - h.ux * w * .45, y - h.uy * hh * .45); ctx.stroke();
+    ctx.restore();
+    ctx.save(); ctx.globalAlpha = Math.max(.25, dim); uprightAround(x, y);
+    roundBody(x - w / 2 - 1.5 * k, y - hh / 2 - 1.5 * k, w + 3 * k, hh + 3 * k, (hh + 3 * k) / 2, '#fffef9', '#fffef9', 1);
+    roundBody(x - w / 2, y - hh / 2, w, hh, hh / 2, h.line.color, h.line.color, 1);
+    { const halo = globalThis.TEXT_HALO; globalThis.TEXT_HALO = null; try { text(code, x, y + 3.6 * k, 10 * k, '#fff'); } finally { globalThis.TEXT_HALO = halo; } }   // white on colour: no light halo
+    ctx.restore();
+  }
+}
+// While the line picker is open at a shared station, the lines through that station are the ones being chosen
+// between: they stay at full strength, the rest fade (the same treatment as selecting one line).
+globalThis.LINE_ALPHA = (l, focus) => {
+  if (focus !== null && focus !== undefined) return focus === l.id ? 1 : .2;
+  if (selected?.type === 'junction') return l.stops.includes(selected.id) ? 1 : .22;
+  return 1;
+};
 function uxDrawHandles() {
   const focus = uxHandleFocus(); if (focus === null) { uxTabSince.line = null; return; }
   if (uxTabSince.line !== focus) uxTabSince = { line: focus, at: performance.now() };
@@ -706,7 +751,7 @@ function uxWrapLateDrawers() {
     drawCityOpening = function (c) { ctx.save(); uprightAround(c.x, c.y); try { open(c); } finally { ctx.restore(); } };
     drawCityOpening.uxUpright = true;
   }
-  if (!drawCityEconomy.uxHandles) { const dce = drawCityEconomy; drawCityEconomy = function (...a) { dce.apply(this, a); uxDrawHandles(); uxDrawCoach(); }; drawCityEconomy.uxHandles = true; }
+  if (!drawCityEconomy.uxHandles) { const dce = drawCityEconomy; drawCityEconomy = function (...a) { dce.apply(this, a); uxDrawLineCodes(); uxDrawHandles(); uxDrawCoach(); }; drawCityEconomy.uxHandles = true; }
 }
 /* ---------- tidy sheets that later scripts extend ---------- */
 // Later layers append sections by string. These passes keep one header on top, drop entries that already have a
@@ -734,7 +779,7 @@ function uxHowToPlay(m) {
   steps.innerHTML = [
     ['连线', '从一座城市拖到另一座，看底栏报价，点「建设」。'],
     ['配车', '点线路，用「＋」加车；拖线路两端的「＋」延长。'],
-    ['送客', '乘客的色块就是目的地，送到同色同形的城市。候客厅满员（候车 ≥ 容量）持续 180 秒扣一条命（旅游城市 225 秒），降到容量以下压力会回落。'],
+    ['送客', '乘客头上的色块是目的地，送到同色同形的城市。别让候客厅长时间满员——满员持续 180 秒扣一条命，细节见下方「等待与扣命」。'],
     ['成长', '完成城市任务拿奖金、城市升级；每 10 天补助，月底付维护。'],
   ].map(([t, d], i) => `<li><i>${i + 1}</i><span><b>${t}</b>${d}</span></li>`).join('');
   (head || m.firstChild)?.after(steps);
@@ -1082,6 +1127,42 @@ function uxJunctionCity(id) {
 }
 let uxLineEdit = null;   // { id, preview } while the line settings sheet is open; preview = picked, not yet saved colour
 function uxWrapHubs() {
+  // 6. maintenance: the same pair of cities can carry a road and a track (two bills); say which is which
+  uxAfter('showMaintenance', m => {
+    if (typeof maintenanceAssets !== 'function' || m.querySelector('.ux-mode')) return;
+    const items = maintenanceAssets(), rows = [...m.querySelectorAll('.quote-row')].filter(r => /↔|桥梁 #/.test(r.textContent));
+    if (rows.length !== items.length) return;
+    rows.forEach((r, i) => {
+      const it = items[i], x = S.infrastructure?.[it.key], bridge = it.key.startsWith('bridge-');
+      const mode = bridge ? ['桥梁', 'is-bridge'] : x?.type === 'track' ? [(x.level >= 2 ? '高速铁路' : '铁路'), 'is-rail'] : ['公路', 'is-road'];
+      const lvl = !bridge && x?.level ? ' · ' + x.level + ' 级' : '';
+      r.querySelector('span')?.insertAdjacentHTML('afterbegin', '<em class="ux-mode ' + mode[1] + '">' + mode[0] + lvl + '</em>');
+      r.dataset.pair = it.label; r.dataset.mode = mode[0];
+    });
+    // a road and a track between the same two cities sit next to each other
+    const host = rows[0]?.parentElement; if (host) rows.slice().sort((a, b) => (a.dataset.pair || '').localeCompare(b.dataset.pair || '', 'zh') || (a.dataset.mode || '').localeCompare(b.dataset.mode || '', 'zh')).forEach(r => host.appendChild(r));
+  });
+  // 7. roads page: damage and earthquake belong together; the city-facility count is its own small group
+  // (runs after uxEngineeringPage has built the sections, hence the deferred registration)
+  Promise.resolve().then(() => uxAfter('showEngineering', m => {
+    const card = m.querySelector('.ux-eng-sec .ux-card'), infra = card?.querySelector('.infra-card'); if (!infra || m.querySelector('.ux-fac-count')) return;
+    const t = infra.textContent, num = re => (t.match(re) || [])[1] ?? '0';
+    const sec = document.createElement('section'); sec.className = 'ux-eng-sec ux-fac-count';
+    sec.innerHTML = '<div class="ux-eng-title">城市设施</div><div class="ux-card"><div class="ux-tiles3"><div><small>气象站</small><b>' + num(/气象站\s*(\d+)/) + '</b></div><div><small>交通枢纽</small><b>' + (t.match(/交通枢纽\s*([\d/]+)/) || [])[1] + '</b></div><div><small>检修中心</small><b>' + num(/检修中心\s*(\d+)/) + '</b></div></div><p class="ux-footnote">在地图上点城市，于城市详情里建设并预览覆盖范围。</p></div>';
+    infra.remove();
+    const secs = [...m.querySelectorAll('.ux-eng > .ux-eng-sec')], damage = card.closest('.ux-eng-sec'), calm = /暂无受损路段/.test(card.textContent);
+    // with nothing damaged, line upgrades (something to do) come before the quiet damage/earthquake status
+    if (calm && secs.length > 1 && secs.at(-1) !== damage) secs.at(-1).after(damage);
+    damage.after(sec);
+  }));
+  // 10. stocks before the first settled trading day: an explained empty chart instead of a blank one with controls
+  uxAfter('showFinancialMarket', m => {
+    if (!/已结算\s*0\s*个交易日/.test(m.textContent)) return;
+    const fig = m.querySelector('.market-stock-detail .market-chart'); if (!fig || fig.classList.contains('ux-nohist')) return;
+    fig.classList.add('ux-nohist');
+    fig.innerHTML = '<div class="ux-emptystate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19h18M5 15l4-4 3 3 6-6"/></svg><b>还没有走势</b><span>第一个交易日结算后开始绘制 · 每日 09:00 更新</span></div>';
+    m.querySelector('.market-stock-detail .market-range')?.classList.add('ux-hidden');
+  });
   // A trade re-renders the market page: keep the reading position and the quantity the player typed.
   if (typeof tradeStock === 'function') {
     const ts = tradeStock;
@@ -1197,10 +1278,10 @@ function uxTray() {
   const p = uxEl('routes'), head = p?.querySelector?.('.panel-heading'); if (!head || !S) return;
   let sw = head.querySelector('.ux-swatches');
   if (!sw) { sw = document.createElement('span'); sw.className = 'ux-swatches'; head.insertBefore(sw, head.children[1] || null); }
-  const key = S.lines.map(l => l.id + l.color + (selected?.type === 'line' && selected.id === l.id ? '*' : '')).join();
+  const key = S.lines.map(l => l.id + l.color + l.name + (selected?.type === 'line' && selected.id === l.id ? '*' : '')).join();
   if (sw.dataset.key !== key) {
     sw.dataset.key = key;
-    sw.innerHTML = S.lines.map(l => `<button style="--c:${l.color}" class="${selected?.type === 'line' && selected.id === l.id ? 'on' : ''}" onclick="selectLine(${l.id})" aria-label="${escapeHTML(l.name)}"></button>`).join('');
+    sw.innerHTML = S.lines.map(l => `<button style="--c:${l.color}" class="${selected?.type === 'line' && selected.id === l.id ? 'on' : ''}" onclick="selectLine(${l.id})" aria-label="${escapeHTML(l.name)}" title="${escapeHTML(l.name)}">${escapeHTML(uxLineCode(l))}</button>`).join('');
   }
   uxEl('route-new130')?.setAttribute?.('aria-label', '新建线路');
   // the expand toggle must not read as a second 「＋」 next to 新建: a chevron that points where the list goes
@@ -1386,7 +1467,8 @@ globalThis.TEXT_HALO = '#fffef9e6';   // soft outline keeps labels readable over
 globalThis.QUEUE_SHOWN = 12;           // two rows of waiting squares, then "+n"
 // A crowded city (more than two rows) shows one row and a pill with waiting / capacity, coloured by load: the number
 // that decides what to do (181/128) is on the map instead of "+169" and a wall of squares.
-globalThis.QUEUE_SHOWN_FOR = c => (c.q?.length || 0) > 12 ? 6 : 12;
+// In a dense or zoomed-out view every city with more than one row waiting gets the one-row + pill form.
+globalThis.QUEUE_SHOWN_FOR = c => { const n = c.q?.length || 0, dense = view.scale < 1 || realCities().filter(x => !x.dormant).length >= 8; return n > 12 || dense && n > 6 ? 6 : 12; };
 globalThis.QUEUE_TAIL = function (c, px, py) {
   const n = c.q.length, cap = typeof capacity === 'function' ? capacity(c) : 0, ratio = cap ? n / cap : 0;
   const label = cap ? n + '/' + cap : String(n), w = 7 + label.length * 5.6, x = px + 6 * 11 + 2, y = py - 1;
@@ -1415,7 +1497,8 @@ drawMissionBadges = function () {
     if (c.dormant) { if (typeof drawCityOpening === 'function') drawCityOpening(c); continue; }
     const spec = missionSpec(c), rewarded = c.rewardUntil > S.day, label = rewarded ? '奖金已到账' : spec ? c.mission.progress + '/' + spec.goal : '繁荣';
     const focus = selected && ['city', 'stop', 'junction'].includes(selected.type) && selected.id === c.id;
-    if (!rewarded && !focus && view.scale < .9 && (!spec || c.mission.progress === 0)) continue;
+    // the selected city, a just-paid reward, or a mission at least half done; everything else is in 目标 → 城市任务
+    if (!rewarded && !focus && !(spec && c.mission.progress >= spec.goal / 2) && view.scale < 1.3) continue;
     roundBody(c.x - 28, c.y - 85 - c.size * 9, 56, 17, 5, rewarded ? '#e5efda' : '#fffdf6', '#e1e6d8', .8);
     text(label, c.x, c.y - 73 - c.size * 9, 8, rewarded ? '#577942' : '#879274');
   }
@@ -1437,7 +1520,18 @@ function uxScreenFor(v, p) { return v.rot ? { x: v.x - p.y * v.scale, y: v.y + p
 // Phones: portrait, or a short landscape screen (the side route list and dock leave a small map window).
 function uxCompact() { return portraitMode || H <= 500; }
 const PLAY_MIN_SCALE_LAND = .6;
-function uxPlayTarget() {
+// The play view never shows the flat ground beyond the map's edge when the map is big enough to cover the screen
+// at that zoom (a landscape turn or a late network near the border used to leave a plain band); a map smaller than
+// the screen is centred instead. Selection framing is not clamped: a city near the edge must still come above a sheet.
+function uxClampToMap(t) {
+  const b = typeof mapSpec !== 'undefined' && mapSpec?.bounds; if (!b || view.rot || !t) return t;
+  const s = t.scale, w = (b.xmax - b.xmin) * s, h = (b.ymax - b.ymin) * s;
+  const x = w >= W ? Math.min(-b.xmin * s, Math.max(W - b.xmax * s, t.x)) : (W - (b.xmin + b.xmax) * s) / 2;
+  const y = h >= H ? Math.min(-b.ymin * s, Math.max(H - b.ymax * s, t.y)) : (H - (b.ymin + b.ymax) * s) / 2;
+  return { ...t, x, y };
+}
+function uxPlayTarget() { return uxClampToMap(uxPlayTargetRaw()); }
+function uxPlayTargetRaw() {
   const all = fitTarget();
   if (!uxCompact()) return uxDeskPlayTarget(all);
   if (portraitMode && all.scale >= PLAY_MIN_SCALE) return all;
