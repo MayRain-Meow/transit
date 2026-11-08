@@ -1,0 +1,8 @@
+v1.3.0-playtest / versionCode 13000
+Native notification policy: Android appStateChange=false (Activity.onStop) and Web actual hidden/pagehide/freeze. No blur or temporary onPause interruption. No hasFocus gate or long-frame implicit pause.
+Regression: runtime13-dom plus native-mobile/native128/native129-dom/native130-dom/web128.
+New real-DOM tests retain actual MutationObserver, controlled requestAnimationFrame queue and full packaged script order. 200 focus/blur sequences, hidden/manual-return policy, 30 modal cycles, endpoint closure real pointer gestures, partial-loop rejection, selected-route lock, injected frame failure, protected save, recover and confirmed restart, native bridge subscriptions.
+Limits: no browser layout engine, Android device/emulator, system notification instrumentation or device-specific reproduction. Exact reported freeze root cause not confirmed. Catchable JS fault recovery does not cure synchronous infinite loops or OS/WebView hangs.
+No economic or weather probability refit. APK/key excluded from GitHub.
+Actual queued callback test: 100 frames after repeated focus changes advance exactly 100 simulation ticks, preserve a single scheduled game frame, and trigger no runtime fault.
+Native hidden-visibility fallback does not override onStop-only policy. Beforeunload resolves the current protected save function; runtime faults block resume and preserve both map and fallback snapshots. Camera animation callbacks are invalidated on reset.

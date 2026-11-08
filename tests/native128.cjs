@@ -25,7 +25,7 @@ function fire(target,type,event={}){event.target??={tagName:'BODY'};event.preven
 const context = {console,document:{hidden:false,visibilityState:'visible',hasFocus:()=>context.focused,getElementById:node,createElement:()=>node('offscreen'+nodes.size),addEventListener:(t,f,c)=>listen('document',t,f,c),activeElement:{tagName:'BODY'},
   querySelector:s=>({'header':node('header'),'footer':node('dock'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details')}[s]||null)},
   innerWidth:390,innerHeight:844,devicePixelRatio:1,focused:true,window:{addEventListener:(t,f,c)=>listen('window',t,f,c)},screen:{},performance:{now:()=>100},addEventListener(){},
-  localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
+  localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},cancelAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
 context.document.body=node('body');context.document.body.appendChild=()=>{};context.document.documentElement=node('html');context.navigator={};
 vm.createContext(context);
 const html=fs.readFileSync(path.join(root,'mobile/www/index.html'),'utf8');
