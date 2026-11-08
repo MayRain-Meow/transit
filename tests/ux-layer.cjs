@@ -329,5 +329,40 @@ test('landscape focus pan joins the restore session (task list / line picker →
   assert.deepEqual(run('({x:uxFrameRestore.from.x,y:uxFrameRestore.from.y,scale:uxFrameRestore.from.scale})'),before,'with the view from before it');
   run('requestAnimationFrame=globalThis.__raf;portraitMode=globalThis.__pm;uxFrameRestore=null;clearSelection()');
 });
+test('messages: lifecycle note is skipped for a new game and honest for a finished one',()=>{
+  fresh();run('uxToastHold=0;S.lines=[];S.day=0;S.lives=1;toast("seed");toast("已回到游戏 · 当前暂停，点 ▶ 继续")');
+  assert.equal(node('toast').textContent,'seed','a brand-new game has nothing to resume');
+  run('S.day=12;S.lives=0;toast("已回到游戏 · 当前暂停，点 ▶ 继续")');
+  assert.match(node('toast').textContent,/本局已结束/,'a finished game does not invite ▶');
+  run('S.lives=1');
+});
+test('messages: idle info waits behind fresh action feedback; warnings never wait',()=>{
+  fresh();run('uxToastHold=0;toast("已支付 ¥560 · 维修需要 3 天")');
+  assert.equal(run('uxToastHold>0'),true,'feedback holds the line');
+  run('toast("中级居住城市可经营农田 · 点击城市查看")');
+  assert.match(node('toast').textContent,/已支付/,'idle info does not replace the payment confirmation');
+  run('toast("河岸镇候客厅持续满员，扣一条生命")');
+  assert.match(node('toast').textContent,/扣一条生命/,'a loss is shown at once');
+  run('uxToastHold=0');
+});
+test('finished match: the run button becomes 结算 and reopens the results',()=>{
+  fresh();run('uxLate&&uxLate();globalThis.__go=0;globalThis.__gameover=gameover;gameover=()=>{__go++};S.lives=0;updateUI()');
+  assert.equal(node('pause').textContent,'结算');
+  run('uxEl("pause").onclick()');assert.equal(run('__go'),1,'tapping it opens the results');
+  run('gameover=__gameover;S.lives=1;updateUI()');
+});
+test('dense map: crowded queues collapse to one row; labels drop the region until needed',()=>{
+  fresh();run('S.cities[0].q=Array.from({length:30},()=>({color:0,shape:0,wait:0}))');
+  assert.equal(run('QUEUE_SHOWN_FOR(S.cities[0])'),6,'one row when crowded');
+  run('S.cities[0].q.length=8');assert.equal(run('QUEUE_SHOWN_FOR(S.cities[0])'),12,'quiet cities keep two rows');
+  assert.equal(run('CITY_LABEL({name:"临江·起始城市圈"},false)'),run('view.scale>=1.25')?'临江·起始城市圈':'临江');
+  assert.equal(run('CITY_LABEL({name:"临江·起始城市圈"},true)'),'临江·起始城市圈','the selected city shows its region');
+  run('S.cities[0].q=[]');
+});
+test('help: the quick steps state the real life-loss rule (full hall for 180 s), not individual waiting',()=>{
+  fresh();run('help()');const h=node('modal-content').innerHTML;
+  assert.doesNotMatch(h,/候车太久会扣命/);assert.match(h,/满员/);
+  run('closeModal()');
+});
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;

@@ -34,8 +34,35 @@ const uxUpdateUI = updateUI;
 updateUI = function () {
   uxUpdateUI();
   const p = uxEl('points'); if (p) p.textContent = money(S.points);
-  const n = uxEl('notice'); if (n && n.textContent.startsWith('城市成长测试版')) n.textContent = uxCoachActive() ? '' : '点城市查看任务 · 拖线后在底栏点「建设」';
+  // The intro notice repeated the first-game coach (and reappeared right after the coach was closed): the coach is the only guide.
+  const n = uxEl('notice'); if (n && n.textContent.startsWith('城市成长测试版')) n.textContent = '';
   if (n && /运营中心|工程采购|交通采购|收支账本/.test(n.textContent)) n.textContent = uxRename(n.textContent);
+};
+
+/* ---------- transient messages ---------- */
+// Action feedback (money moved, something built) stays readable for a moment: idle information arriving meanwhile
+// ("…可以建设", "…可经营", "…已开放") waits its turn instead of replacing it. Warnings, losses and everything else are
+// never delayed. The lifecycle "paused, press ▶" note is skipped for a brand-new game (nothing
+// to resume yet; the coach is on screen) and, for a finished game, says what the header button now does.
+const UX_FEEDBACK = /已支付|支出|退还|全退|已建设|建成|已应用|已购买|买入|卖出|已出售/;
+const UX_IDLE_INFO = /可以建设|可经营|可以经营|点击城市查看|已开放|开放了|新城市|发现待接入/;
+let uxToastHold = 0, uxToastQueued = null, uxToastTimer = 0;
+const uxToastBase = toast;
+toast = function (t, ...a) {
+  t = String(t ?? '');
+  if (/^已回到游戏/.test(t)) {
+    if (S && S.lives <= 0) t = '本局已结束 · 点右上「结算」查看成绩，或选图开新局';
+    else if (S && !S.lines.length && S.day < 1) return;
+  }
+  if (/^从一座城市拖向另一座/.test(t) && uxCoachActive()) return;   // the coach already says this
+  const now = typeof performance !== 'undefined' ? performance.now() : 0;
+  if (now < uxToastHold && UX_IDLE_INFO.test(t)) {
+    uxToastQueued = [t, ...a]; clearTimeout(uxToastTimer);
+    uxToastTimer = setTimeout(() => { const q = uxToastQueued; uxToastQueued = null; if (q) toast(...q); }, uxToastHold - now);
+    return;
+  }
+  if (UX_FEEDBACK.test(t)) uxToastHold = now + 2600;
+  return uxToastBase(t, ...a);
 };
 
 /* ---------- line palette: distinct on small screens, away from the passenger destination hues ---------- */
@@ -88,7 +115,7 @@ welcome = function (hasSave) {
 <ul class="ux-points">
 <li><i>¥</i><span><b>起步资金有限</b>大巴 ¥${TYPES.bus.vehicle}，拉线另计建设费，报价就在底栏</span></li>
 <li><i>↗</i><span><b>任务推动繁荣</b>点城市或「任务」查看阶段目标，奖金自动到账</span></li>
-<li><i>♥</i><span><b>别让乘客久等</b>候客厅持续满员才会失去生命</span></li>
+<li><i>♥</i><span><b>别让候客厅满员</b>候车达到容量并持续 180 秒，失去一条命</span></li>
 </ul>
 <div class="ux-actions"><button class="primary ux-wide" onclick="startGame()">${hasSave ? '继续游戏' : '开始游戏'}</button>${hasSave ? '<button id="ux-new" class="ux-ghost" onclick="uxConfirmNew(this)">重新开始</button>' : ''}</div>
 <p class="ux-foot">独立测试存档，不影响正式版 · 每游戏日 12 秒 · <a href="../updates/index.html">更新说明</a> · <a href="../">正式版</a></p>`);
@@ -213,7 +240,7 @@ function uxPlaceToast() {
     const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
   }
   // A sheet that fills most of the screen leaves no room above it: use the top of the map instead.
-  const sheet = uxEl('details'), tall = !!sheet && !sheet.hidden && sheet.getBoundingClientRect().top < H * .35;
+  const tall = ['details', 'junction-picker'].some(id => { const e = uxEl(id); return !!e && !e.hidden && e.getBoundingClientRect().top < H * .35; });
   if (tall) { el.style.bottom = 'auto'; el.style.top = ((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8) + 'px'; return; }
   el.style.top = 'auto'; el.style.bottom = (H - top + 10) + 'px';
 }
@@ -257,7 +284,7 @@ ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不�
 <div class="ux-stepper"><button onclick="uxFleetMinus(${l.id})" ${!vs.some(v => !v.recall) ? 'disabled' : ''} aria-label="回收一辆">−</button><button class="primary" onclick="uxFleetPlus(${l.id})" ${canAdd ? '' : 'disabled'}>＋ ${inv > 0 ? '库存 ' + inv : '¥' + T.vehicle}</button></div></div>
 <div class="ux-route">${stops.map(id => `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`).join('<i>→</i>')}</div>
 
-${vs.length ? `<div class="ux-list">${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${v.people.length}/${vehCap(v)} 人${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
+${vs.length ? `<div class="ux-list">${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${vs.length > 1 ? v.people.length + '/' + vehCap(v) + ' 人' : ''}${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
 <div class="ux-actions-row">${l.type !== 'air' ? `<button onclick="openInfrastructure(${l.id})">道路升级</button>` : ''}<button class="ux-danger" onclick="uxDeleteLine(${l.id})">${uxArmedDelete?.id === l.id && uxArmedDelete.until > performance.now() ? '再点一次确认撤销' : '取消线路'}</button></div>`;
 }
 // Cancellation opens an itemised recovery quote before any assets are retired.
@@ -285,26 +312,53 @@ const UX_FACILITIES = [
   { on: /^buildRepairCenter|^previewRepairCenter/, name: '检修中心', why: '附近施工与抢修工期最多−10%', icon: '<path d="M14 6a4 4 0 0 0-5 5l-5 5 3 3 5-5a4 4 0 0 0 5-5l-2 2-3-3 2-2z"/>' },
   { on: /^buildFinance|^showFinanceConstruction|^openStockMarket|^showFinancialMarket/, name: '金融设施', why: '银行理财、证券交易', icon: '<path d="M3 20h18M5 16v-5M10 16V8M15 16V5M20 16v-8"/>' },
 ];
+// "本圈 · 起始城市圈 · ◆ 紫色商业金融  50  212s" → the region becomes a group heading once; each row is
+// [destination] ……… [people] [longest wait], largest group first, so counts line up and can be compared.
+function uxWaitList(el, rows) {
+  const items = rows.map(b => {
+    const [who, meta] = [b.children[0], b.children[1]], t = meta?.textContent || '';
+    const label = (who?.textContent || '').trim(), parts = label.split(' · ');
+    const n = +(t.match(/(\d+)\s*人/)?.[1] || 0), wait = +(t.match(/·\s*(\d+)/)?.[1] || 0);
+    return { b, color: who?.style.color || '', what: parts.length > 1 ? parts.at(-1) : label, group: parts.length > 1 ? parts.slice(0, -1).join(' · ') : '', n, wait };
+  });
+  const total = g => items.filter(x => x.group === g).reduce((s, x) => s + x.n, 0);
+  const groups = [...new Set(items.map(x => x.group))].sort((a, b) => (/^本圈/.test(b) - /^本圈/.test(a)) || total(b) - total(a));
+  const box = document.createElement('section'); box.className = 'ux-wait';
+  box.innerHTML = '<div class="ux-wait-head"><span>等车去</span><small>人数</small><small>最久</small></div>';
+  rows[0].before(box);
+  for (const g of groups) {
+    if (g && (groups.length > 1 || !/^本圈/.test(g))) { const h = document.createElement('div'); h.className = 'ux-wait-group'; h.innerHTML = escapeHTML(g) + '<small>' + total(g) + ' 人</small>'; box.appendChild(h); }
+    for (const x of items.filter(i => i.group === g).sort((a, b) => b.n - a.n || b.wait - a.wait)) {
+      x.b.className = 'ux-wait-row' + (x.wait > 120 ? ' is-late' : '');
+      x.b.innerHTML = '<span style="color:' + x.color + '">' + escapeHTML(x.what) + '</span><b>' + x.n + '</b><small>' + (x.wait ? x.wait + 's' : '—') + '</small>';
+      box.appendChild(x.b);
+    }
+  }
+  for (const p of el.querySelectorAll(':scope > p.detail-sub')) if (/候车目的地/.test(p.textContent)) p.remove();
+  // what is waiting comes before the city's long-term mission: it is what the player opened the city for
+  const mission = el.querySelector(':scope > .city-mission'); if (mission && mission.compareDocumentPosition(box) & 4) mission.before(box);
+}
+// The two numbers at the top are different things: people waiting vs. capacity, and how long the hall has been full.
+// Say so, and say what happens at the limit (management.js: pressure grows only while waiting ≥ capacity).
+function uxLoadBlock(el) {
+  const g = el.querySelector(':scope > .metric-grid'); if (!g || el.querySelector('.ux-load')) return;
+  const c = S.cities[selected.id]; if (!c || typeof capacity !== 'function') return;
+  const n = c.q.filter(p => !p.cardId && !p.eventId).length, cap = capacity(c), limit = (typeof CONGESTION_LIMIT === 'number' ? CONGESTION_LIMIT : 180) * (c.shape === 1 ? 1.25 : 1);
+  const p = Math.max(0, c.congestionPressure || 0), full = n >= cap, special = c.q.length - n;
+  const state = c.shield > 0 ? ['保护中 ' + Math.ceil(c.shield) + 's', 'is-calm'] : full ? ['超出 ' + (n - cap), 'is-over'] : n >= cap * .8 ? ['接近满员', 'is-near'] : ['未满', 'is-calm'];
+  const box = document.createElement('section'); box.className = 'ux-load';
+  box.innerHTML = '<div class="ux-load-main"><b>' + n + '</b><span>人候车 · 容量 ' + cap + (special ? ' · 另有活动乘客 ' + special : '') + '</span><em class="' + state[1] + '">' + state[0] + '</em></div>'
+    + '<div class="ux-load-press"><span class="ux-bar' + (full ? ' is-over' : '') + '"><i style="width:' + Math.min(100, p / limit * 100) + '%"></i></span><small>' + (!full && p > 0 ? '满员计时回落中 ' : '满员计时 ') + Math.floor(p) + '/' + Math.round(limit) + ' 秒 · 计满扣一条命</small></div>';
+  g.replaceWith(box);
+  const bar = box.nextElementSibling; if (bar?.classList?.contains('bar')) bar.remove();
+}
 function uxTidyCitySheet() {
   const el = uxEl('details');
   if (!el || el.hidden || !selected || !['city', 'stop'].includes(selected.type) || el.querySelector('.ux-fac')) return;
   // demand: chips instead of a captioned list
   const rows = [...el.querySelectorAll(':scope > .destination-row')];
-  if (rows.length) {
-    const box = document.createElement('div'); box.className = 'ux-demand';
-    box.innerHTML = '<span class="ux-demand-label">等车去</span>';
-    rows[0].before(box);
-    for (const b of rows) {
-      const [who, meta] = [b.children[0], b.children[1]];
-      const n = (meta?.textContent || '').match(/(\d+)人/)?.[1] || '', wait = +((meta?.textContent || '').match(/·\s*(\d+)/)?.[1] || 0);
-      b.className = 'ux-chip' + (wait > 120 ? ' is-late' : '');
-      b.innerHTML = `<span style="color:${who?.style.color || ''}">${who?.innerHTML || ''}</span><b>${n}</b>${wait > 60 ? `<small>${wait}s</small>` : ''}`;
-      b.dataset.wait = wait; b.dataset.n = n;
-    }
-    // most urgent first: longest wait, then most people
-    rows.sort((x, y) => (+y.dataset.wait - +x.dataset.wait) || (+y.dataset.n - +x.dataset.n)).forEach(b => box.appendChild(b));
-    for (const p of el.querySelectorAll(':scope > p.detail-sub')) if (/候车目的地|没有旅客/.test(p.textContent) && !/没有旅客/.test(p.textContent)) p.remove();
-  }
+  if (rows.length) uxWaitList(el, rows);
+  uxLoadBlock(el);
   // facilities: every known entry button becomes a tile
   const tiles = [];
   for (const b of [...el.querySelectorAll('button[onclick]')]) {
@@ -325,6 +379,15 @@ function uxTidyCitySheet() {
     grid.innerHTML = '<div class="ux-list-title">城市设施</div>';
     tiles.forEach(t => grid.appendChild(t));
     el.appendChild(grid);
+    const strip = document.createElement('div'); strip.className = 'ux-fac-strip';
+    strip.innerHTML = '<span>设施</span>' + tiles.map((t, i) => '<button data-i="' + i + '" title="' + escapeHTML(t.title || '') + '"' + (t.disabled ? ' class="is-off"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + (t.querySelector('svg')?.innerHTML || '') + '</svg><small>' + escapeHTML(t.querySelector('b')?.textContent || '') + '</small></button>').join('');
+    strip.onclick = e => {
+      const b = e.target.closest('button[data-i]'); if (!b) return;
+      uxSheetSet('full');
+      const t = grid.querySelectorAll('.ux-fac-tile')[+b.dataset.i];
+      setTimeout(() => { t?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }); t?.classList.add('is-flash'); setTimeout(() => t?.classList.remove('is-flash'), 1400); }, 260);
+    };
+    (el.querySelector('.ux-load') || el.querySelector('.detail-sub'))?.after(strip);
   }
   for (const n of el.querySelectorAll(':scope > .detail-actions')) if (!n.querySelector('button')) n.remove();
 }
@@ -443,10 +506,10 @@ function uxHandles() {
 // Returns the tab's world direction and distance for an end city whose line arrives along (ux, uy).
 function uxTabPlace(c, ux, uy) {
   const s = view.scale, g = globalThis.CITY_GLYPH?.() ?? 1, r = radius(c), base = uxNodePx(c) + UX_TAB_GAP;
-  const n = Math.min(c.q?.length || 0, globalThis.QUEUE_SHOWN || 30);
+  const n = Math.min(c.q?.length || 0, typeof globalThis.QUEUE_SHOWN_FOR === 'function' ? QUEUE_SHOWN_FOR(c) : globalThis.QUEUE_SHOWN || 30);
   const o = toScreen(c), t = toScreen({ x: c.x + ux, y: c.y + uy }), dl = Math.hypot(t.x - o.x, t.y - o.y) || 1, sx = (t.x - o.x) / dl, sy = (t.y - o.y) / dl;
   const rows = Math.ceil(Math.min(Math.max(n, 1), 30) / 6), pad = UX_TAB_R + 4;
-  const box = { l: (r + 15) * s * g - pad, r: (r + 15 + 6 * 11) * s * g + pad + 22, t: -r * s * g - pad, b: (-r + rows * 12) * s * g + pad };
+  const box = { l: (r + 15) * s * g - pad, r: (r + 15 + 6 * 11) * s * g + pad + 44, t: -r * s * g - pad, b: (-r + rows * 12) * s * g + pad };
   const hits = (x, y) => n && x >= box.l && x <= box.r && y >= box.t && y <= box.b;
   for (const deg of [0, -40, 40, -80, 80, -120, 120]) {
     const q = deg * Math.PI / 180, dx = sx * Math.cos(q) - sy * Math.sin(q), dy = sx * Math.sin(q) + sy * Math.cos(q);
@@ -622,6 +685,20 @@ function uxCityUpright(fn) {
   };
 }
 function uxWrapLateDrawers() {
+  // Lines: a paper-coloured casing under each stroke. Where lanes run side by side the next line's casing draws a
+  // hairline gap, so each colour can be followed through a shared corridor (as on a transit map). Dashed strokes
+  // (air, drafts, broken segments) are left as they are.
+  if (typeof drawSegment === 'function' && !drawSegment.uxCasing) {
+    const seg = drawSegment;
+    drawSegment = function (a, b, l, ...rest) {
+      if (l && S?.lines?.includes(l) && !(ctx.getLineDash?.() || []).length && typeof strokeLaneRange === 'function') {
+        ctx.save(); ctx.strokeStyle = '#fbf9f1'; ctx.lineWidth += 2.4; ctx.lineCap = 'butt';
+        try { strokeLaneRange(a, b, l); ctx.stroke(); } catch {} ctx.restore();
+      }
+      return seg.call(this, a, b, l, ...rest);
+    };
+    drawSegment.uxCasing = true;
+  }
   for (const name of ['drawMissionBadges', 'drawEventMarkers', 'drawCityEconomy', 'drawRouteGhosts'])
     if (typeof globalThis[name] === 'function' && !globalThis[name].uxUpright) { const f = uxCityUpright(globalThis[name]); f.uxUpright = true; globalThis[name] = f; }
   if (typeof drawCityOpening === 'function' && !drawCityOpening.uxUpright) {
@@ -657,7 +734,7 @@ function uxHowToPlay(m) {
   steps.innerHTML = [
     ['连线', '从一座城市拖到另一座，看底栏报价，点「建设」。'],
     ['配车', '点线路，用「＋」加车；拖线路两端的「＋」延长。'],
-    ['送客', '乘客的色块就是目的地，送到同色同形的城市。候车太久会扣命。'],
+    ['送客', '乘客的色块就是目的地，送到同色同形的城市。候客厅满员（候车 ≥ 容量）持续 180 秒扣一条命（旅游城市 225 秒），降到容量以下压力会回落。'],
     ['成长', '完成城市任务拿奖金、城市升级；每 10 天补助，月底付维护。'],
   ].map(([t, d], i) => `<li><i>${i + 1}</i><span><b>${t}</b>${d}</span></li>`).join('');
   (head || m.firstChild)?.after(steps);
@@ -731,8 +808,9 @@ const UX_HUBS = {
   build: { name: '建造', tabs: [['桥梁与道路', 'showEngineering'], ['车辆', 'shop'], ['天气', 'showWeather']] },
   money: { name: '资金', tabs: [['收支', 'showFinance'], ['维护', 'showMaintenance'], ['理财', 'uxMarketWealth'], ['股票', 'uxMarketStocks']] },
 };
-function uxMarketWealth() { showFinancialMarket(marketTab === 'portfolio' ? 'portfolio' : 'wealth'); }
-function uxMarketStocks() { showFinancialMarket('stocks'); }
+let uxMoneyIntent = null;   // tab index the player tapped (lock pages cannot tell 理财 from 股票 by their text)
+function uxMarketWealth() { uxMoneyIntent = 2; showFinancialMarket(marketTab === 'portfolio' ? 'portfolio' : 'wealth'); }
+function uxMarketStocks() { uxMoneyIntent = 3; showFinancialMarket('stocks'); }
 function uxOpenHub(key, i = 0) { haptic(); globalThis[UX_HUBS[key].tabs[i][1]](); }
 function uxHubBar(key, idx, m) {
   const hub = UX_HUBS[key];
@@ -994,9 +1072,57 @@ function uxMarkColor() {
     b.setAttribute('onclick', `setLineColor(${l.id},'${l.color}')`); row.prepend(b);
   }
 }
+// Line picker at a shared station: the city entry says how loaded the station is and comes first; drawing a line
+// out of it is a secondary chip on each row.
+function uxJunctionCity(id) {
+  const c = S.cities[id], b = uxEl('junction-picker')?.querySelector('.junction-city-task'); if (!c || !b || typeof capacity !== 'function') return;
+  const n = c.q.filter(p => !p.cardId && !p.eventId).length, cap = capacity(c), cls = n >= cap ? 'is-over' : n >= cap * .8 ? 'is-near' : '';
+  b.innerHTML = '<span><b>城市详情</b><small>任务、设施与候车明细</small></span><em class="' + cls + '">候车 ' + n + '/' + cap + '</em><i>›</i>';
+}
 function uxWrapHubs() {
+  // A trade re-renders the market page: keep the reading position and the quantity the player typed.
+  if (typeof tradeStock === 'function') {
+    const ts = tradeStock;
+    tradeStock = function (id, side, ...a) {
+      const m = uxEl('modal-content'), top = m?.scrollTop || 0, q = uxEl('stock-quantity')?.value;
+      const r = ts.call(this, id, side, ...a);
+      const m2 = uxEl('modal-content'); if (m2) m2.scrollTop = top;
+      const inp = uxEl('stock-quantity'); if (inp && q && inp.value !== q) { inp.value = q; try { updateStockOrderQuote(id); } catch {} }
+      return r;
+    };
+  }
+  // Research: × closes to the map like every other sheet; when opened from the ledger, a back link returns there.
+  if (typeof showTransportResearch === 'function') {
+    const sr = showTransportResearch;
+    showTransportResearch = function (...a) {
+      const fromLedger = typeof modalOpen !== 'undefined' && modalOpen && uxDockState.hub === 'money';
+      const r = sr.apply(this, a), head = uxEl('modal-content')?.querySelector('.modal-head');
+      head?.querySelectorAll('.close').forEach(b => { b.setAttribute('onclick', 'closeModal()'); b.setAttribute('aria-label', '关闭'); });
+      if (fromLedger && head && !head.querySelector('.ux-back')) { const b = document.createElement('button'); b.className = 'ux-back'; b.textContent = '‹ 收支'; b.setAttribute('onclick', "uxOpenHub('money',0)"); head.prepend(b); }
+      return r;
+    };
+  }
+  // Line settings: a visible way to leave without saving.
+  if (typeof renameLine === 'function') {
+    const rl = renameLine;
+    renameLine = function (id, ...a) {
+      const r = rl.call(this, id, ...a), m = uxEl('modal-content'), h = m?.querySelector(':scope > h2');
+      if (h && !m.querySelector('.modal-head')) { const head = document.createElement('div'); head.className = 'modal-head'; h.before(head); head.append(h); head.insertAdjacentHTML('beforeend', '<button class="close" onclick="closeModal()" aria-label="不保存，关闭">×</button>'); }
+      const save = m?.querySelector('button.primary[onclick^="applyName"]');
+      if (save && !m.querySelector('.ux-confirm')) { const row = document.createElement('div'); row.className = 'ux-confirm'; save.before(row); row.insertAdjacentHTML('beforeend', '<button onclick="closeModal()">取消</button>'); row.append(save); }
+      return r;
+    };
+  }
+  // Build page: with no earthquake there is nothing to warn about; the monitor is one quiet settings row.
+  uxAfter('showEngineering', m => {
+    const q = m.querySelector('.quake-summary'); if (!q || q.querySelector('[onclick*="focusEarthquake"]')) return;
+    q.classList.add('is-idle');
+    const p = q.querySelector('p'); if (p) p.remove();
+    const b = q.querySelector('b'); if (b) b.innerHTML = '地震监测<small>暂无震情</small>';
+  });
   if (typeof showJunction === 'function') { const sj = showJunction; showJunction = function (...a) {
     const r = sj.apply(this, a);
+    uxJunctionCity(a[0]);
     if (portraitMode) { const el = uxEl('junction-picker'); if (el?.style) el.style.maxHeight = '';
       // opening the picker hides the details sheet, which may start a 280ms view restore: frame once that settles
       setTimeout(() => { if (selected?.type === 'junction' && typeof requestAnimationFrame === 'function') requestAnimationFrame(uxFrameSelection); }, 320); }
@@ -1034,18 +1160,68 @@ function uxWrapHubs() {
     if (fn === 'uxMarketWealth' || fn === 'uxMarketStocks') return;
     uxAfter(fn, m => uxHubBar(key, i, m));
   });
-  uxAfter('showFinancialMarket', m => uxHubBar('money', marketTab === 'stocks' ? 3 : 2, m));
-  uxAfter('showFinanceLock', m => uxHubBar('money', /证券|券商/.test(m.textContent) && !/银行尚未/.test(m.textContent) ? 3 : 2, m));
+  uxAfter('showFinancialMarket', m => { uxMoneyIntent = null; uxHubBar('money', marketTab === 'stocks' ? 3 : 2, m); });
+  uxAfter('showFinanceLock', m => { const i = uxMoneyIntent ?? (/证券|券商/.test(m.textContent) && !/银行尚未/.test(m.textContent) ? 3 : 2); uxMoneyIntent = null; uxHubBar('money', i, m); });
   // the old operations centre is retired: its callers ("返回" buttons, accepting a contract) land in the goal hub
   showOperations = function () { uxOpenHub('goal', 1); };
   // dock + header entries
   for (const key of ['goal', 'build', 'money']) { const b = uxEl('hub-' + key); if (b) b.onclick = () => uxOpenHub(key); }
 }
 // events.js loads after this file and redefines some drawers and sheets, so wrap once every script has run.
+// A finished match stays on screen for looking back at the network: the ▶ button becomes 「结算」 (reopens the results),
+// so nothing suggests the run can be continued.
+/* ---------- network tray ---------- */
+// Upstream (1.2.10) keeps a titled, collapsible line list with its own 「＋ 新建线路」. On phones every line is a chip in
+// a wrapping grid (eight lines = two or three rows, none hidden off to the side); collapsed, the heading carries one
+// tappable swatch per line so the count and colours stay readable. The collapsed choice is remembered per browser.
+const UX_TRAY_KEY = 'transit-ux-tray-collapsed';
+function uxTray() {
+  const p = uxEl('routes'), head = p?.querySelector?.('.panel-heading'); if (!head || !S) return;
+  let sw = head.querySelector('.ux-swatches');
+  if (!sw) { sw = document.createElement('span'); sw.className = 'ux-swatches'; head.insertBefore(sw, head.children[1] || null); }
+  const key = S.lines.map(l => l.id + l.color + (selected?.type === 'line' && selected.id === l.id ? '*' : '')).join();
+  if (sw.dataset.key !== key) {
+    sw.dataset.key = key;
+    sw.innerHTML = S.lines.map(l => `<button style="--c:${l.color}" class="${selected?.type === 'line' && selected.id === l.id ? 'on' : ''}" onclick="selectLine(${l.id})" aria-label="${escapeHTML(l.name)}"></button>`).join('');
+  }
+  const ov = uxEl('overview'), foot = p.querySelector('.route-foot');
+  if (ov && portraitMode && ov.parentElement !== head) head.insertBefore(ov, uxEl('route-new130') || uxEl('collapse'));
+  else if (ov && !portraitMode && foot && ov.parentElement !== foot) foot.appendChild(ov);
+}
+function uxTrayInit() {
+  const btn = uxEl('collapse'), p = uxEl('routes'); if (!btn || !p) return;
+  let saved = null; try { saved = localStorage.getItem(UX_TRAY_KEY); } catch {}
+  if (saved === '1' && !p.classList.contains('collapsed')) btn.onclick?.();
+  const tap = btn.onclick; btn.onclick = function (...a) { const r = tap?.apply(this, a); try { localStorage.setItem(UX_TRAY_KEY, p.classList.contains('collapsed') ? '1' : '0'); } catch {} return r; };
+  const ui = updateUI; updateUI = function (...a) { const r = ui.apply(this, a); uxTray(); return r; };
+  uxTray();
+}
+// The dock shows which hub's sheet is open; nothing is highlighted while the map is in front.
+function uxDockState() {
+  const open = typeof modalOpen !== 'undefined' && modalOpen ? uxDockState.hub : null;
+  for (const k of ['goal', 'build', 'money']) uxEl('hub-' + k)?.classList?.toggle('is-open', open === k);
+}
+function uxEndedState() {
+  const b = uxEl('pause'); if (!b) return;
+  const tap = b.onclick;
+  b.onclick = function (e) { if (S && S.lives <= 0) { if (typeof gameover === 'function') gameover(); return; } return tap?.call(this, e); };
+  const ui = updateUI; updateUI = function (...a) {
+    const r = ui.apply(this, a), ended = !!S && S.lives <= 0;
+    if (b.classList?.contains('is-ended') !== ended) b.classList?.toggle('is-ended', ended);
+    if (ended) { if (b.textContent !== '结算') b.textContent = '结算'; b.setAttribute?.('aria-label', '本局已结束，查看结算'); }
+    return r;
+  };
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
+  uxEndedState(); uxTrayInit();
+  if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
+  if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
+  uxEl('hub-build')?.classList?.remove('is-primary');
+  { const oh = uxOpenHub; uxOpenHub = function (k, ...a) { uxDockState.hub = k; const r = oh.call(this, k, ...a); uxDockState(); return r; }; }
+  { const cm = closeModal; closeModal = function (...a) { const r = cm.apply(this, a); uxDockState(); return r; }; }
   // later layers set the notice text inside their own updateUI; rename after all of them
   const ui = updateUI; updateUI = function (...a) { const r = ui.apply(this, a); const n = uxEl('notice'); if (n && /运营中心|工程采购|交通采购|收支账本/.test(n.textContent)) n.textContent = uxRename(n.textContent); return r; };
   const ui2 = updateUI; updateUI = function (...a) {
@@ -1135,6 +1311,11 @@ function uxFrameSelection() {
   const full = uxEl('details')?.classList.contains('is-full');
   uxFrame(uxSelectionPoints(), selected?.type === 'line' ? (full ? 30 : 50) : (full ? 36 : 90));
 }
+function uxPeekBar() {
+  const d = uxEl('details'); if (!d || d.hidden || !d.appendChild) return;
+  let b = d.querySelector(':scope > .ux-peekbar');
+  if (!b) { b = document.createElement('button'); b.className = 'ux-peekbar'; b.innerHTML = '展开全部 <i>⌃</i>'; b.onclick = () => uxSheetSet('full'); d.appendChild(b); }
+}
 function uxSheetSet(state) {
   const d = uxEl('details'); if (!d) return;
   d.classList.toggle('is-peek', state === 'peek'); d.classList.toggle('is-full', state === 'full');
@@ -1148,6 +1329,7 @@ function uxSheetSet(state) {
     if (d.hidden || !selected) { lastKey = ''; uxSyncPreviews(); d.classList.remove('is-peek', 'is-full'); return; }
     const k = selected.type + ':' + selected.id;
     if (k !== lastKey) { lastKey = k; uxSyncPreviews(); uxSheetSet('peek'); }
+    uxPeekBar();
   }).observe(d, { attributes: true, attributeFilter: ['hidden'], childList: true });
   let y0 = null, top0 = 0;
   d.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; top0 = d.scrollTop; }, { passive: true });
@@ -1157,6 +1339,12 @@ function uxSheetSet(state) {
     if (dy < -40 && !full) { uxSheetSet('full'); haptic(); }
     else if (dy > 50 && top0 <= 0) { if (full) uxSheetSet('peek'); else clearSelection(); haptic(); }
   }, { passive: true });
+  // mouse wheel: scrolling down on a peek opens the whole sheet; scrolling up at the top of a full sheet goes back
+  d.addEventListener('wheel', e => {
+    if (!portraitMode) return;
+    if (d.classList.contains('is-peek') && e.deltaY > 0) { e.preventDefault(); uxSheetSet('full'); }
+    else if (d.classList.contains('is-full') && e.deltaY < -20 && d.scrollTop <= 0) { e.preventDefault(); uxSheetSet('peek'); }
+  }, { passive: false });
   d.addEventListener('click', e => { // a tap on the grip strip toggles; taps fire click on touch screens too
     if (portraitMode && e.clientY - d.getBoundingClientRect().top < 30 && !e.target.closest('button')) uxSheetSet(d.classList.contains('is-full') ? 'peek' : 'full'); });
 })();
@@ -1173,6 +1361,21 @@ for (const [name, radius] of [['previewMeteo', c => meteoPreview?.radius || 240]
 /* ---------- map legibility: halos, fewer squares, quiet decorations while you work ---------- */
 globalThis.TEXT_HALO = '#fffef9e6';   // soft outline keeps labels readable over lines and buildings
 globalThis.QUEUE_SHOWN = 12;           // two rows of waiting squares, then "+n"
+// A crowded city (more than two rows) shows one row and a pill with waiting / capacity, coloured by load: the number
+// that decides what to do (181/128) is on the map instead of "+169" and a wall of squares.
+globalThis.QUEUE_SHOWN_FOR = c => (c.q?.length || 0) > 12 ? 6 : 12;
+globalThis.QUEUE_TAIL = function (c, px, py) {
+  const n = c.q.length, cap = typeof capacity === 'function' ? capacity(c) : 0, ratio = cap ? n / cap : 0;
+  const label = cap ? n + '/' + cap : String(n), w = 7 + label.length * 5.6, x = px + 6 * 11 + 2, y = py - 1;
+  const [bg, fg] = ratio >= 1 ? ['#b5573f', '#fff'] : ratio >= .7 ? ['#e9c27a', '#4a3a1c'] : ['#eef1ea', '#4f5f58'];
+  ctx.save(); ctx.globalAlpha *= .96; ctx.fillStyle = bg; ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, 11, 5.5); else ctx.rect(x, y, w, 11);
+  ctx.fill(); ctx.restore();
+  text(label, x + w / 2, y + 8.3, 8.5, fg);
+  return true;
+};
+// "临江·起始城市圈": the region half is shown for the selected city or when zoomed in, not on every label.
+globalThis.CITY_LABEL = (c, sel) => sel || view.scale >= 1.25 || !c.name.includes('·') ? c.name : c.name.split('·')[0];
 globalThis.TIMERS_BELOW = true;        // countdowns sit under the name, not on the buildings
 globalThis.SUBTITLE_MIN_SCALE = .8;    // "旅游 · 小镇" only when zoomed in (or the city is selected)
 (function quietArt() {
@@ -1213,7 +1416,7 @@ function uxCompact() { return portraitMode || H <= 500; }
 const PLAY_MIN_SCALE_LAND = .6;
 function uxPlayTarget() {
   const all = fitTarget();
-  if (!uxCompact()) return all;
+  if (!uxCompact()) return uxDeskPlayTarget(all);
   if (portraitMode && all.scale >= PLAY_MIN_SCALE) return all;
   const active = realCities().filter(c => !c.dormant); if (!active.length) return all;
   const rot = view.rot; let s, box;
@@ -1238,15 +1441,27 @@ function uxPlayTarget() {
   }
   return { x: best.v.x, y: best.v.y, scale: s };
 }
+// Desktop: a large screen showing the whole map leaves an early network as a small patch in a field of trees.
+// Frame the cities in play with room around them for growth; once the network spreads the whole map is the view.
+function uxDeskPlayTarget(all) {
+  const active = realCities().filter(c => !c.dormant); if (active.length < 2) return all;
+  const r = uxVisibleRect(), box = { l: r.l + 40, r: r.r - 40, t: r.t + 30, b: r.b - 60 };
+  const xs = active.map(c => c.x), ys = active.map(c => c.y);
+  const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)), m = Math.max(140, span * .4);
+  const wx = Math.max(...xs) - Math.min(...xs) + 2 * m, wy = Math.max(...ys) - Math.min(...ys) + 2 * m;
+  const s = Math.min(1.6, (box.r - box.l) / (view.rot ? wy : wx), (box.b - box.t) / (view.rot ? wx : wy));
+  if (s <= all.scale * 1.08) return all;
+  const c = { x: (Math.max(...xs) + Math.min(...xs)) / 2, y: (Math.max(...ys) + Math.min(...ys)) / 2 };
+  return { ...uxViewFor(c, (box.l + box.r) / 2, (box.t + box.b) / 2, s), scale: s };
+}
 let uxOverviewOn = false;
 function uxApplyPlayView(animate) {
-  if (!uxCompact() || !S?.cities) return;
+  if (!S?.cities) return;
   const t = uxPlayTarget(); uxOverviewOn = false; uxSyncOverviewButton();
   if (animate) animateView(t); else Object.assign(view, t);
 }
 function uxSyncOverviewButton() { const b = uxEl('overview'); if (b) { b.title = uxOverviewOn ? '回到游玩视图' : '查看全图'; b.setAttribute('aria-label', b.title); b.classList.toggle('is-on', uxOverviewOn); } }
 uxEl('overview').onclick = () => {
-  if (!uxCompact()) { animateFit(); return; }
   uxOverviewOn = !uxOverviewOn; uxSyncOverviewButton();
   animateView(uxOverviewOn ? fitTarget() : uxPlayTarget()); haptic();
 };
@@ -1338,7 +1553,8 @@ function uxCoachRender() {
     document.body.appendChild(el);
   }
   if (!el) return;
-  const step = modalOpen ? '' : uxCoachStep();
+  const inspecting = !draft && ['details', 'junction-picker'].some(id => { const e = uxEl(id); return e && !e.hidden; });
+  const step = modalOpen || inspecting ? '' : uxCoachStep();
   el.hidden = !step;
   if (step && step !== uxCoach.step) el.querySelector('span').innerHTML = UX_COACH_TEXT[step];
   uxCoach.step = step;
