@@ -1,0 +1,5 @@
+.portrait-shell .modal:has(.deck128){height:calc(var(--app-h) - var(--safe-t) - var(--safe-b) - 54px)!important;max-height:880px!important}
+.portrait-shell .overlay:has(.deck128)>.portrait-modal-close{display:none!important}
+.portrait-shell .deck-stage128 .activity-card.activity-front{padding:0!important;gap:0;overflow:hidden!important}
+.portrait-shell .deck-stage128 .card-sigil{width:auto;height:auto;flex:1;margin:8px}
+.portrait-shell .deck-stage128 .card-actions128 .card-accept{margin:0!important}

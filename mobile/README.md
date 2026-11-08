@@ -1,41 +1,19 @@
-# 交通线 v1.2.7 安卓试玩工程
+# 交通线 v1.2.8 安卓试玩工程
 
-手机端适配在此维护；上传源码不代表线上网页已重新发布。
+版本 1.2.8-playtest，versionCode 12009，包名 com.transitatlas.playtest。以 GitHub 29f586a7 网页内容为基础，保留 v1.2.7 原生竖屏、手动桥梁拖动、删路与连回教学、保存返回和中断暂停功能。
 
-## 已固定的内容
+本次加入单卡分页与固定底部操作、仅向持仓用户弹收益简报、农田解锁软提示、拉线原位支付地震维修、新局平滑且相接的河网。旧存档保留原有物理河道和桥头坐标。
 
-- 包名 `com.transitatlas.playtest`；名称“交通线试玩”；版本 `1.2.7-playtest`，versionCode 12008。
-- Capacitor Core / Android / CLI 8.6.0，App 8.1.2；依赖已锁定。
-- 声明最低 Android 7.0（API 24），编译／目标 API 36；要求 Android System WebView 或 Chrome 内核至少108。此为声明要求，不等于这些机型均已实测。
-- 游戏内置本地运行，不使用远程游戏服务器；在线Google字体引用只在APK副本移除，使用系统字体。
-- 安卓 App 的 pause、appStateChange、resume 接到v1.2中断锁；返回键依次取消未提交报价、关闭弹窗／详情、返回选图，选图页再次返回则最小化。
-- 更新说明在游戏内只读窗口打开，防止网页跳转丢失原生事件监听。
-- APK和网页来源不同，存档彼此独立；卸载APK会丢失其本地存档。本工程没有跨端导入或云存档。
-- 不含广告、登录和TapTap ADN。
+安卓输入/镜头的五个基线文件继续由 web-base127 保留；web128.js、river128.js 在原生覆盖层之后加载，android128.js/css 负责平台冲突消解。不能直接删除该加载次序。
 
-## 本机重建
+## 构建
 
-需要完整 JDK21（包含javac）、Android SDK Platform36与Build Tools，以及Node22以上。首次下载依赖需要网络。
+完整 JDK21、Android SDK36 与 Build Tools35/36、Node22以上。进入 mobile 后运行 npm ci、npm run sync:android、npm run verify，然后在 android 内运行 bash gradlew assembleDebug lintDebug。
 
-1. 在本目录运行 `npm ci`。
-2. 运行 `npm run sync:android`、`npm run verify`。
-3. 用Android Studio打开android目录，或设置ANDROID_HOME、JAVA_HOME后运行 `python3 scripts/build-android.py`（Linux）；Windows可在android目录运行 `gradlew.bat assembleDebug lintDebug`。
-4. APK位于 `android/app/build/outputs/apk/debug/app-debug.apk`。
+产物 android/app/build/outputs/apk/debug/app-debug.apk。本次分发包使用原试玩签名，签名私钥不包含在本源码包，也不上传 GitHub；缺少原私钥时本地构建会使用新的调试签名，不能覆盖原分发包。
 
-默认测试图标尚未替换。私人升级签名 `signing/playtest.keystore` 不入库；缺少时使用本机 Android 调试签名，自行构建的不同签名 APK 无法覆盖已分发试玩包。请使用单独测试设备或环境。`inspect-apk.py` 的固定签名断言只适用于原分发包。
-
-`www` 为生成文件，不入库。保留同级 `dist/test04` 和 `dist/updates`，运行 `npm run sync:android` 生成资源；随后运行 `node ../tests/native-mobile.cjs`。
-
-## 最新更新
-
-竖屏及安全区适配、建造确认栏、手动桥梁连续连接、删路虚影与连回教学、启动遮罩、自动暂停保存、保存并返回本局、中级及以上居住城市农田与首次提示。
-
-验证记录对应 v1.2.7 已分发包，文件中的上传状态为当时的历史状态；不代表本次源码上传状态。
+锁定竖屏，minSdk24，WebView108以上；没有广告/登录/TapTap ADN。游戏本地运行，无跨端云存档。不要卸载旧应用，卸载会清除本地存档。
 
 ## 验证边界
 
-编译、签名、静态检查及事件适配逻辑检查不能证明Android真机兼容性。当前环境没有连接的安卓设备，也没有可用KVM，未宣称已经安装启动或验证真实锁屏／来电／后台杀进程／双指操作／后期帧率。
-
-## PR #3 合并后的平台边界
-
-网页的旋转地图和三个中心使用PR界面；APK保留v1.2.7五按钮、原方向和实际触摸操作。`web-base127` 固定5个与镜头/输入/入口有关的基线文件，在 prepare:web 时覆盖对应网页文件，其余玩法与扩展仍从 dist/test04 读取。后续修改这5个文件时须明确检查网页与APK两端，禁止直接把旧海岸旋转逻辑覆盖安卓操作层。
+编译、Android lint、签名与资源逐字节核对、打包脚本执行的交互/生命周期回归检查，不代表安卓真机兼容性已通过。本轮没有安卓设备或模拟器验收；本地浏览器渲染尝试受运行环境限制，未计为通过。网页此前已做360/390/430宽度卡牌排版检查。

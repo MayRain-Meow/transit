@@ -1,0 +1,14 @@
+PASS packaged game entry, native pause/resume lock, unpaid quote cancellation, back closes modal / asks exit / saves to selection / requests minimize
+PASS west packaged map and local save roundtrip retains day/cash/pause; no gameplay rebalance
+PASS local release notes stay inside main document and Back closes safely
+PASS 4,800 camera bounds cases, two maps × six viewports, DPR capped at 2
+PASS build confirmation charges quote once; insufficient funds blocked; per-map continue/restart/cancel isolate saves; pristine seed shows Start; circle overlay removed with climate/quake retained
+PASS v1.2.3 fourth city day10 across river / day34 fifth; seed centroid; rounded extended geometry; taps/pinch preserve quotes; exit/save/cancel; contract disabled; tutorial build/trim-end/restore-end/fog/station; retirement faded
+PASS actual tutorial bridge construction and routed cross-river line advance into fog teaching
+PASS old saves retain original river core; unsafe extensions skipped; contract panel and directional weather wording absent
+PASS actual continuous manual bridge drag at 0.3×/0.7×/1.5×; ordered heads without bouncing; no automatic bridge search; incompatible bridge blocked; startup cover precedes empty game
+PASS startup remains covered until menu ready plus two paint frames; failure stays covered with retry; whole-line cancellation remains a normal feature without tutorial override
+PASS v1.2.5: blank drag and pull before previous station do not delete; backward crossing previews then confirms at 0.3×/0.7×/1.5×; direct drag advances View to Build and cues confirmation
+PASS backward drag follows the bend C→B→A, rather than requiring a straight overshoot; reaching B alone does not delete; Cancel preserves line at three scales
+PASS farm unlock is a one-time soft hint without modal, spending or forced pause
+PASS middle-stop removal advances tutorial; video-style segment drag restores original 3 stops at 3 scales; stuck save recovers; save-and-return closes and preserves pause with failure retained; medium-residence farm gate and old field access

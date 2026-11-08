@@ -1,23 +1,22 @@
 {
-  "version": "1.2.7-playtest",
+  "version": "1.2.8-playtest",
   "package": "com.transitatlas.playtest",
-  "versionCode": 12008,
-  "bytes": 4387836,
-  "sha256": "b4c4efe9a1045daf2c04620212fa78e8bf572b3d73600f17e11c62d5f621e399",
+  "versionCode": 12009,
+  "bytes": 4395695,
+  "sha256": "f05112142ac2ccf677e4af43581717242df9e98f28f6258c5f485d4de0823e77",
   "signerSha256": "66fc76cb93344626a1dd0ca7de5ea34ba8a7520361ec8c28eedf88c1f2753261",
   "apkSignature": "v2 verified",
   "orientation": "portrait",
   "keyboard": "adjustResize",
   "systemInsets": "css",
-  "embeddedWebFilesByteMatched": 47,
+  "embeddedWebFilesByteMatched": 52,
   "androidMinSdk": 24,
   "targetSdk": 36,
   "minWebView": 108,
   "appLintErrors": 0,
-  "appLintWarnings": 17,
+  "appLintWarnings": 16,
   "warningTypes": [
     "DiscouragedApi",
-    "GradleDependency",
     "IconDipSize",
     "IconDuplicatesConfig",
     "IconLocation",
@@ -31,5 +30,5 @@
   "emulatorTested": false,
   "githubUploaded": false,
   "websiteChanged": false,
-  "sourceBaseCommit": "fe78b05a3e55617c02385919ffb8feedfa31e915"
+  "sourceBaseCommit": "29f586a7b6dd18ce9f0d0921427577bd46c1d5bb"
 }

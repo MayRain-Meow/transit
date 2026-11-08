@@ -1,0 +1,4 @@
+PASS portrait stays unrotated; new smooth rivers persist; old geometry retained; confluences painted in 5 unified layers without mutating state
+PASS exactly one mounted card, visible page controls, bounded navigation and persistent reveal states; navigation/reveal never accepts a task
+PASS no-position markets continue prices without popups; wealth-only and stock holders get the proper daily tab; small towns cannot plant, medium towns can
+PASS contextual repairs quote without spending; pay once without applying route or opening engineering; pending/repairing/insufficient-funds states explicit
