@@ -6,7 +6,7 @@ apk=root/'android/app/build/outputs/apk/debug/app-debug.apk';v=root/'validation'
 sig=subprocess.check_output([str(bt/'apksigner'),'verify','--verbose','--print-certs',str(apk)],text=True);assert 'Verifies' in sig
 meta=subprocess.check_output([str(bt/'aapt'),'dump','badging',str(apk)],text=True)
 (v/'signature.txt').write_text(sig);(v/'apk-metadata.txt').write_text(meta)
-assert "versionCode='12010'" in meta and "versionName='1.2.9-playtest'" in meta
+assert "versionCode='12011'" in meta and "versionName='1.2.10-playtest'" in meta
 manifest=subprocess.check_output([str(bt/'aapt'),'dump','xmltree',str(apk),'AndroidManifest.xml'],text=True)
 assert re.search(r'android:screenOrientation.*0x1\b',manifest), 'APK must lock portrait'
 assert re.search(r'android:windowSoftInputMode.*0x10\b',manifest), 'APK must resize for keyboard'
@@ -41,14 +41,15 @@ with zipfile.ZipFile(apk) as z:
  assert html.count('src="web128.js"')==1
  assert html.count('src="river128.js"')==1
  assert html.index('src="update127.js"')<html.index('src="web128.js"')<html.index('src="river128.js"')<html.index('src="android128.js"')
- assert 'src="update129.js"' in html
+ assert html.count('src="revision130.js"')==1
+ assert html.index('src="update129.js"')<html.index('src="revision130.js"')<html.index('src="startup124.js"')
  assert 'id="hub-goal"' in html and 'id="hub-build"' in html and 'id="hub-money"' in html
  assert b'uxContractPage' not in z.read('assets/public/ux.js')
  assert b'startSecondLesson129' in z.read('assets/public/update129.js')
  assert b'maybeFarmIntro126=function(){return false;}' in z.read('assets/public/android128.js')
  assert not any(n.endswith(('.keystore','.jks')) for n in z.namelist())
 issues=E.parse(root/'android/app/build/reports/lint-results-debug.xml').getroot().findall('issue')
-summary={'version':'1.2.9-playtest','package':'com.transitatlas.playtest','versionCode':12010,'bytes':apk.stat().st_size,'sha256':hashlib.sha256(apk.read_bytes()).hexdigest(),'signerSha256':re.search('certificate SHA-256 digest: (\\w+)',sig)[1],'apkSignature':'v2 verified','orientation':'portrait','keyboard':'adjustResize','systemInsets':'css','embeddedWebFilesByteMatched':files,'androidMinSdk':24,'targetSdk':36,'minWebView':108,'appLintErrors':sum(x.get('severity')=='Error' for x in issues),'appLintWarnings':sum(x.get('severity')=='Warning' for x in issues),'warningTypes':sorted({x.get('id') for x in issues}),'androidDeviceTested':False,'emulatorTested':False,'githubUploaded':False,'websiteChanged':False,'sourceBaseCommit':'72360c39fa19713ab0c854430fe290337356e074'}
+summary={'version':'1.2.10-playtest','package':'com.transitatlas.playtest','versionCode':12011,'bytes':apk.stat().st_size,'sha256':hashlib.sha256(apk.read_bytes()).hexdigest(),'signerSha256':re.search('certificate SHA-256 digest: (\\w+)',sig)[1],'apkSignature':'v2 verified','orientation':'portrait','keyboard':'adjustResize','systemInsets':'css','embeddedWebFilesByteMatched':files,'androidMinSdk':24,'targetSdk':36,'minWebView':108,'appLintErrors':sum(x.get('severity')=='Error' for x in issues),'appLintWarnings':sum(x.get('severity')=='Warning' for x in issues),'warningTypes':sorted({x.get('id') for x in issues}),'androidDeviceTested':False,'emulatorTested':False,'githubUploaded':False,'websiteChanged':False,'sourceBaseCommit':'33ac0c95e1b7b92ad1412bed40313311ecca1759'}
 assert summary['appLintErrors']==0
 assert summary['signerSha256']=='66fc76cb93344626a1dd0ca7de5ea34ba8a7520361ec8c28eedf88c1f2753261'
 (v/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2));print(json.dumps(summary,ensure_ascii=False,indent=2))

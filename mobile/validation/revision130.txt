@@ -1,0 +1,6 @@
+v1.2.10-playtest / 12011
+Production script-order checks: native-mobile, native128, native129-dom, native130-dom, web128.
+Passed: 4,800 map camera cases; manual bridge pointer paths at 0.3/0.7/1.5 scales; backward overshoot deletion and middle-stop reconnection; save/continue failure retention; one-time 1600 tutorial award; selecting and extending the second line through actual pointer handlers.
+Passed new DOM checks: 360 stable guide placements across 640/844/1024 viewport heights (synthetic rectangles); permanent network header/new-line action; single protected card/star/reward content; bus closure and reverse closure; directional adjacency; actual arrival across closing edge; once-only delivery; save reload; 400 actual clock ticks; non-bus closure rejection; same color/shape within destination region; exact school/event/card destination; badges; ordinary 180-second congestion boundary; decay; event exclusion; no advancement after zero lives; once-only queued farm unlock.
+DOM harness uses jsdom; no browser layout engine, Android device, emulator, touch or rendered frame-rate acceptance.
+No economic survival refit was performed. Prices, spawn cadence, card difficulty, weather frequency and finance returns were not rebalanced.

@@ -1048,19 +1048,6 @@ function uxLate() {
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
   // later layers set the notice text inside their own updateUI; rename after all of them
   const ui = updateUI; updateUI = function (...a) { const r = ui.apply(this, a); const n = uxEl('notice'); if (n && /运营中心|工程采购|交通采购|收支账本/.test(n.textContent)) n.textContent = uxRename(n.textContent); return r; };
-  // New activity invitations no longer pop a full-screen sheet in the middle of play: the game loop's automatic
-  // showActivityCards() right after generateActivityOffers() becomes a badge on 目标 plus a tappable notice.
-  if (typeof generateActivityOffers === 'function' && typeof showActivityCards === 'function') {
-    let quiet = false;
-    const gen = generateActivityOffers;
-    generateActivityOffers = function (...a) { const r = gen.apply(this, a); if (r) { quiet = true; Promise.resolve().then(() => { quiet = false; }); } return r; };
-    const show = showActivityCards;
-    showActivityCards = function (...a) {
-      if (quiet) { quiet = false; toast('三张城市活动邀请已送达 · 点「目标」查看'); updateUI(); return; }
-      return show.apply(this, a);
-    };
-    showActivityCards.uxTidy = show.uxTidy; showActivityCards.uxTidies = show.uxTidies;   // a player's tap (hub tab, notice) still opens it
-  }
   const ui2 = updateUI; updateUI = function (...a) {
     const r = ui2.apply(this, a);
     const b = uxEl('hub-goal')?.querySelector?.('.dock-badge'), s = typeof activityState === 'function' ? activityState() : null;
@@ -1377,7 +1364,7 @@ function uxDrawCoach() {
 // Upstream sheets stack stat rows, rule paragraphs and actions, and later layers append more by string. One pass,
 // after the last mutation: long rule text folds into a single 「规则说明」, short facts stay, 3-option dropdowns become
 // segmented controls (the hidden select stays the source of truth), and redundant "back to map" buttons go.
-const UX_DESIGNED = '.ux-hero,.ux-steps,.ux-help,.financial-market,.activity-grid,.ux-tasks,.ux-resume';
+const UX_DESIGNED = '.deck128,.notice130,.ux-hero,.ux-steps,.ux-help,.financial-market,.activity-grid,.ux-tasks,.ux-resume';
 let uxCompacting = false;
 function uxCompactSheet(m) {
   if (!m || m.querySelector(UX_DESIGNED)) return;

@@ -1,4 +1,4 @@
-package: name='com.transitatlas.playtest' versionCode='12008' versionName='1.2.7-playtest' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+package: name='com.transitatlas.playtest' versionCode='12011' versionName='1.2.10-playtest' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
 sdkVersion:'24'
 targetSdkVersion:'36'
 uses-permission: name='android.permission.INTERNET'
