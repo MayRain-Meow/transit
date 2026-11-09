@@ -406,5 +406,43 @@ test('play view never shows ground beyond the map edge when the map can cover th
   const c=run('uxClampToMap({x:0,y:0,scale:.05})');assert.equal(Math.round(c.x),Math.round(run('(W-200*.05)/2')),'a map smaller than the screen is centred');
   run('mapSpec=globalThis.__ms');
 });
+
+test('notice dismissal belongs to one weather/construction event, not all future matching text',()=>{
+  fresh();run('uxLate();S.day=40;S.activityCards=null;for(let c of realCities())c.dormant=false;S.climate.events=[{type:"rain",start:39,end:41}]');
+  run('updateUI()');assert.match(node('notice').textContent,/区域雨/);
+  node('notice-close').onclick();run('updateUI()');assert.equal(node('notice').textContent,'');
+  run('S.day=42;updateUI()');assert.equal(node('notice').textContent,'');
+  run('S.climate.events=[{type:"rain",start:43,end:45}];S.day=44;updateUI()');assert.match(node('notice').textContent,/区域雨/,'new rain must be visible');
+  run('S.climate.events=[];S.infrastructure.noticeTest={until:46};updateUI()');assert.match(node('notice').textContent,/道路施工/);
+  node('notice-close').onclick();run('updateUI()');assert.equal(node('notice').textContent,'');
+  run('S.day=47;updateUI();S.infrastructure.noticeTest.until=50;updateUI()');assert.match(node('notice').textContent,/道路施工/,'new construction must be visible');
+});
+test('late activity notices retain dismissal through progress, but new phases and invitations show',()=>{
+  fresh();run('uxLate();S.day=40;S.activityCards=null;activityState().offers=[makeActivityCard(1,1,[0])];updateUI()');
+  assert.match(node('notice').textContent,/活动邀请/);node('notice-close').onclick();
+  run('updateUI();updateUI()');assert.equal(node('notice').textContent,'');
+  run('acceptActivity(activityState().offers[0].id);closeModal();updateUI()');assert.match(node('notice').textContent,/准备中/);
+  node('notice-close').onclick();run('updateUI()');assert.equal(node('notice').textContent,'');
+  run('S.day=activityState().active.start;updateUI()');assert.match(node('notice').textContent,/送达/);
+  node('notice-close').onclick();run('activityState().active.delivered++;updateUI()');assert.equal(node('notice').textContent,'');
+  run('activityState().active=null;activityState().offers=[makeActivityCard(1,1,[0])];updateUI()');assert.match(node('notice').textContent,/活动邀请/);
+});
+test('closing an activity overlay does not dismiss the underlying weather',()=>{
+  fresh();run('uxLate();S.day=40;S.climate.events=[{type:"rain",start:39,end:45}];S.activityCards=null;activityState().offers=[makeActivityCard(1,1,[0])];updateUI()');
+  node('notice-close').onclick();run('updateUI()');assert.equal(node('notice').textContent,'');
+  run('activityState().offers=[];updateUI()');assert.match(node('notice').textContent,/区域雨/);
+});
+test('new game can display an activity even when its id repeats the dismissed previous game',()=>{
+  const offer=()=>run('uxLate();S.day=40;S.activityCards=null;activityState().offers=[makeActivityCard(1,1,[0])];updateUI()');
+  fresh();offer();node('notice-close').onclick();run('updateUI()');assert.equal(node('notice').textContent,'');
+  fresh();offer();assert.match(node('notice').textContent,/活动邀请/);
+});
+test('opening countdown dismissal follows its city and opening time, not the changing counter',()=>{
+  fresh();run('uxLate();S.day=40;S.activityCards=null;S.cities[1].dormant=true;S.cities[1].openingAt=S.day+10/12;updateUI()');
+  assert.match(node('notice').textContent,/即将开放/);node('notice-close').onclick();
+  run('S.day+=1/12;updateUI()');assert.equal(node('notice').textContent,'');
+  run('S.cities[1].dormant=false;S.cities[2].dormant=true;S.cities[2].openingAt=S.day+10/12;updateUI()');assert.match(node('notice').textContent,/即将开放/);
+});
+
 console.log(JSON.stringify(checks,null,2));
 if(checks.some(x=>!x.passed))process.exitCode=1;
