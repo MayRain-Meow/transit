@@ -1602,7 +1602,7 @@ function uxDeskPlayTarget(all) {
 let uxOverviewOn = false;
 function uxApplyPlayView(animate) {
   if (!S?.cities) return;
-  const t = uxPlayTarget(); uxOverviewOn = false; uxSyncOverviewButton();
+  const t = uxPlayTarget(); uxOverviewOn = false; uxSyncOverviewButton(); uxFrameRestore = null;
   if (animate) animateView(t); else Object.assign(view, t);
 }
 function uxSyncOverviewButton() { const b = uxEl('overview'); if (b) { b.title = uxOverviewOn ? '回到游玩视图' : '查看全图'; b.setAttribute('aria-label', b.title); b.classList.toggle('is-on', uxOverviewOn); } }
@@ -1618,7 +1618,8 @@ let uxAutoMove = move => move();   // replaced below by the recording version
 let uxFrameRestore = null;   // { from: view before the first automatic framing, to: view after the latest one }
 // Remember the end state of every camera animation, so "is the view still where our framing put it?" needs no timers.
 let uxLastViewTarget = null;
-(function () { const anim = animateView; animateView = function (t, ms) { uxLastViewTarget = { x: t.x, y: t.y, scale: t.scale }; return anim(t, ms); }; animateView.id = anim.id; Object.defineProperty(animateView, 'id', { get: () => anim.id, set: v => { anim.id = v; } }); })();
+let uxOwnCamera = 0;   // >0 while our framing or restore is driving the camera
+(function () { const anim = animateView; animateView = function (t, ms) { uxLastViewTarget = { x: t.x, y: t.y, scale: t.scale }; if (!uxOwnCamera && uxFrameRestore) uxFrameRestore = null; return anim(t, ms); }; animateView.id = anim.id; Object.defineProperty(animateView, 'id', { get: () => anim.id, set: v => { anim.id = v; } }); })();
 function uxCancelAutoMove() {
   uxFrameRestore = null;
   if (animateView.activeId != null) { animateView.id = (animateView.id || 0) + 1; animateView.activeId = null; }
@@ -1629,8 +1630,10 @@ function uxEndAutoMove() {
   const running = animateView.activeId != null && animateView.activeId === r.animationId && animateView.id === r.animationId;
   // Starting an edit must freeze the current view, even if automatic framing has not finished.
   if (draft || uxExt || bridgeDraft) { if (running) uxCancelAutoMove(); return; }
-  const near = Math.abs(view.scale - r.to.scale) < 1e-3 && Math.abs(view.x - r.to.x) < 3 && Math.abs(view.y - r.to.y) < 3;
-  if (running || near) animateView(r.from, 280);
+  // The session itself says the player has not taken the camera: their pan, pinch or wheel and any other deliberate
+  // camera move (⌖, edge pill, new play view) end it. Position is not compared — upstream's soft map bounds nudge the
+  // view every frame, which made an untouched view look "moved" and skipped the restore.
+  uxOwnCamera++; try { animateView(r.from, 280); } finally { uxOwnCamera--; }
 }
 // Actual camera input takes ownership; a city tap or panel transition does not.
 cv.addEventListener('pointermove', e => { if (pointers.has(e.pointerId) && ['pan', 'pinch'].includes(gesture?.kind)) uxCancelAutoMove(); }, { capture: true });
@@ -1641,7 +1644,7 @@ cv.addEventListener('wheel', uxCancelAutoMove, { capture: true, passive: true })
   // remembers the view before it, later ones only update where the camera was sent.
   uxAutoMove = function (move) {
     const before = { x: view.x, y: view.y, scale: view.scale }, id0 = animateView.id;
-    move();
+    uxOwnCamera++; try { move(); } finally { uxOwnCamera--; }
     if (animateView.id === id0) return;              // nothing moved
     if (!uxFrameRestore) uxFrameRestore = { from: before, to: null };
     uxFrameRestore.to = uxLastViewTarget;           // where our own framing ends up

@@ -105,6 +105,15 @@ for (const c of realCities().filter(c => !c.dormant)) {
 const b = mapSpec.bounds, tl = toScreen({ x: b.xmin, y: b.ymin }), br = toScreen({ x: b.xmax, y: b.ymax });
 const bandFree = Math.round(Math.max(0, tl.x - r.l, tl.y - r.t, r.r - br.x, r.b - br.y));
 return { ok: lost.length === 0 && hidden.length === 0, lost, hidden, bandFree, freeCities: realCities().filter(c => !c.dormant && free(view, c)).length };`,
+  // every station on two or more lines: open the picker, let framing and upstream's soft map bounds settle, close with ×
+  // → the view is exactly the one before (99c826f lost it when the soft bounds had nudged the camera)
+  restore: `${W(400)} const out = [], v = () => ({ x: view.x, y: view.y, s: view.scale }), same = (a, b) => Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 && Math.abs(a.s - b.s) < 1e-3;
+for (const c of realCities().filter(c => !c.dormant && cityLines(c.id).length > 1)) {
+  uxApplyPlayView(false); ${W(300)} const before = v(); showJunction(c.id); ${W(1600)}
+  document.querySelector('#junction-picker .junction-heading button').click(); ${W(900)}
+  const after = v(); if (!same(before, after)) out.push(c.name + ' dx' + Math.round(after.x - before.x) + ' dy' + Math.round(after.y - before.y));
+}
+return { ok: out.length === 0, notRestored: out };`,
   cardfacts: `if (!(innerWidth > innerHeight && innerHeight <= 500)) return { ok: true, skipped: 'landscape phone only' };
 S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers();
 ${W(100)} closeModal(); uxOpenHub('goal', 1); ${W(500)}
@@ -115,5 +124,5 @@ return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-ri
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
 mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts']);
 mk('scenA_F.json', ['coach']);
-mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge']);
+mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore']);
 console.log('built');
