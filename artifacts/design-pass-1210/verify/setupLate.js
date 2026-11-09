@@ -1,3 +1,6 @@
+// deterministic scene: a seeded Math.random while the network is built (same cities, lines and queues every run)
+const __realRandom = Math.random; let __seed = +(window.LATE_SEED || 20261109);
+Math.random = () => { __seed |= 0; __seed = __seed + 0x6D2B79F5 | 0; let t = Math.imul(__seed ^ __seed >>> 15, 1 | __seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; window.__seedRandom = true;
 // Isolated late-game scene modelled on the user's 2026-11-08 match (west valley, ~140 days, 8 lines / 13 cities,
 // a five-line hub with ~181 waiting). Synthetic data in a throwaway profile; never the user's save.
 localStorage.clear(); atlasSelected = 'west'; atlasRestart = true; startAtlasBeforeLifecycle12(); try { if (typeof initializeRiver128 === 'function') initializeRiver128(); } catch (e) {}
@@ -32,5 +35,6 @@ for (const c of cs.filter(c => c !== hub).slice(0, 5)) for (let i = 0; i < 12 + 
 // a late network: established cities have no join countdown or protection left; the newest one still does
 for (const c of realCities()) { c.grace = 0; c.shield = 0; } { const nw = realCities().at(-1); if (nw) nw.grace = 22; }
 S.points = 9392; S.paused = true; clearSelection(); updateUI(); dispatchEvent(new Event('resize'));
+Math.random = __realRandom;
 window.__hub = hub.id; window.__hubLines = cityLines(hub.id).length;
 await new Promise(r => setTimeout(r, 300));

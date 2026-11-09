@@ -495,7 +495,8 @@ function uxHandles() {
     for (const end of ['head', 'tail']) {
       const e = S.cities[end === 'tail' ? l.stops.at(-1) : l.stops[0]], n = S.cities[end === 'tail' ? l.stops.at(-2) : l.stops[1]];
       if (!e || !n) continue;
-      const dx = e.x - n.x, dy = e.y - n.y, len = Math.hypot(dx, dy) || 1, p = uxTabPlace(e, dx / len, dy / len);
+      // direction of the line's last stretch into the end station (its drawn leg, not the straight chord)
+      const path = uxOctPath(n, e, l.type), q = path ? path[1] : n, dx = e.x - q.x, dy = e.y - q.y, len = Math.hypot(dx, dy) || 1, p = uxTabPlace(e, dx / len, dy / len);
       out.push({ line: l, end, city: e, x: e.x + p.ux * p.reach, y: e.y + p.uy * p.reach, ux: p.ux, uy: p.uy });
     }
   }
@@ -730,6 +731,11 @@ function uxCityUpright(fn) {
   };
 }
 function uxWrapLateDrawers() {
+  if (typeof drawInfrastructure === 'function' && !drawInfrastructure.uxOct) { drawInfrastructure = uxOctInfra(drawInfrastructure); drawInfrastructure.uxOct = true; }
+  if (typeof drawTerrainPreview === 'function' && !drawTerrainPreview.uxHalo) {
+    const tp = drawTerrainPreview; drawTerrainPreview = function (...a) { const r = tp.apply(this, a); if (!draft && !bridgeDraft) uxStationHalos(); return r; };
+    drawTerrainPreview.uxHalo = true;
+  }
   // Lines: a paper-coloured casing under each stroke. Where lanes run side by side the next line's casing draws a
   // hairline gap, so each colour can be followed through a shared corridor (as on a transit map). Dashed strokes
   // (air, drafts, broken segments) are left as they are.
@@ -1551,6 +1557,86 @@ drawMissionBadges = function () {
 // and scenery do not, so the hierarchy reads at a glance.
 const PLAY_MIN_SCALE = .66;
 const UX_FIT_PAD = { l: 34, r: 86, t: 44, b: 58 };
+// Lanes (lines sharing a corridor, side by side) used to taper to the city centre over 16% of each segment: on long
+// segments that is a long fan, and at a junction the fans of several corridors overlap into a knot. The taper now
+// happens within a fixed distance of the station — its drawn radius plus a little — so bundles stay parallel up to the
+// station and converge underneath it. Vehicles use the same lanePoint, so they stay on their lines.
+globalThis.LANE_RAMP = (a, b, len) => {
+  const k = globalThis.CITY_GLYPH?.() ?? 1, reach = c => c && c.id !== undefined && c.kind !== 'bridgehead' ? radius(c) * k + 10 : 12;
+  return [Math.min(.16, reach(a) / len), Math.min(.16, reach(b) / len)];
+};
+// ---------- transit-map lines ----------
+// A segment stays straight when it must: air routes, segments touching a bridgehead, and segments whose straight
+// chord or either leg needs a bridge or tunnel (river and mountain costs are computed along the chord, so a bent path
+// must not cross water or rock somewhere the game did not price). The leg order is canonical by station id, so both
+// directions and every line on the segment share one path and keep their lanes side by side.
+const uxOctCache = new Map();
+function uxOctPath(a, b, type) {
+  if (!a || !b || a.id === undefined || b.id === undefined || type === 'air' || a.kind === 'bridgehead' || b.kind === 'bridgehead' || a === b) return null;
+  const key = a.id + '>' + b.id + ':' + type + ':' + a.x + ',' + a.y + ':' + b.x + ',' + b.y;
+  if (uxOctCache.has(key)) return uxOctCache.get(key);
+  const lo = a.id < b.id ? a : b, hi = lo === a ? b : a, dx = hi.x - lo.x, dy = hi.y - lo.y, m = Math.min(Math.abs(dx), Math.abs(dy));
+  const bend = { x: lo.x + Math.sign(dx) * m, y: lo.y + Math.sign(dy) * m };
+  const free = (p, q) => { try { const r = requirements(p, q, type); return !(r.bridge || r.tunnel); } catch { return false; } };
+  let pts = m < 6 || Math.hypot(bend.x - hi.x, bend.y - hi.y) < 6 || !free(a, b) || !free(lo, bend) || !free(bend, hi) ? null : [lo, bend, hi];
+  if (pts && lo !== a) pts = pts.slice().reverse();
+  if (uxOctCache.size > 4000) uxOctCache.clear();
+  uxOctCache.set(key, pts); return pts;
+}
+// A point at fraction t along a station-to-station path, with the lane offset the straight version would have had,
+// turned to follow the current leg (the normal blends across the bend so lanes stay parallel round the corner).
+function uxOctPoint(pts, a, b, base, t) {
+  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, n0x = -dy / len, n0y = dx / len;
+  const off = (base.x - (a.x + dx * t)) * n0x + (base.y - (a.y + dy * t)) * n0y;
+  const L1 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y), L2 = Math.hypot(pts[2].x - pts[1].x, pts[2].y - pts[1].y), d = t * (L1 + L2);
+  const u1x = (pts[1].x - pts[0].x) / (L1 || 1), u1y = (pts[1].y - pts[0].y) / (L1 || 1), u2x = (pts[2].x - pts[1].x) / (L2 || 1), u2y = (pts[2].y - pts[1].y) / (L2 || 1);
+  const px = d <= L1 ? pts[0].x + u1x * d : pts[1].x + u2x * (d - L1), py = d <= L1 ? pts[0].y + u1y * d : pts[1].y + u2y * (d - L1);
+  const w = Math.max(0, Math.min(1, (d - L1 + 16) / 32)), ux = u1x * (1 - w) + u2x * w, uy = u1y * (1 - w) + u2y * w, ul = Math.hypot(ux, uy) || 1;
+  let nx = -uy / ul, ny = ux / ul; if (nx * n0x + ny * n0y < 0) { nx = -nx; ny = -ny; }
+  return { x: px + nx * off, y: py + ny * off };
+}
+if (typeof lanePoint === 'function' && !lanePoint.uxOct) {
+  const lp = lanePoint;
+  lanePoint = function (a, b, l, t) {
+    const base = lp(a, b, l, t), pts = l && uxOctPath(a, b, l.type);
+    return pts ? uxOctPoint(pts, a, b, base, t) : base;
+  };
+  lanePoint.uxOct = true;
+}
+// Roads and tracks under the lines (and their construction / blockage marks) are drawn as straight strokes between
+// station centres: while they draw, such a stroke follows the same transit-map path as the lines on it.
+function uxOctInfra(draw) {
+  return function (...args) {
+    const mt = ctx.moveTo, lt = ctx.lineTo; let from = null;
+    const at = (x, y) => S.cities.find(c => c && Math.abs(c.x - x) < .01 && Math.abs(c.y - y) < .01);
+    ctx.moveTo = function (x, y) { from = { x, y }; return mt.call(this, x, y); };
+    ctx.lineTo = function (x, y) {
+      const a = from && at(from.x, from.y), b = a && at(x, y), pts = b && (uxOctPath(a, b, 'bus') || uxOctPath(a, b, 'emu'));
+      from = { x, y };
+      if (!pts) return lt.call(this, x, y);
+      lt.call(this, pts[1].x, pts[1].y); return lt.call(this, x, y);
+    };
+    try { return draw.apply(this, args); } finally { ctx.moveTo = mt; ctx.lineTo = lt; }
+  };
+}
+// Every station sits in a clear zone the colour of the paper: lines stop at its edge, as at an interchange on a transit
+// map, instead of running into the centre. The zone grows with the number of corridors meeting there, so a five-line
+// hub gets room around it. Drawn after the lines and before vehicles and the stations themselves.
+function uxStationHalos() {
+  if (!S?.lines?.length) return;
+  const k = globalThis.CITY_GLYPH?.() ?? 1, edges = new Map();
+  for (const l of S.lines) for (let i = 1; i < l.stops.length; i++) {
+    const a = l.stops[i - 1], b = l.stops[i]; if (a === b) continue;
+    for (const [x, y] of [[a, b], [b, a]]) { if (!edges.has(x)) edges.set(x, new Set()); edges.get(x).add(y); }
+  }
+  ctx.save(); ctx.fillStyle = '#f7f6ec';
+  for (const [id, nb] of edges) {
+    const c = S.cities[id]; if (!c || c.dormant || c.kind === 'bridgehead') continue;
+    const n = nb.size, r = radius(c) * k + (n >= 3 ? 7 + Math.min(6, (n - 3) * 1.5) : 4);
+    ctx.globalAlpha = .96; ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
 globalThis.CITY_GLYPH = () => ctx.canvas === cv ? Math.max(1, Math.min(1.45, .85 / view.scale)) : 1;
 (function lineFloor() {
   const style = lineStyle;
