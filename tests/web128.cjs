@@ -21,7 +21,7 @@ node('dock').rect={left:12,right:378,top:776,bottom:834};
 node('routes').rect={left:12,right:378,top:610,bottom:766};
 const storage = new Map();
 const context = {console,document:{getElementById:node,createElement:()=>node('offscreen'+nodes.size),addEventListener(){},activeElement:{tagName:'BODY'},
-  querySelector:s=>({'header':node('header'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details')}[s]||null)},
+  querySelectorAll:()=>[],querySelector:s=>({'header':node('header'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details')}[s]||null)},
   innerWidth:390,innerHeight:844,devicePixelRatio:1,window:{addEventListener(){}},screen:{},performance:{now:()=>100},addEventListener(){},
   localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},cancelAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
 context.document.body=node('body');context.document.body.appendChild=()=>{};context.document.documentElement=node('html');context.navigator={};

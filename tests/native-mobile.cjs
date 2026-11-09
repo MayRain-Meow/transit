@@ -23,7 +23,7 @@ const storage = new Map(),listeners={window:{},document:{}};
 function listen(target,type,fn,capture){(listeners[target][type]??=[]).push({fn,capture:!!capture});}
 function fire(target,type,event={}){event.target??={tagName:'BODY'};event.preventDefault??=()=>{};let stopped=false;event.stopImmediatePropagation=()=>{stopped=true;};for(const x of [...(listeners[target][type]||[])].sort((a,b)=>b.capture-a.capture)){x.fn(event);if(stopped)break;}}
 const context = {console,document:{hidden:false,visibilityState:'visible',hasFocus:()=>context.focused,getElementById:node,createElement:()=>node('offscreen'+nodes.size),addEventListener:(t,f,c)=>listen('document',t,f,c),activeElement:{tagName:'BODY'},
-  querySelector:s=>({'header':node('header'),'footer':node('dock'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details')}[s]||null)},
+  querySelectorAll:()=>[],querySelector:s=>({'header':node('header'),'footer':node('dock'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details')}[s]||null)},
   innerWidth:390,innerHeight:844,devicePixelRatio:1,focused:true,window:{addEventListener:(t,f,c)=>listen('window',t,f,c)},screen:{},performance:{now:()=>100},addEventListener(){},
   localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},cancelAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
 context.document.body=node('body');context.document.body.appendChild=()=>{};context.document.documentElement=node('html');context.navigator={};
