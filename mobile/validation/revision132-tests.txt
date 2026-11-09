@@ -1,0 +1,19 @@
+PASS npm run sync:android
+PASS npm run verify (56 references, packaged CSS, no remote font/game server)
+PASS native-mobile.cjs
+PASS native128.cjs
+PASS native129-dom.cjs (separate click selection + canvas gesture)
+PASS native130-dom.cjs
+PASS runtime13-dom.cjs
+PASS onboarding131-dom.cjs (updated for v1.3.2):
+- Real delegated click creates persistent draft, no active pointer or gesture
+- Delayed callbacks do not create line sheet
+- Production canvas: unrelated route city pans without changing any stops
+- Selected route/other route alpha .85/.2; both return to 1 after Cancel
+- Production canvas extension only changes preview until Apply
+- Apply clears selection without opening line sheet
+- No-change tap retains draft; pointer cancellation restores prior draft
+- Original backward delete gesture still previews and Cancel preserves route
+- Explicit inspection, tutorial completion, old-save recovery, once-only reward retained
+PASS web128.cjs
+LIMITATION: jsdom has no actual mobile layout/touch engine; no device/emulator acceptance.

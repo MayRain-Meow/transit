@@ -34,7 +34,7 @@ case 'facility-city':return ['城市里建设建筑',selected?.type==='junction'
 case 'facility-read':return ['按需建设','建筑在城市面板里，满足条件后再建。','领取 ¥1600，继续'];
 case 'second-build':return ['建立第二条线',draft?(draftCost().cash>S.points?'资金不足，可先运行赚取票款。':draft.stops.includes(t.shared129)?'点「建设」，开通第二条线。':'从'+n(0)+'拖到'+n(t.shared129)+'。'):$('routes').classList.contains('collapsed')?'展开「交通网络」。':'点「新建线路」，连接'+n(0)+'与'+n(t.shared129)+'。',draft&&draftCost().cash>S.points?'先运行赚票款':null];
 case 'second-city':return ['共用城市有多条线','点一下'+n(t.shared129)+'。'];
-case 'second-pick':return ['选中第二条线',$('junction-picker').hidden?'点'+n(t.shared129)+'，再选第二条线。':'按住第二条线旁的「拉线」，拖回地图。'];
+case 'second-pick':return ['选中第二条线',$('junction-picker').hidden?'点'+n(t.shared129)+'，再选第二条线。':'点第二条线旁的「拉线」，再到地图拖动。'];
 case 'second-extend':return ['延长第二条线',!draft?'从'+n(t.shared129)+'把第二条线接到'+n(t.target129)+'。':draft.original!==t.second129?'请取消，改为选择第二条线。':[0,t.shared129,t.target129].every(id=>draft.stops.includes(id))?'点「应用修改」，完成练习。':'沿第二条线继续拖到'+n(t.target129)+'。'];
 }return null;}
 let guideSignature129='';

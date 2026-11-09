@@ -1,0 +1,18 @@
+v1.4.0-playtest / 14000
+Base b2ea294807395ba296cd37886d957d24ff4a6f23
+24 persistent achievements; unique diamond shareholder at 10% TOTAL shares, bronze >=6-city completed bus circuit.
+Tutorial completion uses explicit completed129, skips excluded. No cash/capacity achievement rewards.
+Lifetime deliveries start at integration baseline; run IDs and high-water marks prevent duplicate reload counting.
+One-click entry, category badges, progress and unread dot. Restart preserves achievements.
+Map selection back/decorative card arrows removed; in-game Save/Exit unchanged.
+New west: 41 overlapping physical footprints enclose a wide basin; natural east pass and river valleys open.
+Painter and tunnel/city geometry share footprints; 69 of 72 radial enclosure probes obstructed, three pass/valley openings.
+Terrain drawing cached; no per-frame terrain mesh generation. Old west saves retain original mountains/rivers/bridges.
+New terrain snapshot persists with saves; cross-map natural-river initialization is isolated.
+No survival-rate refit. Terrain is simplified vector art, not an illustration screenshot replica.
+Checks: eight regression suites incl. release14-dom; actual production DOM, observers, trading, destination settlement, repair completion and construction quote tests.
+Browser: actual menu/achievement opening and closing, west start and zoom checked. Desktop browser is not Android hardware acceptance.
+APK/private key excluded from public git.
+Historical per-map survival best records backfill milestones, without assigning one map the other map's record.
+Android build/lint PASS: app 0 errors, 16 warnings; original signer verified.
+62 embedded files byte-matched. APK SHA256 0ac002fd4d769ebc011c699211d93440519915f4f176c1cd162ad42225ec10df

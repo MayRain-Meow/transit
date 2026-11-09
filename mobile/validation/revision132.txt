@@ -1,0 +1,20 @@
+v1.3.2-playtest / versionCode 13002
+Base: 1977ce5ff5c2228a5b14e4aa7de91f9d4a072d29
+Single click on city route picker "拉线" creates a persistent draft for that route.
+No pointer capture/long press/drag from the picker is needed.
+Map city/segment gestures edit only the chosen route; unrelated cities pan.
+Other routes and their vehicles fade during editing. Cities and bridges remain visible.
+Cancel preserves the original line; Apply commits the preview; both restore focus.
+Details stay hidden on selection, release, cancel and Apply. Explicit inspection remains.
+Pointer cancellation and pinch restore the complete pre-stroke draft.
+Existing backward deletion, manual bridge traversal and terminal-only bus closure retained.
+Tutorial text now says to tap the route's 拉线 button, then drag on the map.
+No economics, weather, card or life-rule changes.
+Dependency lock corrected: string_decoder 1.3.0, matching the existing integrity hash.
+Verification: packaged asset/CSS checks and seven regression suites passed.
+DOM harness uses real MutationObserver, delegated click and production canvas events;
+render style alpha verified with instrumentation. No physical phone/layout acceptance.
+APK and signing key excluded from public source upload.
+Android assembleDebug/lintDebug PASS; app lint 0 errors, 16 warnings.
+Original signer verified; 59 embedded files byte-matched.
+APK SHA256 e86c0e0c7ffdfacea0b7778ca55827ea7828d61f9b5217dc419d69d67aee7156

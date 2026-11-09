@@ -1,8 +1,10 @@
 {
-  "checkedLocalReferences": 56,
+  "checkedLocalReferences": 59,
   "remoteGameServer": false,
   "externalFonts": false,
   "hashes": {
+    "achievements14.css": "397250fbae9832df27454f3395084d14333b279be254c11a37d9ec72432e4af5",
+    "achievements14.js": "f94c9053136f6a006efeb2c031f7443401173dd3b04edbbde890de8340e688df",
     "android128.css": "1ecdc684233de5b11376c40ce851d566c8672535241f04d379634354e00fe280",
     "android128.js": "b14949fc46d0f7f3f9006fa3fba0f2f854df1712318e11c5a947efd7b2254bbd",
     "atlas-art.js": "8bd8095c85f5d1b1e1998021968c1425f5da85134999802a2b60417e2dbc8680",
@@ -18,8 +20,8 @@
     "events.js": "c3ac92213859cc3bf1bb3d730fc1f77bae5d246b26c763a39bf6fd8930413eb5",
     "farms.css": "d63424fb4f44f62e04f289b29fe517c7ee8f0967906b5ac8fa7bc0e2cca70c9c",
     "farms.js": "c4e4b8583a201e26ec0969520d75b8b31a5610dec33d28a5fbdce0b9657bbde0",
-    "game.js": "4cb0c3c592481e9a6c0d9157c6b1d648e510201f67a8568d0b209aa5eef0a35a",
-    "index.html": "ea4bfb6a70fb9fd3b92e45835000a018960503aacb8aedee87d81ebb0317f07b",
+    "game.js": "5753a2af3cd64e5ae7ad321a56fd64ec334ee0652855e7fb606ff2eed9c8ea56",
+    "index.html": "1497db3d04b4505dd742c3578de5a0f2884aba90c47040bd13db875314a574f0",
     "lifecycle12.js": "b357ebaebbf160b4f6eb6b600991484932371d36ad01eb0f685df83b806daceb",
     "management.js": "79747fb8815704712666ff27a1c6f914bd2c7484024b816ef35554e738bc772f",
     "map-art.js": "516fde6472b58eaa5db0588b5833d0d5d9ff85eb713fb22dc1131b6a94f47dac",
@@ -53,11 +55,12 @@
     "update126.js": "e877c581742f00df5eee0d5c84110938ade66986d77f314295c732a5bf4dd22d",
     "update127.js": "0b209b4dac2feaf096ca300d896c181598c83a1cad4694f31ccb44d6ce6c42bc",
     "update129.css": "e52ded751776c7e880ecb29a59973b8cbfdb04329c3568d7c01eb143c3a51838",
-    "update129.js": "c061027e8419b2a4619c162afa0718cc96abc004c89247c3417005dd7e28a032",
+    "update129.js": "37185330945545b82a35e8a67f333e52f9d799559078e118f5c343e1bef0ca52",
     "ux.js": "0519da678ea1a6f4c4ccde7bd1007300391e5cbc41b8918d180c1837a76b0235",
     "web128.css": "090c4acbc31ec1007ce1ba3fcdcdad7adc10b4bc9d2fe7de89570e5e261bb743",
     "web128.js": "274ed52f847d435bed815a1db774c638849abd4e64b401c55b803ef639a16e68",
     "webview-error.html": "344a22fc7d1b9a24f2924f2cffa7686489e219cc2ed10135ec63edf85adb9667",
+    "west14.js": "86a4126bbb1b6444edf3932567d79de812e93fb5dee3d45a9aa59d4f4c39f8cb",
     "world-upgrade.js": "d7d7c6804820b69b193c0ea7c6fdb22c18e2e9cdc44f55b18c214169956a0066",
     "world.js": "3bfc71d0e703a39f7cadca57dbedd33f123eca9e1b719fc4c03f52424e7e6bf6"
   }

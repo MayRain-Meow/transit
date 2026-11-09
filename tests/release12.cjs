@@ -25,6 +25,7 @@ function fire(target,type,event={}){event.target??={tagName:'BODY'};event.preven
 /* v1.3: a focus change (notification banner, volume UI) no longer interrupts; going to the background does. */
 function toBackground(){context.document.hidden=true;context.document.visibilityState='hidden';fire('document','visibilitychange');context.document.hidden=false;context.document.visibilityState='visible';}
 const context = {console,document:{hidden:false,visibilityState:'visible',hasFocus:()=>context.focused,getElementById:node,createElement:()=>node('offscreen'+nodes.size),addEventListener:(t,f,c)=>listen('document',t,f,c),activeElement:{tagName:'BODY'},
+  querySelectorAll:()=>[],
   querySelector:s=>({'header':node('header'),'footer .dock':node('dock'),'#routes':node('routes'),'#details':node('details')}[s]||null)},
   innerWidth:390,innerHeight:844,devicePixelRatio:1,focused:true,window:{addEventListener:(t,f,c)=>listen('window',t,f,c)},screen:{},performance:{now:()=>100},addEventListener(){},
   localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)??null},requestAnimationFrame(){},cancelAnimationFrame(){},setTimeout(){},clearTimeout(){},confirm:()=>{throw new Error('native confirm() must not be used');}};
