@@ -1314,6 +1314,26 @@ function uxDockState() {
   const open = typeof modalOpen !== 'undefined' && modalOpen ? uxDockState.hub : null;
   for (const k of ['goal', 'build', 'money']) uxEl('hub-' + k)?.classList?.toggle('is-open', open === k);
 }
+// Top notice ×: a dismissed message stays dismissed. Upstream remembers the dismissal inside economy.js's updateUI,
+// but events.js (loaded later) writes the activity text back on every refresh, and upstream's per-session memory is
+// wiped whenever the text it sees differs — so × on 「三张城市活动邀请」 or 「活动准备中」 did nothing. Here, after every
+// layer has written, the message the player closed is identified by its text with counters normalised (送达 3/20 and
+// 4/20 are the same message) plus the activity it belongs to; that message stays hidden, and anything new shows.
+function uxNoticeKey(t) {
+  const st = typeof activityState === 'function' ? activityState() : null;
+  const act = st ? (st.active ? 'a' + st.active.id + (S.day < st.active.start ? 'p' : 'r') : st.offers?.length ? 'o' + st.offers.map(e => e.id).join('.') : '') : '';
+  return String(t).replace(/[\d.]+/g, '#').trim() + '|' + (/^★/.test(t) ? act : '');
+}
+function uxNoticeDismiss() {
+  const btn = uxEl('notice-close'), n = uxEl('notice'); if (!btn || !n) return;
+  let closed = null; const up = btn.onclick;
+  btn.onclick = function (...a) { const t = n.textContent; if (t) closed = uxNoticeKey(t); const r = up?.apply(this, a); n.textContent = ''; return r; };
+  const ui = updateUI; updateUI = function (...a) {
+    const r = ui.apply(this, a), t = n.textContent;
+    if (t && closed) { if (uxNoticeKey(t) === closed) n.textContent = ''; else closed = null; }   // a different message: show it
+    return r;
+  };
+}
 function uxEndedState() {
   const b = uxEl('pause'); if (!b) return;
   const tap = b.onclick;
@@ -1344,6 +1364,7 @@ function uxLate() {
     return r;
   };
   uxEl('notice')?.closest?.('.notice-wrap')?.addEventListener('click', e => { if (e.target.closest('#notice-close')) return; if (/活动邀请/.test(uxEl('notice').textContent)) uxOpenHub('goal', 1); });
+  uxNoticeDismiss();   // outermost: sees the banner text after every layer (and the rename) has written it
   updateUI();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', uxLate); else uxLate();

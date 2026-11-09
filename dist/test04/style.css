@@ -1282,3 +1282,12 @@ body #routes.collapsed .panel-heading > span.ux-swatches{display:flex!important;
 #drawbar .db-actions:not(:has(#quote-expand)) #drawundo{flex:0 0 44px}
 #drawbar .db-actions:not(:has(#quote-expand)) #drawcancel{flex:0 0 auto;width:auto!important;min-width:76px!important;grid-column:auto!important;grid-row:auto!important}
 #drawbar .db-actions:not(:has(#quote-expand)) #drawdone{flex:1 1 auto;width:auto!important;grid-column:auto!important;grid-row:auto!important}
+/* achievements (upstream v1.4): one close button — the header's, kept in reach by a sticky header like every other
+   sheet (upstream added a second, floating ×); locked rows dim only the medal, the condition to unlock stays readable */
+.achievements-open14 #ach-close14{display:none!important}
+.achievements-open14 #modal-content > .modal-head{position:sticky;top:0;z-index:5;margin:0 -18px 6px;padding:18px 18px 10px;background:#fffef9;box-shadow:0 1px 0 var(--line)}
+.ach-row14.locked{opacity:1!important}
+.ach-row14.locked .ach-badge14{opacity:.4}
+.ach-row14.locked h3{color:#4f5f58}
+.ach-row14 p{font-size:12px!important;line-height:1.55!important;color:#5f6f68!important}
+.ach-row14 small{font-size:11.5px!important;color:#6b7a73!important}

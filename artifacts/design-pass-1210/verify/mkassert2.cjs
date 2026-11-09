@@ -114,6 +114,22 @@ for (const c of realCities().filter(c => !c.dormant && cityLines(c.id).length > 
   const after = v(); if (!same(before, after)) out.push(c.name + ' dx' + Math.round(after.x - before.x) + ' dy' + Math.round(after.y - before.y));
 }
 return { ok: out.length === 0, notRestored: out };`,
+  // the top notice ×: a closed message stays closed through refreshes (927b8c1: events.js wrote it back); new phases show
+  notice: `// Top notice ×: a closed message stays closed through refreshes; a different message still shows.
+const W = ms => new Promise(r => setTimeout(r, ms)), n = document.getElementById('notice'), x = document.getElementById('notice-close');
+const shown = () => { updateUI(); return n.textContent; }, out = {};
+S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers(); await W(100); closeModal(); await W(100);
+out.offerShown = shown();
+x.click(); await W(50); for (let i = 0; i < 5; i++) updateUI(); await W(600);
+out.offerAfterClose = shown();
+try { acceptActivity(st.offers[0].id); } catch (e) { out.acceptErr = e.message; } closeModal(); await W(100);
+out.prepShown = shown();
+x.click(); await W(50); for (let i = 0; i < 5; i++) updateUI(); await W(600);
+out.prepAfterClose = shown();
+if (st.active) { S.day = st.active.start + .1; } out.runningShown = shown();
+x.click(); await W(50); if (st.active) st.active.delivered = (st.active.delivered || 0) + 3; out.runningAfterProgress = shown();
+return { ok: !!out.offerShown && !out.offerAfterClose && !!out.prepShown && out.prepShown !== out.offerShown && !out.prepAfterClose && !!out.runningShown && !out.runningAfterProgress, ...out };
+`,
   cardfacts: `if (!(innerWidth > innerHeight && innerHeight <= 500)) return { ok: true, skipped: 'landscape phone only' };
 S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers();
 ${W(100)} closeModal(); uxOpenHub('goal', 1); ${W(500)}
@@ -122,7 +138,7 @@ const box = document.querySelector('#modal-content .card-content128').getBoundin
 return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-risk') && inside('h3'), stats: inside('.card-stats'), reward: inside('.card-reward'), risk: inside('.card-risk') };`
 };
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
-mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts']);
+mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice']);
 mk('scenA_F.json', ['coach']);
 mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore']);
 console.log('built');
