@@ -30,5 +30,5 @@ return {picked:/'(#[0-9a-f]+)'/i.exec(b.getAttribute('onclick'))[1],lineNow:S.li
 await send('Page.reload', { ignoreCache: true }); await ready(); await wait(500);
 const after = (await run('return {name:S.lines[0].name,color:S.lines[0].color}')).value;
 console.log(JSON.stringify({ before, mid, after, ok: after.color === before.color && after.name === before.name && mid.lineNow === before.color }));
-chrome.kill(); try { fs.rmSync(__profile, { recursive: true, force: true }); } catch {}
+chrome.kill(); for (let i = 0; i < 8; i++) { await wait(500); try { fs.rmSync(__profile, { recursive: true, force: true }); break; } catch {} }   // Chrome may still hold files: retry
 process.exit(0);

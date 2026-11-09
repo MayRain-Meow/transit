@@ -1213,7 +1213,12 @@ function uxWrapHubs() {
     const p = q.querySelector('p'); if (p) p.remove();
     const b = q.querySelector('b'); if (b) b.innerHTML = '地震监测<small>暂无震情</small>';
   });
+  // The tap that opens the picker is followed by the browser's click at the same point. Kept on screen, the floating
+  // picker can sit under that finger, and the click would pick its first row (城市详情) instead of letting the player
+  // choose: clicks on the picker in the first moments after it opened are ignored.
+  { const jp = uxEl('junction-picker'); jp?.addEventListener?.('click', e => { if (performance.now() < (showJunction.openedAt || 0) + 450) { e.stopImmediatePropagation(); e.preventDefault(); } }, true); }
   if (typeof showJunction === 'function') { const sj = showJunction; showJunction = function (...a) {
+    showJunction.openedAt = performance.now();
     const r = sj.apply(this, a);
     uxJunctionCity(a[0]);
     if (portraitMode) { const el = uxEl('junction-picker'); if (el?.style) el.style.maxHeight = '';
@@ -1294,9 +1299,13 @@ function uxTray() {
 }
 function uxTrayInit() {
   const btn = uxEl('collapse'), p = uxEl('routes'); if (!btn || !p) return;
-  let saved = null; try { saved = localStorage.getItem(UX_TRAY_KEY); } catch {}
-  if (saved === '1' && !p.classList.contains('collapsed')) btn.onclick?.();
   const tap = btn.onclick; btn.onclick = function (...a) { const r = tap?.apply(this, a); try { localStorage.setItem(UX_TRAY_KEY, p.classList.contains('collapsed') ? '1' : '0'); } catch {} updateUI(); return r; };
+  // The player's own choice wins. Without one, a short landscape screen starts with the tray collapsed once the
+  // network has more than three lines: expanded, eight lines take over a third of a 390px-high screen.
+  const want = () => { let sv = null; try { sv = localStorage.getItem(UX_TRAY_KEY); } catch {}
+    return sv === '1' ? true : sv === '0' ? false : innerHeight <= 500 && innerWidth > innerHeight && (S?.lines?.length || 0) > 3; };
+  uxTrayInit.apply = () => { if (p.classList.contains('collapsed') === want()) return false; tap?.call(btn); return true; };
+  uxTrayInit.apply(); addEventListener('resize', () => { const moved = uxTrayInit.apply(); uxTray(); if (moved && !modalOpen) uxApplyPlayView(false); });   // the free map area changed
   const ui = updateUI; updateUI = function (...a) { const r = ui.apply(this, a); uxTray(); return r; };
   uxTray();
 }
@@ -1528,7 +1537,26 @@ function uxClampToMap(t) {
   const s = t.scale, w = (b.xmax - b.xmin) * s, h = (b.ymax - b.ymin) * s;
   const x = w >= W ? Math.min(-b.xmin * s, Math.max(W - b.xmax * s, t.x)) : (W - (b.xmin + b.xmax) * s) / 2;
   const y = h >= H ? Math.min(-b.ymin * s, Math.max(H - b.ymax * s, t.y)) : (H - (b.ymin + b.ymax) * s) / 2;
-  return { ...t, x, y };
+  // Visibility outranks hiding the edge: every active city that sits in the free map area (below the header, clear of
+  // the tray, dock and sheets) before the clamp must still sit there after it. Each axis may only shift as far as all
+  // of them allow; a city near the map border keeps a strip of edge ground rather than slipping under the tray.
+  const r = uxVisibleRect(), pad = 30, cs = typeof realCities === 'function' ? realCities().filter(c => !c.dormant) : [];
+  const inside = cs.filter(c => { const sx = t.x + c.x * s, sy = t.y + c.y * s; return sx >= r.l && sx <= r.r && sy >= r.t && sy <= r.b; });
+  const limit = (d, lo, hi) => Math.max(lo, Math.min(hi, d));
+  let dxLo = -Infinity, dxHi = Infinity, dyLo = -Infinity, dyHi = Infinity;
+  for (const c of inside) { const sx = t.x + c.x * s, sy = t.y + c.y * s;
+    // a city already inside the margin may stay where it is, but is never pushed further toward the panel or edge
+    dxLo = Math.max(dxLo, Math.min(0, r.l + pad - sx)); dxHi = Math.min(dxHi, Math.max(0, r.r - pad - sx)); dyLo = Math.max(dyLo, Math.min(0, r.t + pad - sy)); dyHi = Math.min(dyHi, Math.max(0, r.b - pad - sy)); }
+  return { ...t, x: t.x + limit(x - t.x, dxLo, dxHi), y: t.y + limit(y - t.y, dyLo, dyHi) };
+}
+// What the default view should keep in sight: connected cities over idle ones, and in a late network the places that
+// need attention — a crowded hall (by load against capacity) and junctions where several lines meet.
+function uxPlayWeight(c) {
+  let w = cityHasRoute?.(c) ? 2 : 1;
+  const cap = typeof capacity === 'function' ? capacity(c) : 0, load = cap ? c.q.length / cap : 0;
+  w += Math.min(3, load * 2);
+  if (typeof cityLines === 'function') w += Math.min(2, Math.max(0, cityLines(c.id).length - 1) * .5);
+  return w;
 }
 function uxPlayTarget() { return uxClampToMap(uxPlayTargetRaw()); }
 function uxPlayTargetRaw() {
@@ -1552,7 +1580,7 @@ function uxPlayTargetRaw() {
   for (const p of [mean, ...active]) {
     const v = { rot, scale: s, ...uxViewFor(p, cx, cy, s) };
     let score = 0;
-    for (const c of active) { const q = uxScreenFor(v, c); if (q.x >= box.l && q.x <= box.r && q.y >= box.t && q.y <= box.b) score += cityHasRoute?.(c) ? 2 : 1; }
+    for (const c of active) { const q = uxScreenFor(v, c); if (q.x >= box.l && q.x <= box.r && q.y >= box.t && q.y <= box.b) score += uxPlayWeight(c); }
     score -= Math.hypot(p.x - mean.x, p.y - mean.y) / 1e4;   // tie-break: stay near the middle of the network
     if (!best || score > best.score) best = { score, v };
   }

@@ -90,5 +90,5 @@ s = await ev(`return {lines:S.lines.length,points:S.points,bar:!document.getElem
 step('8 建设 → built and charged', s.lines === lines0 + 1 && s.points < pts0 && !s.bar, { ...s, spent: pts0 - s.points }); await shot('06_built');
 step('12 page errors', errors.length === 0, errors.length);
 console.log(results.every(r => r.ok) ? 'ALL PASS' : 'SOME FAILED');
-chrome.kill(); try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
+chrome.kill(); for (let i = 0; i < 8; i++) { await wait(500); try { fs.rmSync(profile, { recursive: true, force: true }); break; } catch {} }   // Chrome may still hold files: retry
 process.exit(0);

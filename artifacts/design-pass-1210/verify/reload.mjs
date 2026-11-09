@@ -33,5 +33,5 @@ const a = await run('return [typeof drawFrame!=="undefined"?drawFrame:null, S.da
 await wait(1000);
 const b = await run('return [typeof drawFrame!=="undefined"?drawFrame:null, S.day]');
 console.log(JSON.stringify({ errors: [...new Set(errs)], count: errs.length, before: a.value, after: b.value, loopAlive: a.value?.[0] !== b.value?.[0] }));
-chrome.kill(); try { fs.rmSync(__profile, { recursive: true, force: true }); } catch {}
+chrome.kill(); for (let i = 0; i < 8; i++) { await wait(500); try { fs.rmSync(__profile, { recursive: true, force: true }); break; } catch {} }   // Chrome may still hold files: retry
 process.exit(0);

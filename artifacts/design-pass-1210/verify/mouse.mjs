@@ -97,5 +97,5 @@ await fresh();
 await ev(`S.cities[2].size=Math.max(1,S.cities[2].size);openCity(2)`); await wait(500); await ev(`previewRepairCenter(2)`); await wait(700);
 const r0 = await ev('return JSON.stringify(repairCenterPreview)'); const rb = await pos(0); await click(rb[0], rb[1]); await wait(800);
 console.log('REPAIR', JSON.stringify({ onA: r0, afterSwitch: await ev('return JSON.stringify([repairCenterPreview,selected])') }));
-chrome.kill(); try { fs.rmSync(__profile, { recursive: true, force: true }); } catch {}
+chrome.kill(); for (let i = 0; i < 8; i++) { await wait(500); try { fs.rmSync(__profile, { recursive: true, force: true }); break; } catch {} }   // Chrome may still hold files: retry
 process.exit(0);

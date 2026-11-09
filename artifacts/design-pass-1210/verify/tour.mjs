@@ -42,4 +42,4 @@ for (const s of scen) {
   }
 }
 console.log('done', scen.length);
-chrome.kill();await new Promise(r=>setTimeout(r,800));try{(await import("node:fs")).rmSync(__profile,{recursive:true,force:true})}catch{}process.exit(0);
+chrome.kill();for(let i=0;i<8;i++){await new Promise(r=>setTimeout(r,500));try{(await import("node:fs")).rmSync(__profile,{recursive:true,force:true});break}catch{}}process.exit(0);   // Chrome may still hold files: retry

@@ -60,7 +60,8 @@ openCity(realCities()[1].id); ${W(500)} uxSheetSet('full'); ${W(700)}
 const during = !document.getElementById('ux-coach').hidden;
 clearSelection(); ${W(700)}
 return { ok: before && !during && !document.getElementById('ux-coach').hidden && !document.getElementById('notice').textContent, before, during };`,
-  tray: `const p = document.getElementById('routes'), rows = [...p.querySelectorAll('.route-row')], pr = p.getBoundingClientRect();
+  tray: `const p0 = document.getElementById('routes'); if (p0.classList.contains('collapsed')) { document.getElementById('collapse').click(); ${W(200)} }   // short landscape starts collapsed
+const p = document.getElementById('routes'), rows = [...p.querySelectorAll('.route-row')], pr = p.getBoundingClientRect();
 const allIn = rows.every(r => { const b = r.getBoundingClientRect(); return b.top >= pr.top && b.bottom <= pr.bottom + 1 && b.left >= pr.left - 1 && b.right <= pr.right + 1; });
 document.getElementById('collapse').click(); ${W(200)}
 // a swatch counts only if the point at its centre really hits it (catches clipping by any ancestor, overlap, off-screen)
@@ -89,9 +90,21 @@ for (const [k, i] of [['money', 0], ['money', 1], ['money', 2], ['money', 3], ['
   tops.push(Math.round(t.top) + '/' + Math.round(c.left));
 }
 closeModal(); return { ok: new Set(tops).size === 1, tops };`,
-  edge: `${W(300)} const b = mapSpec.bounds, s = view.scale, tl = toScreen({ x: b.xmin, y: b.ymin }), br = toScreen({ x: b.xmax, y: b.ymax });
-const covers = (b.xmax - b.xmin) * s >= innerWidth && (b.ymax - b.ymin) * s >= innerHeight;
-return { ok: !covers || (tl.x <= .5 && tl.y <= .5 && br.x >= innerWidth - .5 && br.y >= innerHeight - .5), covers, tl: [Math.round(tl.x), Math.round(tl.y)], br: [Math.round(br.x), Math.round(br.y)] };`,
+  // the edge clamp must never move a city that the play view placed in the free map area under a panel (the reported
+  // 078e99c bug), checked both geometrically and by what the city's centre actually hits; edge ground is measured only
+  // where it is visible inside the free area
+  edge: `uxApplyPlayView(false); ${W(300)}
+const r = uxVisibleRect(), raw = uxPlayTargetRaw(), s = view.scale, at = (v, c) => ({ x: v.x + c.x * v.scale, y: v.y + c.y * v.scale });
+const free = (v, c) => { const p = at(v, c); return p.x >= r.l && p.x <= r.r && p.y >= r.t && p.y <= r.b; };
+const lost = [], hidden = [];
+for (const c of realCities().filter(c => !c.dormant)) {
+  if (!free(raw, c)) continue;
+  if (!free(view, c)) lost.push(c.name);
+  const p = toScreen(c), e = document.elementFromPoint(p.x, p.y); if (e && e.id !== 'map' && !e.closest('header')) hidden.push(c.name + '→' + (e.id || e.className || e.tagName));
+}
+const b = mapSpec.bounds, tl = toScreen({ x: b.xmin, y: b.ymin }), br = toScreen({ x: b.xmax, y: b.ymax });
+const bandFree = Math.round(Math.max(0, tl.x - r.l, tl.y - r.t, r.r - br.x, r.b - br.y));
+return { ok: lost.length === 0 && hidden.length === 0, lost, hidden, bandFree, freeCities: realCities().filter(c => !c.dormant && free(view, c)).length };`,
   cardfacts: `if (!(innerWidth > innerHeight && innerHeight <= 500)) return { ok: true, skipped: 'landscape phone only' };
 S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers();
 ${W(100)} closeModal(); uxOpenHub('goal', 1); ${W(500)}
