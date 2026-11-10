@@ -1673,8 +1673,13 @@ function uxOctOptions(a, b, type) {
   const ok = bend => uxOctFree(lo, bend, type) && uxOctFree(bend, hi, type);
   return { lo, hi, A: ok(A) ? [lo, A, hi] : null, B: ok(B) ? [lo, B, hi] : null };
 }
-let uxOctPlan = new Map(), uxOctPlanKey = '', uxOctPlanAt = -1e9;
+let uxOctPlan = new Map(), uxOctPlanKey = '', uxOctPlanAt = -1e9, uxOctPlanState = null;
 function uxOctPlanNow() {
+  // Paths retain city objects: map switches and reloads invalidate them before the time throttle.
+  // Note: .agents/notes/implemented/feature/2026-11-08-design-pass.md (折线路径缓存)
+  if (uxOctPlanState !== S) {
+    uxOctPlanState = S; uxOctPlan = new Map(); uxOctPlanKey = null; uxOctPlanAt = -1e9;
+  }
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
   if (now - uxOctPlanAt < 200) return uxOctPlan;
   uxOctPlanAt = now;
