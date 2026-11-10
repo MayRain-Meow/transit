@@ -156,6 +156,19 @@ S.blockages[key(qa, qb, 'bus')] = { status: 'broken' };
 closeModal(); clearSelection(); uxApplyPlayView(false); await new Promise(r => setTimeout(r, 800)); closeModal(); document.getAnimations().forEach(a => a.finish());
 return { ok: clashPlanned <= clashFixed && worst < .01 && grabbed === bent, clashFixed, clashPlanned, vehicles: nv, worst: +worst.toFixed(4), bent, grabbed, staged: !!inf, segBent: !!uxOctPath(qa, qb, 'bus') };
 `,
+  // capsule family: the undo pill joins the notice column (no overlap, same height); the achievements page renders all
+  // rows with one close button, the medal tiers on one line and nothing wider than the sheet
+  capsules: `S.paused = true; closeModal(); S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers(); ${W(100)} closeModal(); updateUI();
+constructionUndo = { label: '建线', expires: performance.now() + 9000, paid: 1200 }; showUndoBuild(); ${W(200)}
+const u = document.getElementById('undo-build'), nw = document.querySelector('.notice-wrap'), ru = u.getBoundingClientRect(), rn = nw.getBoundingClientRect();
+const inStack = !!u.closest('.top-stack'), apart = ru.top >= rn.bottom - 1 || rn.top >= ru.bottom - 1, sameH = Math.abs(ru.height - rn.height) <= 2;
+constructionUndo = null; showUndoBuild();
+achievements14.best.day100 = 50; showAchievements14(); ${W(400)} document.getAnimations().forEach(a => a.finish());
+const mc = document.getElementById('modal-content'), rows = mc.querySelectorAll('.uxa-row').length, closes = [...mc.querySelectorAll('button')].filter(b => /×/.test(b.textContent) && b.offsetParent).length;
+const tiers = [...mc.querySelectorAll('.uxa-tier')].map(t => Math.round(t.getBoundingClientRect().top)), oneLine = new Set(tiers).size === 1;
+const wide = [...mc.querySelectorAll('*')].filter(e => e.getBoundingClientRect().right > mc.getBoundingClientRect().right + 1).length, prog = mc.querySelectorAll('.uxa-prog').length;
+closeModal();
+return { ok: inStack && apart && sameH && rows === ACHIEVEMENTS14.length && closes === 1 && oneLine && !wide && prog > 0, inStack, apart, sameH, h: [ru.height, rn.height], rows, closes, oneLine, wide, prog };`,
   cardfacts: `if (!(innerWidth > innerHeight && innerHeight <= 500)) return { ok: true, skipped: 'landscape phone only' };
 S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers();
 ${W(100)} closeModal(); uxOpenHub('goal', 1); ${W(500)}
@@ -164,7 +177,7 @@ const box = document.querySelector('#modal-content .card-content128').getBoundin
 return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-risk') && inside('h3'), stats: inside('.card-stats'), reward: inside('.card-reward'), risk: inside('.card-risk') };`
 };
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
-mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice']);
+mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice', 'capsules']);
 mk('scenA_F.json', ['coach']);
 mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines']);
 console.log('built');

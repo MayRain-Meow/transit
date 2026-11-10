@@ -1282,15 +1282,78 @@ body #routes.collapsed .panel-heading > span.ux-swatches{display:flex!important;
 #drawbar .db-actions:not(:has(#quote-expand)) #drawundo{flex:0 0 44px}
 #drawbar .db-actions:not(:has(#quote-expand)) #drawcancel{flex:0 0 auto;width:auto!important;min-width:76px!important;grid-column:auto!important;grid-row:auto!important}
 #drawbar .db-actions:not(:has(#quote-expand)) #drawdone{flex:1 1 auto;width:auto!important;grid-column:auto!important;grid-row:auto!important}
-/* achievements (upstream v1.4): one close button — the header's, kept in reach by a sticky header like every other
-   sheet (upstream added a second, floating ×); locked rows dim only the medal, the condition to unlock stays readable */
+/* achievements (upstream v1.4, page rebuilt in ux.js uxAchievementsHTML): one close button in a sticky header like
+   every other sheet; a summary (count, bar, medals per tier); categories with their own count; compact rows where a
+   locked medal is pale but the condition stays readable, and a bar only where there is something to count */
 .achievements-open14 #ach-close14{display:none!important}
 .achievements-open14 #modal-content > .modal-head{position:sticky;top:0;z-index:5;margin:0 -18px 6px;padding:18px 18px 10px;background:#fffef9;box-shadow:0 1px 0 var(--line)}
-.ach-row14.locked{opacity:1!important}
-.ach-row14.locked .ach-badge14{opacity:.4}
-.ach-row14.locked h3{color:#4f5f58}
-.ach-row14 p{font-size:12px!important;line-height:1.55!important;color:#5f6f68!important}
-.ach-row14 small{font-size:11.5px!important;color:#6b7a73!important}
+.uxa-sum{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px 16px;margin:6px 0 4px;padding:14px 16px;border-radius:16px;background:#f3f5ec;border:1px solid #e1e6d8}
+.uxa-count{display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+.uxa-count b{font-size:30px;line-height:1;color:#2f5547;font-variant-numeric:tabular-nums}
+.uxa-count span{font-size:12px;color:#6b7a73}
+.uxa-bar{height:6px;border-radius:3px;background:#dfe5d6;overflow:hidden}
+.uxa-bar i,.uxa-prog i{display:block;height:100%;border-radius:inherit;background:#6f927d}
+.uxa-tiers{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+.uxa-tier{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px 0 5px;border-radius:14px;background:#fffef9;border:1px solid #e1e6d8;font-size:12px;color:#4f5f58;white-space:nowrap}
+.uxa-tier .ach-badge14{width:18px;height:20px}
+.uxa-tier b{font-variant-numeric:tabular-nums;color:#2f4a40}
+.uxa-tier small{font-size:11px;color:#7a877f}
+/* the same frame as the hub pages on wide screens, so rows can sit in two columns */
+@media not ((orientation:portrait) and (max-width:820px)){ .modal:has(.uxa-sum){width:min(820px,calc(100vw - 40px))!important;max-width:820px!important} }
+.uxa-sum p{grid-column:1/-1;margin:0;font-size:11.5px;line-height:1.5;color:#7a877f}
+.uxa-cat{display:flex;align-items:baseline;justify-content:space-between;margin:18px 2px 8px;font-size:12px;font-weight:600;letter-spacing:2px;color:#6f7d6c}
+.uxa-cat small{letter-spacing:0;font-weight:500;font-variant-numeric:tabular-nums;color:#8a968a}
+.uxa-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:8px}
+/* rows also carry upstream's ach-row14 class (its tests and hooks); these selectors outrank achievements14.css */
+.uxa-list .uxa-row{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:7px 12px;padding:10px 12px 10px 10px;border-radius:14px;background:#f6f7f0;border:1px solid #e3e7dc}
+.uxa-list .uxa-row > .ach-badge14{width:34px;height:38px}
+.uxa-list .uxa-row:has(.uxa-prog) > .ach-badge14{grid-row:1/span 2}
+.uxa-list .uxa-row.is-locked > .ach-badge14{opacity:.38}
+.uxa-list .uxa-row.is-done{background:#eef3e6;border-color:#d6e1cc}
+.uxa-list .uxa-row.is-done.diamond{background:#edf6f7;border-color:#b9d8e1}
+.uxa-row .uxa-txt h4{display:flex;align-items:baseline;gap:6px;margin:0 0 2px;font-size:14px;color:#2f4640}
+.uxa-row .uxa-txt h4 small{display:inline;margin:0;font-size:10.5px;font-weight:500;color:#8b968c}
+.uxa-list .uxa-row.is-locked .uxa-txt h4{color:#4c5d56}
+.uxa-row .uxa-txt p{margin:0;font-size:12px;line-height:1.5;color:#62716a}
+.uxa-prog{grid-column:2/-1;align-self:start;height:4px;border-radius:2px;background:#e0e5d8;overflow:hidden}
+.uxa-row small.uxa-when{display:block;margin-top:3px;font-size:11px;color:#6f8a76}
+.uxa-st{align-self:start;margin-top:1px;font-size:12px;font-variant-numeric:tabular-nums;color:#4f6158;white-space:nowrap}
+.uxa-st.is-none{color:#9aa49b}
+.uxa-st.is-done{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:11px;background:#dfeadb;color:#3f6b52;font-size:11.5px;font-weight:600}
+.uxa-st.is-done::before{content:'✓';font-size:11px}
 /* line picker: never more than half the screen — the station it belongs to stays in view above it; a long line list
    scrolls inside the picker */
 @media (orientation:portrait) and (max-width:820px){ #junction-picker{max-height:min(50dvh,calc(100dvh - var(--hud-h) - var(--safe-t) - var(--dock-btn-h) - var(--dock-bottom) - 40px))!important} }
+
+/* ---------- capsules: one family for everything that floats over the map ----------
+   Notice (status), new-city / alarm pointers, construction undo, orientation hint and the first-game coach share one
+   height, radius, paper, rule and shadow; the toast is the same shape in ink (feedback, momentary). Notices and the
+   undo pill stack in one centred column under the header instead of the undo floating alone at the top right. */
+:root{--cap-h:34px;--cap-r:17px;--cap-bg:#fffdf6f2;--cap-bd:#e6dcc2;--cap-sh:0 3px 12px #263b421a}
+.notice-wrap,#orientation-hint,.top-stack .undo-build,.ux-edge-pill{min-height:var(--cap-h);border-radius:var(--cap-r)!important;background:var(--cap-bg);border:1px solid var(--cap-bd);box-shadow:var(--cap-sh)!important;box-sizing:border-box}
+.ux-edge-pill{height:var(--cap-h)}
+.notice-wrap{padding:2px 2px 2px 14px!important}
+.notice-wrap .notice{font-size:12px;line-height:1.45;color:#5d5038;padding:5px 0}
+#notice-close,#dismiss-orientation{width:28px!important;height:28px!important;border-radius:14px!important}
+#orientation-hint{padding:2px 2px 2px 14px;font-size:12px}
+#orientation-hint button#landscape-enter{height:28px;border-radius:14px}
+#ux-coach{border-radius:var(--cap-r);box-shadow:var(--cap-sh);min-height:var(--cap-h);box-sizing:border-box}
+#toast{border-radius:var(--cap-r);padding:8px 18px;min-height:var(--cap-h);box-sizing:border-box}
+.top-stack .undo-build{position:static!important;transform:none!important;top:auto!important;right:auto!important;left:auto!important;pointer-events:auto;display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:0 14px 0 6px!important;background:#fff6e2f2;border-color:#e3c99c;color:#6d5430;font-size:12px!important;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.top-stack .undo-build::before{content:'↶';display:inline-grid;place-items:center;flex:0 0 22px;height:22px;border-radius:11px;background:#f3e2bd;font-size:13px;font-weight:700}
+.top-stack .undo-build[hidden]{display:none!important}
+.top-stack .undo-build:hover{background:#fff0d2}
+/* landscape / desktop with the side details panel open: the column centres over the map that is left */
+@media not ((orientation:portrait) and (max-width:820px)){
+  body:has(#details:not([hidden])) .top-stack{left:calc(50% - 150px);width:min(560px,calc(100vw - 340px))}
+}
+/* side details panel (landscape / desktop, ~280px): 车辆 and 载客 share the first row, the − / + stepper takes the
+   second — three columns squeezed 载客 · 0% into a one-character column */
+@media not ((orientation:portrait) and (max-width:820px)){
+  #details .ux-fleet{grid-template-columns:auto minmax(0,1fr)!important;align-items:start!important;row-gap:10px}
+  #details .ux-fleet .ux-stepper{grid-column:1/-1;align-self:stretch!important;margin-left:0;width:100%}
+  #details .ux-fleet .ux-stepper button.primary{flex:1 1 auto}
+  #details .ux-fleet-load small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+/* achievements on a short landscape screen: the summary keeps its numbers, the footnote goes */
+@media (orientation:landscape) and (max-height:500px){ .uxa-sum{padding:10px 14px} .uxa-sum p{display:none} }

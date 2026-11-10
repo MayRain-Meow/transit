@@ -505,13 +505,21 @@ function uxHandles() {
 // Screen distance from the city centre to the tab. Starts just outside the node and slides further out along the
 // line if it would sit on the waiting squares (drawn upright to the node's right, up to two rows).
 // Returns the tab's world direction and distance for an end city whose line arrives along (ux, uy).
+// The city's name and status lines under the node, as a world-unit box relative to the city centre (baselines r+22 and
+// r+35, upright; the text grows when zoomed out — see the text() wrapper).
+function uxLabelBox(c) {
+  const r = radius(c), f = view.scale < .85 ? Math.min(1.35, .85 / view.scale) : 1;
+  const half = Math.max(String(globalThis.CITY_LABEL?.(c, false) ?? c.name).length * 11, 52) * f / 2 + 3;
+  return { l: -half, r: half, t: r + 22 - 11 * f, b: r + 35 + 3 * f };
+}
 function uxTabPlace(c, ux, uy) {
   const s = view.scale, g = globalThis.CITY_GLYPH?.() ?? 1, r = radius(c), base = uxNodePx(c) + UX_TAB_GAP;
   const n = Math.min(c.q?.length || 0, typeof globalThis.QUEUE_SHOWN_FOR === 'function' ? QUEUE_SHOWN_FOR(c) : globalThis.QUEUE_SHOWN || 30);
   const o = toScreen(c), t = toScreen({ x: c.x + ux, y: c.y + uy }), dl = Math.hypot(t.x - o.x, t.y - o.y) || 1, sx = (t.x - o.x) / dl, sy = (t.y - o.y) / dl;
   const rows = Math.ceil(Math.min(Math.max(n, 1), 30) / 6), pad = UX_TAB_R + 4;
   const box = { l: (r + 15) * s * g - pad, r: (r + 15 + 6 * 11) * s * g + pad + 44, t: -r * s * g - pad, b: (-r + rows * 12) * s * g + pad };
-  const hits = (x, y) => n && x >= box.l && x <= box.r && y >= box.t && y <= box.b;
+  const lb = uxLabelBox(c), lab = { l: lb.l * s - pad, r: lb.r * s + pad, t: lb.t * s - pad, b: lb.b * s + pad };
+  const hits = (x, y) => (n && x >= box.l && x <= box.r && y >= box.t && y <= box.b) || (x >= lab.l && x <= lab.r && y >= lab.t && y <= lab.b);
   for (const deg of [0, -40, 40, -80, 80, -120, 120]) {
     const q = deg * Math.PI / 180, dx = sx * Math.cos(q) - sy * Math.sin(q), dy = sx * Math.sin(q) + sy * Math.cos(q);
     if (!hits(dx * base, dy * base)) {
@@ -555,9 +563,13 @@ function uxDrawLineCodes() {
     // clear of the node and (when the line leaves downward) of the city name under it
     const out = (uxNodePx(h.city) + 18 + (h.uy > .55 ? 22 : 0)) * k;
     let x = h.city.x + h.ux * out, y = h.city.y + h.uy * out;
+    const code = uxLineCode(h.line), w = (code.length > 1 ? 9 + code.length * 7.5 : 16) * k, hh = 16 * k;
+    // never on the city's own name / status lines
+    const lb = uxLabelBox(h.city), lab = { l: h.city.x + lb.l, r: h.city.x + lb.r, t: h.city.y + lb.t, b: h.city.y + lb.b };
+    const onLabel = () => x + w / 2 + 2 * k > lab.l && x - w / 2 - 2 * k < lab.r && y + hh / 2 + 2 * k > lab.t && y - hh / 2 - 2 * k < lab.b;
+    for (let i = 0; i < 16 && onLabel(); i++) { x += h.ux * 5 * k; y += h.uy * 5 * k; }
     for (let i = 0; i < 3 && placed.some(p => Math.hypot(p.x - x, p.y - y) < 18 * k); i++) { x += h.ux * 15 * k; y += h.uy * 15 * k; }
     placed.push({ x, y });
-    const code = uxLineCode(h.line), w = (code.length > 1 ? 9 + code.length * 7.5 : 16) * k, hh = 16 * k;
     const dim = typeof LINE_ALPHA === 'function' ? LINE_ALPHA(h.line, focus) : 1;
     ctx.save(); ctx.globalAlpha = Math.max(.25, dim);
     ctx.lineCap = 'round'; ctx.strokeStyle = h.line.color; ctx.lineWidth = 2.4 * k; ctx.setLineDash([]);
@@ -694,7 +706,9 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
           let px = cx + dx * k, py = cy + dy * k;
           const halfW = (el.offsetWidth || 120) / 2 + 10, halfH = (el.offsetHeight || 34) / 2 + 10, alongY = sx <= sy;
           const nodes = realCities().map(o => toScreen(o)).filter(q => q.x > 0 && q.x < W && q.y > band.top && q.y < band.bottom);
-          const covers = (x, y) => nodes.some(q => Math.abs(q.x - x) < halfW + 14 && Math.abs(q.y - y) < halfH + 14);
+          // …nor the toast while it shows (a pointer pressed against it reads as one blurred message)
+          const tr = uxEl('toast')?.classList.contains('show') ? uxEl('toast').getBoundingClientRect() : null;
+          const covers = (x, y) => nodes.some(q => Math.abs(q.x - x) < halfW + 14 && Math.abs(q.y - y) < halfH + 14) || !!(tr && tr.width && x + halfW > tr.left && x - halfW < tr.right && y + halfH > tr.top && y - halfH < tr.bottom);
           let clear = false;
           for (const off of [0, 40, -40, 80, -80, 120, -120, 160, -160]) {
             const x = alongY ? px : Math.min(W - halfW, Math.max(halfW, px + off)), y = alongY ? Math.min(band.bottom - halfH, Math.max(band.top + halfH, py + off)) : py;
@@ -1382,11 +1396,46 @@ function uxEndedState() {
     return r;
   };
 }
+// Achievements (upstream v1.4): same data and side effects (sync, mark seen, persist), a denser page — a summary with
+// the count per medal, each category with its own count, compact rows (medal · name and condition · status) and a
+// progress bar only where there is a count to make. Wide sheets put rows in two columns.
+function uxAchievementsHTML() {
+  const A = ACHIEVEMENTS14, st = achievements14, got = id => !!st.unlocked[id];
+  const tierName = { bronze: '铜', silver: '银', gold: '金', diamond: '钻石' }, mapName = { east: '东部', west: '西部' };
+  const n = A.filter(a => got(a.id)).length;
+  const tiers = ['bronze', 'silver', 'gold', 'diamond'].map(g => { const all = A.filter(a => a.grade === g); return `<span class="uxa-tier ${g}" title="${tierName[g]}牌" aria-label="${tierName[g]}牌 ${all.filter(a => got(a.id)).length} / ${all.length}">${achBadge14(g)}<b>${all.filter(a => got(a.id)).length}</b><small>/ ${all.length}</small></span>`; }).join('');
+  let html = `<div class="modal-head"><div><span class="eyebrow">旅途荣誉</span><h2>成就</h2></div><button class="close" onclick="closeModal()" aria-label="关闭成就">×</button></div>
+<section class="uxa-sum"><div class="uxa-count"><b>${n}</b><span>/ ${A.length} 已解锁</span></div><div class="uxa-bar"><i style="width:${n / A.length * 100}%"></i></div><div class="uxa-tiers">${tiers}</div><p>跨对局保留，重新开始不清空；不提供现金或运力奖励。</p></section>`;
+  const fmt = (a, v) => a.id === 'shareholder' ? (v > 0 && v < .01 ? (Math.floor(v * 1e4) / 1e4).toFixed(4) : (Math.floor(v * 100) / 100).toFixed(2)) + ' / ' + a.target + '%' : Math.floor(v) + ' / ' + a.target;
+  for (const cat of new Set(A.map(a => a.category))) {
+    const rows = A.filter(a => a.category === cat);
+    html += `<h3 class="uxa-cat"><span>${cat}</span><small>${rows.filter(a => got(a.id)).length} / ${rows.length}</small></h3><div class="uxa-list">`;
+    for (const a of rows) {
+      const u = st.unlocked[a.id], v = Math.min(a.target, st.best[a.id] || 0), counted = a.target > 1 && !u;
+      const where = u ? [mapName[u.map], Number.isFinite(u.day) ? '第' + u.day + '天' : ''].filter(Boolean).join(' ') : '';
+      const status = u ? `<span class="uxa-st is-done">已解锁</span>` : counted ? `<span class="uxa-st">${fmt(a, v)}</span>` : `<span class="uxa-st is-none">未解锁</span>`;
+      html += `<section class="ach-row14 uxa-row ${u ? 'is-done' : 'is-locked'} ${a.grade}">${achBadge14(a.grade)}<div class="uxa-txt"><h4>${a.name}<small>${tierName[a.grade]}</small></h4><p>${a.description}</p>${where ? `<small class="uxa-when">${where}</small>` : ''}</div>${status}${counted ? `<div class="uxa-prog"><i style="width:${Math.min(100, v / a.target * 100)}%"></i></div>` : ''}</section>`;
+    }
+    html += '</div>';
+  }
+  return html;
+}
+function uxAchievements() {
+  if (typeof showAchievements14 !== 'function' || showAchievements14.ux) return;
+  const show = showAchievements14;
+  showAchievements14 = function (...a) {
+    const om = openModal;
+    openModal = function (html, ...r) { let mine = html; try { mine = uxAchievementsHTML(); } catch {} return om.call(this, mine, ...r); };
+    try { return show.apply(this, a); } finally { openModal = om; }
+  };
+  showAchievements14.ux = true;
+  const b = uxEl('achievements-entry14'); if (b) b.onclick = () => showAchievements14();
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
