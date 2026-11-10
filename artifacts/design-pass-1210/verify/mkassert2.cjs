@@ -132,6 +132,13 @@ return { ok: !!out.offerShown && !out.offerAfterClose && !!out.prepShown && out.
 `,
   // transit-map lines: planned bends share fewer departure directions than a fixed bend; vehicles ride their drawn lanes;
   // every bent segment is grabbed where drawn; construction / break labels are staged on a bent road for the screenshot
+  // a toast shown with a line selected never covers that line's stations or ＋ tabs (portrait: the selection is framed
+  // right above the sheet, where the toast used to sit)
+  toastsel: `closeModal(); const out = [];
+for (const l of S.lines) { selected = { type: 'line', id: l.id }; updateUI(); ${W(700)} toast('测试提示'); ${W(450)} document.getAnimations().forEach(a => a.finish());
+  const r = document.getElementById('toast').getBoundingClientRect(), pts = [...l.stops.map(id => toScreen(S.cities[id])), ...(typeof uxVisibleHandles === 'function' ? uxVisibleHandles().map(t => toScreen(t)) : [])], hit = pts.filter(p => p.x > r.left - 4 && p.x < r.right + 4 && p.y > r.top - 4 && p.y < r.bottom + 4).length;
+  out.push(hit); clearSelection(); updateUI(); ${W(200)} }
+return { ok: out.every(n => n === 0), covered: out };`,
   lines: `// 1) same-direction departures (overlap risk) with planned bends vs. a fixed bend; 2) vehicles on lanes; 3) grab at
 // drawn midpoints; then stage a construction + a break on 栖山—河岸镇 for the screenshot.
 const segs = new Map();
@@ -179,5 +186,5 @@ return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-ri
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
 mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice', 'capsules']);
 mk('scenA_F.json', ['coach']);
-mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines']);
+mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines', 'toastsel']);
 console.log('built');

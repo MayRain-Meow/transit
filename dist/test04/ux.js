@@ -232,7 +232,7 @@ toast = function (t) {
 // Portrait: float messages just above whatever sheet is at the bottom, inside the thumb zone.
 function uxPlaceToast() {
   const el = uxEl('toast'); if (!el) return;
-  if (!portraitMode) { el.style.top = el.style.bottom = ''; return; }
+  if (!portraitMode) { el.style.top = el.style.bottom = el.style.left = ''; return; }
   let top = H;
   for (const sel of ['#ux-coach', '#junction-picker', '#details', '#routes', '#drawbar', 'footer .dock']) {
     const e = document.querySelector(sel);
@@ -241,8 +241,23 @@ function uxPlaceToast() {
   }
   // A sheet that fills most of the screen leaves no room above it: use the top of the map instead.
   const tall = ['details', 'junction-picker'].some(id => { const e = uxEl(id); return !!e && !e.hidden && e.getBoundingClientRect().top < H * .35; });
+  el.style.left = '';
   if (tall) { el.style.bottom = 'auto'; el.style.top = ((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8) + 'px'; return; }
-  el.style.top = 'auto'; el.style.bottom = (H - top + 10) + 'px';
+  // The selection is framed in the space above the sheet, so its lowest station often sits right where the toast
+  // goes. Two places are tried — above the sheet, then under the top status column — and the toast takes the first
+  // that covers none of the selection's stations or ＋ tabs (with room to spare if possible, else the fewest).
+  const w = el.offsetWidth || 200, h = el.offsetHeight || 36, pts = uxSelectionPoints().map(p => toScreen(p));
+  const st = document.querySelector('.top-stack'), sr = st?.getBoundingClientRect && (typeof getComputedStyle !== 'function' || getComputedStyle(st).visibility !== 'hidden') ? st.getBoundingClientRect() : null;
+  const upper = Math.max((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8, sr && sr.height ? sr.bottom + 8 : 0);
+  // centred first; a line running down the middle of the screen pushes it to one side
+  const xs = [W / 2, 16 + w / 2, W - 16 - w / 2].filter((x, i) => !i || w < W - 48), spots = [];
+  for (const [y, place] of [[top - 10 - h, () => { el.style.top = 'auto'; el.style.bottom = (H - top + 10) + 'px'; }], [upper, () => { el.style.bottom = 'auto'; el.style.top = upper + 'px'; }]])
+    for (const x of xs) spots.push({ key: spots.length, x, y, place: () => { place(); el.style.left = x === W / 2 ? '' : x + 'px'; } });
+  const cover = (s, m) => pts.filter(p => p.x > s.x - w / 2 - m && p.x < s.x + w / 2 + m && p.y > s.y - m && p.y < s.y + h + m).length;
+  // while one toast shows, it stays where it is as long as that spot is still clear (no hopping while the camera glides)
+  const shown = el.classList.contains('show') && el.uxText === el.textContent ? spots.find(s => s.key === el.uxSpot && !cover(s, 4)) : null;
+  const pick = shown || spots.find(s => !cover(s, 18)) || spots.find(s => !cover(s, 4)) || spots.reduce((a, s) => cover(s, 4) < cover(a, 4) ? s : a);
+  pick.place(); el.uxSpot = pick.key; el.uxText = el.textContent;
 }
 const uxStopUndo = offerStopUndo;
 offerStopUndo = function (...args) { uxStopUndo(...args); uxPlaceToast(); };
@@ -685,6 +700,8 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
       const keep = new Set();
       if (S && !modalOpen && !draft && !bridgeDraft) {
         const band = fitBand();
+        // portrait: the line picker is a bottom sheet too (fitBand already stops at the tray and the details sheet)
+        const pk = uxEl('junction-picker'); if (portraitMode && pk && !pk.hidden) { const r = pk.getBoundingClientRect(); if (r.height) band.bottom = Math.min(band.bottom, r.top - 10); }
         // Stay below the notices and the construction-undo pill so a pointer is never covered.
         for (const sel of ['.top-stack', '.undo-build']) { const e = document.querySelector(sel); if (!e || e.hidden) continue; const r = e.getBoundingClientRect(); if (r.height) band.top = Math.max(band.top, r.bottom + 4); }
         const cx = W / 2, cy = (band.top + band.bottom) / 2;
@@ -692,9 +709,9 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
           const urgent = !c.dormant && c.warning > 0, fresh = c.dormant;
           if (!urgent && !fresh) continue;
           const p = toScreen(c);
-          // A city the player can see (anywhere below the header, outside the dock) needs no pointer.
+          // A city the player can see (below the header, above the dock — and in portrait above an open sheet) needs no pointer.
           const headerB = document.querySelector('header')?.getBoundingClientRect().bottom || 60, dockT = document.querySelector('footer .dock')?.getBoundingClientRect().top || H;
-          if (p.x > 8 && p.x < W - 8 && p.y > headerB && p.y < dockT - 8) continue;
+          if (p.x > 8 && p.x < W - 8 && p.y > headerB && p.y < Math.min(dockT - 8, portraitMode ? band.bottom : Infinity)) continue;
           const dx = p.x - cx, dy = p.y - cy, sx = (W / 2 - 64) / Math.abs(dx || 1e-6), sy = ((band.bottom - band.top) / 2 - 22) / Math.abs(dy || 1e-6), k = Math.min(sx, sy, 1);
           let el = pills.get(c.id);
           if (!el) { el = document.createElement('button'); el.dataset.city = c.id; layer.appendChild(el); pills.set(c.id, el); }
@@ -705,12 +722,13 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
           // its edge — vertically on the left/right edges, horizontally on the top/bottom — until it is clear.
           let px = cx + dx * k, py = cy + dy * k;
           const halfW = (el.offsetWidth || 120) / 2 + 10, halfH = (el.offsetHeight || 34) / 2 + 10, alongY = sx <= sy;
-          const nodes = realCities().map(o => toScreen(o)).filter(q => q.x > 0 && q.x < W && q.y > band.top && q.y < band.bottom);
+          // cities on screen and the selected line's ＋ tabs (a pill over a tab would take the tap meant for it)
+          const nodes = [...realCities(), ...(typeof uxVisibleHandles === 'function' ? uxVisibleHandles() : [])].map(o => toScreen(o)).filter(q => q.x > 0 && q.x < W && q.y > band.top && q.y < band.bottom);
           // …nor the toast while it shows (a pointer pressed against it reads as one blurred message)
           const tr = uxEl('toast')?.classList.contains('show') ? uxEl('toast').getBoundingClientRect() : null;
           const covers = (x, y) => nodes.some(q => Math.abs(q.x - x) < halfW + 14 && Math.abs(q.y - y) < halfH + 14) || !!(tr && tr.width && x + halfW > tr.left && x - halfW < tr.right && y + halfH > tr.top && y - halfH < tr.bottom);
           let clear = false;
-          for (const off of [0, 40, -40, 80, -80, 120, -120, 160, -160]) {
+          for (const off of [0, 40, -40, 80, -80, 120, -120, 160, -160, 200, -200, 240, -240, 280, -280]) {
             const x = alongY ? px : Math.min(W - halfW, Math.max(halfW, px + off)), y = alongY ? Math.min(band.bottom - halfH, Math.max(band.top + halfH, py + off)) : py;
             if (!covers(x, y)) { px = x; py = y; clear = true; break; }
           }
