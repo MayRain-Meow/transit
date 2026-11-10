@@ -748,9 +748,18 @@ function uxWrapLateDrawers() {
   if (typeof drawSegment === 'function' && !drawSegment.uxCasing) {
     const seg = drawSegment;
     drawSegment = function (a, b, l, ...rest) {
-      if (l && S?.lines?.includes(l) && !(ctx.getLineDash?.() || []).length && typeof strokeLaneRange === 'function') {
+      const solid = !(ctx.getLineDash?.() || []).length;
+      if (l && S?.lines?.includes(l) && solid && typeof strokeLaneRange === 'function') {
         ctx.save(); ctx.strokeStyle = '#fbf9f1'; ctx.lineWidth += 2.4; ctx.lineCap = 'butt';
         try { strokeLaneRange(a, b, l); ctx.stroke(); } catch {} ctx.restore();
+      }
+      // rail (动车 / 高铁): the line in its own colour with a light centre line (double track) — replaces 动车's dark
+      // sleeper dots, which hid the line colour under a grey texture. Broken / repairing segments stay upstream's.
+      const blocked = typeof key === 'function' && ['broken', 'repairing'].includes(S.blockages?.[key(a, b, l?.type)]?.status);
+      if (l && (l.type === 'emu' || l.type === 'rail') && !blocked && typeof strokeLaneRange === 'function') {
+        strokeLaneRange(a, b, l); ctx.stroke();
+        if (solid) { ctx.save(); ctx.strokeStyle = '#fffdf4'; ctx.globalAlpha *= .92; ctx.lineWidth *= l.type === 'rail' ? .24 : .26; ctx.lineCap = 'butt'; ctx.stroke(); ctx.restore(); }
+        return;
       }
       return seg.call(this, a, b, l, ...rest);
     };
@@ -1300,6 +1309,12 @@ function uxTray() {
     sw.dataset.key = key;
     sw.innerHTML = S.lines.map(l => `<button style="--c:${l.color}" class="${selected?.type === 'line' && selected.id === l.id ? 'on' : ''}" onclick="selectLine(${l.id})" aria-label="${escapeHTML(l.name)}" title="${escapeHTML(l.name)}">${escapeHTML(uxLineCode(l))}</button>`).join('');
   }
+  // swatches speak the map's language: bus a solid line, 动车 / 高铁 a double track (heavier for 高铁), air a dash
+  for (const row of p.querySelectorAll('.route-row[data-line]')) {
+    const l = S.lines.find(x => x.id === +row.dataset.line), sw = row.querySelector('.swatch'); if (!l || !sw) continue;
+    const want = l.type === 'air' ? 'dashed 3px' : l.type === 'rail' ? 'double 7px' : l.type === 'emu' ? 'double 6px' : 'solid 4px';
+    if (sw.dataset.mode !== want) { sw.dataset.mode = want; const [st, w] = want.split(' '); sw.style.borderTopStyle = st; sw.style.borderTopWidth = w; }
+  }
   uxEl('route-new130')?.setAttribute?.('aria-label', '新建线路');
   // the expand toggle must not read as a second 「＋」 next to 新建: a chevron that points where the list goes
   const col = uxEl('collapse'), shut = p.classList.contains('collapsed');
@@ -1371,7 +1386,7 @@ function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit();
+  uxEndedState(); uxTrayInit(); uxModeStyle();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
@@ -1692,6 +1707,27 @@ function uxOctInfra(draw) {
     globalThis.roundBody = function (x, y, w, h, ...r) { const mv = shift(x + w / 2, y + h / 2); return rb0.call(this, mv ? x + mv.dx : x, mv ? y + mv.dy : y, w, h, ...r); };
     try { return draw.apply(this, args); } finally { ctx.moveTo = mt; ctx.lineTo = lt; globalThis.text = tx0; globalThis.roundBody = rb0; }
   };
+}
+// ---------- transport modes ----------
+const UX_MODE_RANK = { bus: 0, emu: 1, rail: 2, air: 3 };
+// widths relative to upstream's (bus 3.7, 动车 4.5, 高铁 7, air 2.8), so the zoom scaling applied by earlier layers stays
+const UX_MODE_WIDTH = { bus: 3.4 / 3.7, emu: 5.2 / 4.5, rail: 7 / 7, air: 2.2 / 2.8 };
+globalThis.LINE_ORDER = lines => lines.map((l, i) => [l, i]).sort((x, y) => (UX_MODE_RANK[x[0].type] ?? 0) - (UX_MODE_RANK[y[0].type] ?? 0) || x[1] - y[1]).map(x => x[0]);
+function uxModeStyle() {
+  if (typeof lineStyle !== 'function' || lineStyle.uxMode) return;
+  const ls = lineStyle;
+  lineStyle = function (l, ...a) {
+    const r = ls.call(this, l, ...a);
+    if (l && UX_MODE_WIDTH[l.type]) ctx.lineWidth *= UX_MODE_WIDTH[l.type];
+    if (l?.type === 'air') {
+      ctx.setLineDash([7, 7]);
+      // air crosses everything but runs on no road: kept light unless it is the line in focus
+      const focus = (selected?.type === 'line' && selected.id === l.id) || uxHoverLine === l.id || (draft && draft === l);
+      if (!focus) ctx.globalAlpha *= .6;
+    }
+    return r;
+  };
+  lineStyle.uxMode = true;
 }
 // Desktop: hovering a line with the mouse previews it — that line full strength, the rest faded — which is exactly what
 // a click there would select (upstream picks lines by their drawn path). Touch keeps the tray and station picker.
