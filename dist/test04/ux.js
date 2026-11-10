@@ -576,8 +576,14 @@ function uxDrawLineCodes() {
 globalThis.LINE_ALPHA = (l, focus) => {
   if (focus !== null && focus !== undefined) return focus === l.id ? 1 : .2;
   if (selected?.type === 'junction') return l.stops.includes(selected.id) ? 1 : .22;
+  if (uxHoverLine !== null && !draft && !selected) return l.id === uxHoverLine ? 1 : .28;
   return 1;
 };
+if (typeof cv !== 'undefined' && cv.addEventListener) {
+  cv.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || e.buttons || draft || modalOpen || selected) { if (uxHoverLine !== null) { uxHoverLine = null; cv.style.cursor = ''; } return; }
+    const h = typeof routeHit === 'function' ? routeHit(toWorld(e)) : null, id = h ? h.l.id : null; if (id !== uxHoverLine) { uxHoverLine = id; cv.style.cursor = id !== null ? 'pointer' : ''; } }, { passive: true });
+  cv.addEventListener('pointerleave', () => { uxHoverLine = null; cv.style.cursor = ''; });
+}
 function uxDrawHandles() {
   const focus = uxHandleFocus(); if (focus === null) { uxTabSince.line = null; return; }
   if (uxTabSince.line !== focus) uxTabSince = { line: focus, at: performance.now() };
@@ -1570,30 +1576,73 @@ globalThis.LANE_RAMP = (a, b, len) => {
 // chord or either leg needs a bridge or tunnel (river and mountain costs are computed along the chord, so a bent path
 // must not cross water or rock somewhere the game did not price). The leg order is canonical by station id, so both
 // directions and every line on the segment share one path and keep their lanes side by side.
-const uxOctCache = new Map();
-function uxOctPath(a, b, type) {
+// Each segment can bend two ways: diagonal first from one end or from the other. The bends are planned for the whole
+// network, line by line in building order (so a new line never reshapes older ones): each segment takes the bend whose
+// departure directions collide least with segments already placed at its two stations — two corridors leaving a
+// station on the same ray would lie on top of each other. A bend that would cross water or rock is never used.
+const UX_OCT_R = 20;                      // corner radius (world units)
+const uxOctFree = (p, q, type) => { try { const r = requirements(p, q, type); return !(r.bridge || r.tunnel); } catch { return false; } };
+const uxOctDir = (p, q) => (Math.round(Math.atan2(q.y - p.y, q.x - p.x) / (Math.PI / 4)) + 8) % 8;
+function uxOctOptions(a, b, type) {
   if (!a || !b || a.id === undefined || b.id === undefined || type === 'air' || a.kind === 'bridgehead' || b.kind === 'bridgehead' || a === b) return null;
-  const key = a.id + '>' + b.id + ':' + type + ':' + a.x + ',' + a.y + ':' + b.x + ',' + b.y;
-  if (uxOctCache.has(key)) return uxOctCache.get(key);
-  const lo = a.id < b.id ? a : b, hi = lo === a ? b : a, dx = hi.x - lo.x, dy = hi.y - lo.y, m = Math.min(Math.abs(dx), Math.abs(dy));
-  const bend = { x: lo.x + Math.sign(dx) * m, y: lo.y + Math.sign(dy) * m };
-  const free = (p, q) => { try { const r = requirements(p, q, type); return !(r.bridge || r.tunnel); } catch { return false; } };
-  let pts = m < 6 || Math.hypot(bend.x - hi.x, bend.y - hi.y) < 6 || !free(a, b) || !free(lo, bend) || !free(bend, hi) ? null : [lo, bend, hi];
-  if (pts && lo !== a) pts = pts.slice().reverse();
-  if (uxOctCache.size > 4000) uxOctCache.clear();
-  uxOctCache.set(key, pts); return pts;
+  const lo = a.id < b.id ? a : b, hi = lo === a ? b : a, dx = hi.x - lo.x, dy = hi.y - lo.y, m = Math.min(Math.abs(dx), Math.abs(dy)), sx = Math.sign(dx), sy = Math.sign(dy);
+  if (m < 6 || Math.max(Math.abs(dx), Math.abs(dy)) - m < 6 || !uxOctFree(lo, hi, type)) return null;
+  const A = { x: lo.x + sx * m, y: lo.y + sy * m }, B = { x: hi.x - sx * m, y: hi.y - sy * m };
+  const ok = bend => uxOctFree(lo, bend, type) && uxOctFree(bend, hi, type);
+  return { lo, hi, A: ok(A) ? [lo, A, hi] : null, B: ok(B) ? [lo, B, hi] : null };
 }
-// A point at fraction t along a station-to-station path, with the lane offset the straight version would have had,
-// turned to follow the current leg (the normal blends across the bend so lanes stay parallel round the corner).
+let uxOctPlan = new Map(), uxOctPlanKey = '', uxOctPlanAt = -1e9;
+function uxOctPlanNow() {
+  const now = typeof performance !== 'undefined' ? performance.now() : 0;
+  if (now - uxOctPlanAt < 200) return uxOctPlan;
+  uxOctPlanAt = now;
+  const lines = [...(S?.lines || []), ...(draft?.stops ? [draft] : [])];
+  const key = lines.map(l => l.type + ':' + l.stops.join(',')).join('|');
+  if (key === uxOctPlanKey) return uxOctPlan;
+  uxOctPlanKey = key; const plan = new Map(), usage = new Map();
+  const use = (id, d) => { if (!usage.has(id)) usage.set(id, new Map()); const u = usage.get(id); u.set(d, (u.get(d) || 0) + 1); };
+  const cost = (id, d) => usage.get(id)?.get(d) || 0;
+  for (const l of lines) for (let i = 1; i < l.stops.length; i++) {
+    const a = S.cities[l.stops[i - 1]], b = S.cities[l.stops[i]], o = uxOctOptions(a, b, l.type); if (!o) continue;
+    const pk = o.lo.id + '-' + o.hi.id + ':' + l.type; if (plan.has(pk)) continue;
+    const score = p => p ? cost(o.lo.id, uxOctDir(o.lo, p[1])) + cost(o.hi.id, uxOctDir(o.hi, p[1])) : Infinity;
+    const pick = o.A && o.B ? (score(o.B) < score(o.A) ? o.B : o.A) : o.A || o.B;
+    plan.set(pk, pick || null);
+    if (pick) { use(o.lo.id, uxOctDir(o.lo, pick[1])); use(o.hi.id, uxOctDir(o.hi, pick[1])); }
+  }
+  uxOctPlan = plan; return plan;
+}
+function uxOctPath(a, b, type) {
+  const o = uxOctOptions(a, b, type); if (!o) return null;
+  const pk = o.lo.id + '-' + o.hi.id + ':' + type, plan = uxOctPlanNow();
+  const p = plan.has(pk) ? plan.get(pk) : (o.A || o.B);
+  return p ? (o.lo === a ? p : p.slice().reverse()) : null;
+}
+// Geometry of a two-leg path with a rounded corner (quadratic fillet of radius R): position and unit tangent at arc
+// distance d. Used for lines (with lane offsets), roads and label anchors alike.
+function uxOctGeom(pts) {
+  const L1 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y), L2 = Math.hypot(pts[2].x - pts[1].x, pts[2].y - pts[1].y);
+  const u1 = { x: (pts[1].x - pts[0].x) / (L1 || 1), y: (pts[1].y - pts[0].y) / (L1 || 1) }, u2 = { x: (pts[2].x - pts[1].x) / (L2 || 1), y: (pts[2].y - pts[1].y) / (L2 || 1) };
+  const R = Math.min(UX_OCT_R, L1 * .45, L2 * .45);
+  return { L1, L2, u1, u2, R, len: L1 + L2, P0: { x: pts[1].x - u1.x * R, y: pts[1].y - u1.y * R }, P2: { x: pts[1].x + u2.x * R, y: pts[1].y + u2.y * R }, B: pts[1], pts };
+}
+function uxOctAt(g, d) {
+  const { L1, u1, u2, R, P0, P2, B, pts } = g;
+  if (d < L1 - R) return { x: pts[0].x + u1.x * d, y: pts[0].y + u1.y * d, tx: u1.x, ty: u1.y };
+  if (d > L1 + R) { const e = d - L1; return { x: pts[1].x + u2.x * e, y: pts[1].y + u2.y * e, tx: u2.x, ty: u2.y }; }
+  const s = R ? (d - (L1 - R)) / (2 * R) : 0, k = 1 - s;
+  const x = k * k * P0.x + 2 * k * s * B.x + s * s * P2.x, y = k * k * P0.y + 2 * k * s * B.y + s * s * P2.y;
+  let tx = 2 * k * (B.x - P0.x) + 2 * s * (P2.x - B.x), ty = 2 * k * (B.y - P0.y) + 2 * s * (P2.y - B.y); const tl = Math.hypot(tx, ty) || 1;
+  return { x, y, tx: tx / tl, ty: ty / tl };
+}
+// A point at fraction t along a station-to-station path, carrying the lane offset the straight version would have
+// had, turned to the local direction of the path (so lanes stay parallel round the rounded corner).
 function uxOctPoint(pts, a, b, base, t) {
   const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, n0x = -dy / len, n0y = dx / len;
   const off = (base.x - (a.x + dx * t)) * n0x + (base.y - (a.y + dy * t)) * n0y;
-  const L1 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y), L2 = Math.hypot(pts[2].x - pts[1].x, pts[2].y - pts[1].y), d = t * (L1 + L2);
-  const u1x = (pts[1].x - pts[0].x) / (L1 || 1), u1y = (pts[1].y - pts[0].y) / (L1 || 1), u2x = (pts[2].x - pts[1].x) / (L2 || 1), u2y = (pts[2].y - pts[1].y) / (L2 || 1);
-  const px = d <= L1 ? pts[0].x + u1x * d : pts[1].x + u2x * (d - L1), py = d <= L1 ? pts[0].y + u1y * d : pts[1].y + u2y * (d - L1);
-  const w = Math.max(0, Math.min(1, (d - L1 + 16) / 32)), ux = u1x * (1 - w) + u2x * w, uy = u1y * (1 - w) + u2y * w, ul = Math.hypot(ux, uy) || 1;
-  let nx = -uy / ul, ny = ux / ul; if (nx * n0x + ny * n0y < 0) { nx = -nx; ny = -ny; }
-  return { x: px + nx * off, y: py + ny * off };
+  const g = uxOctGeom(pts), p = uxOctAt(g, t * g.len);
+  let nx = -p.ty, ny = p.tx; if (nx * n0x + ny * n0y < 0) { nx = -nx; ny = -ny; }
+  return { x: p.x + nx * off, y: p.y + ny * off };
 }
 if (typeof lanePoint === 'function' && !lanePoint.uxOct) {
   const lp = lanePoint;
@@ -1603,22 +1652,50 @@ if (typeof lanePoint === 'function' && !lanePoint.uxOct) {
   };
   lanePoint.uxOct = true;
 }
-// Roads and tracks under the lines (and their construction / blockage marks) are drawn as straight strokes between
-// station centres: while they draw, such a stroke follows the same transit-map path as the lines on it.
+// Bent strokes are sampled densely (about every 4 units) so the rounded corners read as curves, not facets.
+if (typeof strokeLaneRange === 'function' && !strokeLaneRange.uxOct) {
+  const slr = strokeLaneRange;
+  strokeLaneRange = function (a, b, l, lo = 0, hi = 1) {
+    const pts = l && uxOctPath(a, b, l.type); if (!pts) return slr.call(this, a, b, l, lo, hi);
+    const g = uxOctGeom(pts), n = Math.max(16, Math.ceil((hi - lo) * g.len / 4));
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) { const p = lanePoint(a, b, l, lo + (hi - lo) * i / n); if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); }
+  };
+  strokeLaneRange.uxOct = true;
+}
+// Roads and tracks under the lines are drawn as straight strokes between station centres, and their construction and
+// break labels («施工 2天», «× 断线») at the straight midpoint. While they draw, a stroke between two stations whose
+// segment is bent follows the same rounded path, and a label anchored near that segment's straight midpoint moves to
+// the middle of the path — the road it belongs to.
 function uxOctInfra(draw) {
   return function (...args) {
-    const mt = ctx.moveTo, lt = ctx.lineTo; let from = null;
+    const mt = ctx.moveTo, lt = ctx.lineTo, tx0 = globalThis.text, rb0 = globalThis.roundBody; let from = null;
     const at = (x, y) => S.cities.find(c => c && Math.abs(c.x - x) < .01 && Math.abs(c.y - y) < .01);
+    const pathOf = (a, b) => uxOctPath(a, b, 'bus') || uxOctPath(a, b, 'emu');
+    const moves = [];
+    const pairs = [...Object.values(S.infrastructure || {}).map(x => [x.a, x.b]), ...Object.keys(S.blockages || {}).map(k => k.split('-').slice(-2).map(Number))];
+    for (const [ia, ib] of pairs) {
+      const a = S.cities[ia], b = S.cities[ib], pts = a && b && pathOf(a, b); if (!pts) continue;
+      const g = uxOctGeom(pts), m = uxOctAt(g, g.len / 2);
+      moves.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, dx: m.x - (a.x + b.x) / 2, dy: m.y - (a.y + b.y) / 2 });
+    }
+    const shift = (x, y) => { let best = null, d = 34; for (const mv of moves) { const e = Math.hypot(x - mv.x, y - mv.y); if (e < d) { d = e; best = mv; } } return best; };
     ctx.moveTo = function (x, y) { from = { x, y }; return mt.call(this, x, y); };
     ctx.lineTo = function (x, y) {
-      const a = from && at(from.x, from.y), b = a && at(x, y), pts = b && (uxOctPath(a, b, 'bus') || uxOctPath(a, b, 'emu'));
+      const a = from && at(from.x, from.y), b = a && at(x, y), pts = b && pathOf(a, b);
       from = { x, y };
       if (!pts) return lt.call(this, x, y);
-      lt.call(this, pts[1].x, pts[1].y); return lt.call(this, x, y);
+      const g = uxOctGeom(pts);
+      lt.call(this, g.P0.x, g.P0.y); this.quadraticCurveTo(g.B.x, g.B.y, g.P2.x, g.P2.y); return lt.call(this, x, y);
     };
-    try { return draw.apply(this, args); } finally { ctx.moveTo = mt; ctx.lineTo = lt; }
+    globalThis.text = function (t, x, y, ...r) { const mv = shift(x, y); return tx0.call(this, t, mv ? x + mv.dx : x, mv ? y + mv.dy : y, ...r); };
+    globalThis.roundBody = function (x, y, w, h, ...r) { const mv = shift(x + w / 2, y + h / 2); return rb0.call(this, mv ? x + mv.dx : x, mv ? y + mv.dy : y, w, h, ...r); };
+    try { return draw.apply(this, args); } finally { ctx.moveTo = mt; ctx.lineTo = lt; globalThis.text = tx0; globalThis.roundBody = rb0; }
   };
 }
+// Desktop: hovering a line with the mouse previews it — that line full strength, the rest faded — which is exactly what
+// a click there would select (upstream picks lines by their drawn path). Touch keeps the tray and station picker.
+let uxHoverLine = null;
 // Every station sits in a clear zone the colour of the paper: lines stop at its edge, as at an interchange on a transit
 // map, instead of running into the centre. The zone grows with the number of corridors meeting there, so a five-line
 // hub gets room around it. Drawn after the lines and before vehicles and the stations themselves.

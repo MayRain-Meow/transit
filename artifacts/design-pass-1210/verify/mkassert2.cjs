@@ -130,6 +130,32 @@ if (st.active) { S.day = st.active.start + .1; } out.runningShown = shown();
 x.click(); await W(50); if (st.active) st.active.delivered = (st.active.delivered || 0) + 3; out.runningAfterProgress = shown();
 return { ok: !!out.offerShown && !out.offerAfterClose && !!out.prepShown && out.prepShown !== out.offerShown && !out.prepAfterClose && !!out.runningShown && !out.runningAfterProgress, ...out };
 `,
+  // transit-map lines: planned bends share fewer departure directions than a fixed bend; vehicles ride their drawn lanes;
+  // every bent segment is grabbed where drawn; construction / break labels are staged on a bent road for the screenshot
+  lines: `// 1) same-direction departures (overlap risk) with planned bends vs. a fixed bend; 2) vehicles on lanes; 3) grab at
+// drawn midpoints; then stage a construction + a break on 栖山—河岸镇 for the screenshot.
+const segs = new Map();
+for (const l of S.lines) for (let i = 1; i < l.stops.length; i++) { const a = S.cities[l.stops[i - 1]], b = S.cities[l.stops[i]]; const k = Math.min(a.id, b.id) + '-' + Math.max(a.id, b.id); if (!segs.has(k)) segs.set(k, [a, b, l.type]); }
+const clash = pathFn => { const dep = new Map(); let n = 0;
+  for (const [a, b, type] of segs.values()) { const p = pathFn(a, b, type); const da = p ? uxOctDir(a, p[1]) : uxOctDir(a, b), db = p ? uxOctDir(b, p[1]) : uxOctDir(b, a);
+    for (const [id, d] of [[a.id, da], [b.id, db]]) { const k = id + ':' + d; dep.set(k, (dep.get(k) || 0) + 1); } }
+  for (const v of dep.values()) if (v > 1) n += v - 1; return n; };
+const fixed = (a, b, type) => { const o = uxOctOptions(a, b, type); if (!o) return null; const p = o.A || o.B; return p ? (o.lo === a ? p : p.slice().reverse()) : null; };
+const clashFixed = clash(fixed), clashPlanned = clash(uxOctPath);
+S.paused = false; await new Promise(r => setTimeout(r, 1500)); S.paused = true;
+let worst = 0, nv = 0;
+for (const v of S.vehicles) { const l = S.lines.find(x => x.id === v.line), pose = vehiclePose(v); if (!l || !pose) continue; const lv = v.stops ? { ...l, stops: v.stops } : l; let ni = v.index + v.dir; if (ni < 0 || ni >= lv.stops.length) ni = v.index - v.dir; const p = lanePoint(S.cities[lv.stops[v.index]], S.cities[lv.stops[ni]], l, travelPhase(v.t)); worst = Math.max(worst, Math.hypot(p.x - pose.x, p.y - pose.y)); nv++; }
+let bent = 0, grabbed = 0;
+for (const l of S.lines) for (let i = 1; i < l.stops.length; i++) { const a = S.cities[l.stops[i - 1]], b = S.cities[l.stops[i]]; if (!uxOctPath(a, b, l.type)) continue; bent++; selected = { type: 'line', id: l.id }; const h = routeHit(lanePoint(a, b, l, .5)); if (h && h.l.id === l.id && h.index === i) grabbed++; }
+selected = null;
+// stage: line 6 segment 栖山—河岸镇 under construction and broken
+const pick2 = n => realCities().find(c => c.name.startsWith(n)), qa = pick2('栖山'), qb = pick2('河岸镇');
+const inf = Object.values(S.infrastructure).find(x => (x.a === qa.id && x.b === qb.id) || (x.a === qb.id && x.b === qa.id));
+if (inf) inf.until = S.day + 2;
+S.blockages[key(qa, qb, 'bus')] = { status: 'broken' };
+closeModal(); clearSelection(); uxApplyPlayView(false); await new Promise(r => setTimeout(r, 800)); closeModal(); document.getAnimations().forEach(a => a.finish());
+return { ok: clashPlanned <= clashFixed && worst < .01 && grabbed === bent, clashFixed, clashPlanned, vehicles: nv, worst: +worst.toFixed(4), bent, grabbed, staged: !!inf, segBent: !!uxOctPath(qa, qb, 'bus') };
+`,
   cardfacts: `if (!(innerWidth > innerHeight && innerHeight <= 500)) return { ok: true, skipped: 'landscape phone only' };
 S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers();
 ${W(100)} closeModal(); uxOpenHub('goal', 1); ${W(500)}
@@ -140,5 +166,5 @@ return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-ri
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
 mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice']);
 mk('scenA_F.json', ['coach']);
-mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore']);
+mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines']);
 console.log('built');
