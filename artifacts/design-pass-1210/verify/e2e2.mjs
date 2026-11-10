@@ -1,10 +1,11 @@
+import { fileURLToPath } from 'node:url';
 // End-to-end flow on upstream 1.2.10 + design pass, with trusted touch events (isolated profile, synthetic save).
 // usage: node e2e2.mjs outdir [WxH]   — covers: tap city, peek/expand/collapse/close, line picker → city, waiting list,
 // draw a line → quote (not charged) → cancel, draw again → build (charged), tray chip → line sheet, rename → cancel,
 // money hub → 股票 tab, toast order. Reports every step and page errors.
 import { spawn } from 'node:child_process'; import fs from 'node:fs';
 const out = process.argv[2]; const [W, H] = (process.argv[3] || '390x844').split('x').map(Number);
-const port = 9500 + Math.floor(Math.random() * 300), profile = process.env.TEMP + '/cdpe2e2_' + port;
+const port = 9500 + Math.floor(Math.random() * 300), profile = (process.env.VERIFY_TMP || fileURLToPath(new URL('../../../.verify-tmp', import.meta.url))) + '/cdpe2e2_' + port;
 const chrome = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', `--remote-debugging-port=${port}`, '--user-data-dir=' + profile, '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
 const wait = ms => new Promise(r => setTimeout(r, ms)); let tabs; for (let i = 0; i < 60; i++) { try { tabs = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); break; } catch { await wait(200); } }
 const ws = new WebSocket(tabs.find(t => t.type === 'page').webSocketDebuggerUrl); await new Promise(r => ws.onopen = r); let id = 0; const pend = {}; const errors = [];

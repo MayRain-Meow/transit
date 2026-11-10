@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 // usage: node tour.mjs outdir WxH[m] scenarios.json   (env: SETUP=file.js, DSF=device scale, URL=page, PROFILE=name)
 // scenarios.json: [{name, js, wait?, frames?, interval?, each?, clip?, log?}]
 // Each scenario: fresh navigation → wait until all scripts loaded → SETUP code → js → optional frame series.
@@ -7,7 +8,7 @@ const [outdir, size, scenFile] = process.argv.slice(2);
 const scen = JSON.parse(fs.readFileSync(scenFile, 'utf8'));
 const url = process.env.URL || 'http://127.0.0.1:8791/test04/';
 const port = 9334 + Math.floor(Math.random() * 400);
-const profile = process.env.TEMP + '/cdp_' + (process.env.PROFILE || 'tour') + '_' + port;
+const profile = (process.env.VERIFY_TMP || fileURLToPath(new URL('../../../.verify-tmp', import.meta.url))) + '/cdp_' + (process.env.PROFILE || 'tour') + '_' + port;
 const __profile=(profile);
 const chrome = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',
   ['--headless=new', `--remote-debugging-port=${port}`, '--user-data-dir='+__profile, '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });

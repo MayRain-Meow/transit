@@ -11,6 +11,10 @@ python -I serve.py 8791            # 多线程、长监听队列、no-store；�
 
 Python 自带的 `http.server` 单线程，监听队列只有 5。页面有 31 个脚本，并发请求时可能拒绝连接，个别脚本加载失败，会表现为「xxx is not defined」之类的假报错。复验请使用 `serve.py`。
 
+## 临时文件位置
+
+浏览器临时配置默认放在项目根目录的 `.verify-tmp/`（D 盘，已通过 `.git/info/exclude` 排除，不会提交），不再使用系统 `%TEMP%`（C 盘）。可用环境变量 `VERIFY_TMP` 改到其他位置。截图输出目录也请放在 `.verify-tmp/` 下，用完删除。
+
 ## 场景
 
 | 文件 | 内容 |
