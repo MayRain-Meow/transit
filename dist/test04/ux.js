@@ -239,10 +239,9 @@ function uxPlaceToast() {
     if (!e || e.hidden || typeof getComputedStyle !== 'function' || getComputedStyle(e).display === 'none') continue;
     const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
   }
-  // A sheet that fills most of the screen leaves no room above it: use the top of the map instead.
-  const tall = ['details', 'junction-picker'].some(id => { const e = uxEl(id); return !!e && !e.hidden && e.getBoundingClientRect().top < H * .35; });
+  // A sheet that fills most of the screen leaves only a strip of map under the header: the toast goes in that strip.
+  const tallTop = Math.min(...['details', 'junction-picker'].map(id => { const e = uxEl(id), r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height && r.top < H * .35 ? r.top : Infinity; }));
   el.style.left = '';
-  if (tall) { el.style.bottom = 'auto'; el.style.top = ((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8) + 'px'; return; }
   // The selection is framed in the space above the sheet, so its lowest station often sits right where the toast
   // goes. Two places are tried — above the sheet, then under the top status column — and the toast takes the first
   // that covers none of the selection's stations or ＋ tabs (with room to spare if possible, else the fewest).
@@ -251,7 +250,10 @@ function uxPlaceToast() {
   const upper = Math.max((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8, sr && sr.height ? sr.bottom + 8 : 0);
   // centred first; a line running down the middle of the screen pushes it to one side
   const xs = [W / 2, 16 + w / 2, W - 16 - w / 2].filter((x, i) => !i || w < W - 48), spots = [];
-  for (const [y, place] of [[top - 10 - h, () => { el.style.top = 'auto'; el.style.bottom = (H - top + 10) + 'px'; }], [upper, () => { el.style.bottom = 'auto'; el.style.top = upper + 'px'; }]])
+  const atTop = y => () => { el.style.bottom = 'auto'; el.style.top = y + 'px'; };
+  const rows = tallTop < Infinity ? [[upper, atTop(upper)], ...(tallTop - 10 - h > upper + h ? [[tallTop - 10 - h, atTop(tallTop - 10 - h)]] : [])]
+    : [[top - 10 - h, () => { el.style.top = 'auto'; el.style.bottom = (H - top + 10) + 'px'; }], [upper, atTop(upper)]];
+  for (const [y, place] of rows)
     for (const x of xs) spots.push({ key: spots.length, x, y, place: () => { place(); el.style.left = x === W / 2 ? '' : x + 'px'; } });
   const cover = (s, m) => pts.filter(p => p.x > s.x - w / 2 - m && p.x < s.x + w / 2 + m && p.y > s.y - m && p.y < s.y + h + m).length;
   // while one toast shows, it stays where it is as long as that spot is still clear (no hopping while the camera glides)
@@ -1387,6 +1389,15 @@ function uxNoticeKey(t) {
   }
   return null;
 }
+// The top notice gets a category icon on its left, the same round slot as the undo pill and the edge pointers. Only an
+// attribute is set (other layers read the notice text); a leading ★ / ♪ in the text is hidden since the icon says it.
+const UX_NOTICE_KINDS = [['activity', /^★|活动|邀请/], ['concert', /^♪|音乐|演出/], ['weather', /雨|雾|台风|天气/], ['damage', /受损|断开|断线|待拆/], ['works', /施工/], ['opening', /开放|新城|待接入/]];
+function uxNoticeIcon() {
+  const n = uxEl('notice'), wrap = n?.closest?.('.notice-wrap'); if (!n || !wrap || typeof MutationObserver !== 'function') return;
+  const apply = () => { const t = n.textContent || '', k = t ? (UX_NOTICE_KINDS.find(([, re]) => re.test(t))?.[0] || 'info') : '', sym = /^[★♪]/.test(t) ? '1' : '';
+    if (wrap.dataset.kind !== k) wrap.dataset.kind = k; if ((wrap.dataset.sym || '') !== sym) wrap.dataset.sym = sym; };
+  new MutationObserver(apply).observe(n, { childList: true, characterData: true, subtree: true }); apply();
+}
 function uxNoticeDismiss() {
   const btn = uxEl('notice-close'), n = uxEl('notice'); if (!btn || !n) return;
   let closed = null; const up = btn.onclick;
@@ -1468,6 +1479,7 @@ function uxLate() {
     return r;
   };
   uxEl('notice')?.closest?.('.notice-wrap')?.addEventListener('click', e => { if (e.target.closest('#notice-close')) return; if (/活动邀请/.test(uxEl('notice').textContent)) uxOpenHub('goal', 1); });
+  uxNoticeIcon();
   uxNoticeDismiss();   // outermost: sees the banner text after every layer (and the rename) has written it
   updateUI();
 }

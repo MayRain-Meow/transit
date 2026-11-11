@@ -138,7 +138,11 @@ return { ok: !!out.offerShown && !out.offerAfterClose && !!out.prepShown && out.
 for (const l of S.lines) { selected = { type: 'line', id: l.id }; updateUI(); ${W(700)} toast('测试提示'); ${W(450)} document.getAnimations().forEach(a => a.finish());
   const r = document.getElementById('toast').getBoundingClientRect(), pts = [...l.stops.map(id => toScreen(S.cities[id])), ...(typeof uxVisibleHandles === 'function' ? uxVisibleHandles().map(t => toScreen(t)) : [])], hit = pts.filter(p => p.x > r.left - 4 && p.x < r.right + 4 && p.y > r.top - 4 && p.y < r.bottom + 4).length;
   out.push(hit); clearSelection(); updateUI(); ${W(200)} }
-return { ok: out.every(n => n === 0), covered: out };`,
+// a city whose sheet is fully expanded: only a strip of map is left above it, the toast must not sit on the city
+const full = [];
+for (const c of realCities().slice(0, 6)) { closeModal(); openCity(c.id); ${W(500)} if (portraitMode) uxSheetSet('full'); ${W(700)} toast('测试提示'); ${W(450)} document.getAnimations().forEach(a => a.finish());
+  const r = document.getElementById('toast').getBoundingClientRect(), p = toScreen(c); full.push(p.x > r.left - 4 && p.x < r.right + 4 && p.y > r.top - 4 && p.y < r.bottom + 4 ? 1 : 0); clearSelection(); updateUI(); ${W(200)} }
+return { ok: out.every(n => n === 0) && full.every(n => n === 0), covered: out, cityFull: full };`,
   lines: `// 1) same-direction departures (overlap risk) with planned bends vs. a fixed bend; 2) vehicles on lanes; 3) grab at
 // drawn midpoints; then stage a construction + a break on 栖山—河岸镇 for the screenshot.
 const segs = new Map();
