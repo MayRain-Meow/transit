@@ -229,36 +229,57 @@ toast = function (t) {
   uxToast(uxRename(t));
   uxPlaceToast();
 };
-// Portrait: float messages just above whatever sheet is at the bottom, inside the thumb zone.
+// Where a message floats. Portrait: just above whatever sheet is at the bottom (thumb zone). Landscape / desktop: the
+// stylesheet's place (top of the map on short screens, above the dock otherwise).
+// Either way it must not land on the selection: the selection is framed in the free map, so one of its stations often
+// sits right where the toast goes. Candidate spots — the usual row, then the other end of the map (under the top status
+// column; only the strip under the header when a portrait sheet is fully open), each centred / left / right of the
+// free map — are tried in order, and the toast takes the first that leaves every visible station or ＋ tab of the
+// selection clear, node included. A long message that fits nowhere in the map (a reward or a lost-life warning beside
+// a full portrait sheet) goes over the bottom of the sheet, above the dock, rather than onto the selection.
 function uxPlaceToast() {
   const el = uxEl('toast'); if (!el) return;
-  if (!portraitMode) { el.style.top = el.style.bottom = el.style.left = ''; return; }
-  let top = H;
-  for (const sel of ['#ux-coach', '#junction-picker', '#details', '#routes', '#drawbar', 'footer .dock']) {
-    const e = document.querySelector(sel);
-    if (!e || e.hidden || typeof getComputedStyle !== 'function' || getComputedStyle(e).display === 'none') continue;
-    const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
-  }
-  // A sheet that fills most of the screen leaves only a strip of map under the header: the toast goes in that strip.
-  const tallTop = Math.min(...['details', 'junction-picker'].map(id => { const e = uxEl(id), r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height && r.top < H * .35 ? r.top : Infinity; }));
-  el.style.left = '';
-  // The selection is framed in the space above the sheet, so its lowest station often sits right where the toast
-  // goes. Two places are tried — above the sheet, then under the top status column — and the toast takes the first
-  // that covers none of the selection's stations or ＋ tabs (with room to spare if possible, else the fewest).
-  const w = el.offsetWidth || 200, h = el.offsetHeight || 36, pts = uxSelectionPoints().map(p => toScreen(p));
+  el.style.top = el.style.bottom = el.style.left = '';
+  const vis = id => { const e = uxEl(id), r = e && !e.hidden && (typeof getComputedStyle !== 'function' || getComputedStyle(e).display !== 'none') && e.getBoundingClientRect?.(); return r && r.height ? r : null; };
+  const headB = document.querySelector('header')?.getBoundingClientRect().bottom || 60, dockT = document.querySelector('footer .dock')?.getBoundingClientRect().top || H;
   const st = document.querySelector('.top-stack'), sr = st?.getBoundingClientRect && (typeof getComputedStyle !== 'function' || getComputedStyle(st).visibility !== 'hidden') ? st.getBoundingClientRect() : null;
-  const upper = Math.max((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8, sr && sr.height ? sr.bottom + 8 : 0);
-  // centred first; a line running down the middle of the screen pushes it to one side
-  const xs = [W / 2, 16 + w / 2, W - 16 - w / 2].filter((x, i) => !i || w < W - 48), spots = [];
-  const atTop = y => () => { el.style.bottom = 'auto'; el.style.top = y + 'px'; };
-  const rows = tallTop < Infinity ? [[upper, atTop(upper)], ...(tallTop - 10 - h > upper + h ? [[tallTop - 10 - h, atTop(tallTop - 10 - h)]] : [])]
-    : [[top - 10 - h, () => { el.style.top = 'auto'; el.style.bottom = (H - top + 10) + 'px'; }], [upper, atTop(upper)]];
+  const upper = Math.max(headB + 8, sr && sr.height ? sr.bottom + 8 : 0);
+  const w = el.offsetWidth || 200, h = el.offsetHeight || 36;
+  const atTop = y => () => { el.style.bottom = 'auto'; el.style.top = y + 'px'; }, atBottom = b => () => { el.style.top = 'auto'; el.style.bottom = (H - b) + 'px'; };
+  let mapL = 0, mapR = W, mapB, rows, sheetSpot = null;
+  if (portraitMode) {
+    let top = H;
+    for (const sel of ['#ux-coach', '#junction-picker', '#details', '#routes', '#drawbar', 'footer .dock']) {
+      const e = document.querySelector(sel);
+      if (!e || e.hidden || typeof getComputedStyle !== 'function' || getComputedStyle(e).display === 'none') continue;
+      const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
+    }
+    // a sheet that fills most of the screen leaves only a strip of map under the header
+    const tallTop = Math.min(...['details', 'junction-picker'].map(id => { const r = vis(id); return r && r.top < H * .35 ? r.top : Infinity; }));
+    mapB = tallTop < Infinity ? tallTop : top;
+    rows = tallTop < Infinity ? [[upper, atTop(upper)], ...(tallTop - 10 - h > upper + h ? [[tallTop - 10 - h, atTop(tallTop - 10 - h)]] : [])]
+      : [[top - 10 - h, atBottom(top - 10)], [upper, atTop(upper)]];
+    if (mapB < dockT - 10 - h) sheetSpot = { key: 'sheet', x: W / 2, y: dockT - 10 - h, place: atBottom(dockT - 10) };
+  } else {
+    // side panels (details, line picker, route list) take the right or left of the map
+    for (const id of ['details', 'junction-picker']) { const r = vis(id); if (r && r.left > W / 2) mapR = Math.min(mapR, r.left); }
+    const rl = vis('routes'); if (rl && rl.right < W / 2 && rl.top < H / 2) mapL = Math.max(mapL, rl.right);
+    mapB = dockT;
+    const r0 = el.getBoundingClientRect?.() || { top: H - 80 }, home = r0.top < H / 2;
+    rows = home ? [[r0.top, atTop(r0.top)], [dockT - 10 - h, atBottom(dockT - 10)]] : [[r0.top, atTop(r0.top)], [upper, atTop(upper)]];
+  }
+  const pts = uxSelectionPoints().map(p => { const q = toScreen(p); q.r = S.cities.includes(p) ? uxNodePx(p) + 4 : 13; return q; })
+    .filter(q => q.y + q.r > headB && q.y - q.r < mapB && q.x - q.r < mapR && q.x + q.r > mapL);   // under a panel it is hidden anyway
+  // centred in the free map first; a line running down the middle pushes it to one side
+  const mid = (mapL + mapR) / 2, xs = [W / 2, mid, mapL + 16 + w / 2, mapR - 16 - w / 2].filter((x, i, a) => x - w / 2 >= mapL + 8 - (i ? 0 : 1e9) && x + w / 2 <= mapR - 8 + (i ? 0 : 1e9) && a.indexOf(x) === i);
+  const spots = [];
   for (const [y, place] of rows)
     for (const x of xs) spots.push({ key: spots.length, x, y, place: () => { place(); el.style.left = x === W / 2 ? '' : x + 'px'; } });
-  const cover = (s, m) => pts.filter(p => p.x > s.x - w / 2 - m && p.x < s.x + w / 2 + m && p.y > s.y - m && p.y < s.y + h + m).length;
+  if (sheetSpot) spots.push(sheetSpot);
+  const cover = (s, m) => pts.filter(p => p.x + p.r > s.x - w / 2 - m && p.x - p.r < s.x + w / 2 + m && p.y + p.r > s.y - m && p.y - p.r < s.y + h + m).length;
   // while one toast shows, it stays where it is as long as that spot is still clear (no hopping while the camera glides)
-  const shown = el.classList.contains('show') && el.uxText === el.textContent ? spots.find(s => s.key === el.uxSpot && !cover(s, 4)) : null;
-  const pick = shown || spots.find(s => !cover(s, 18)) || spots.find(s => !cover(s, 4)) || spots.reduce((a, s) => cover(s, 4) < cover(a, 4) ? s : a);
+  const shown = el.classList.contains('show') && el.uxText === el.textContent ? spots.find(s => s.key === el.uxSpot && !cover(s, 2)) : null;
+  const pick = shown || spots.find(s => !cover(s, 12)) || spots.find(s => !cover(s, 2)) || spots.reduce((a, s) => cover(s, 2) < cover(a, 2) ? s : a);
   pick.place(); el.uxSpot = pick.key; el.uxText = el.textContent;
 }
 const uxStopUndo = offerStopUndo;

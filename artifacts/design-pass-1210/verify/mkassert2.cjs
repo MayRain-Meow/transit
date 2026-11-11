@@ -134,15 +134,20 @@ return { ok: !!out.offerShown && !out.offerAfterClose && !!out.prepShown && out.
   // every bent segment is grabbed where drawn; construction / break labels are staged on a bent road for the screenshot
   // a toast shown with a line selected never covers that line's stations or ＋ tabs (portrait: the selection is framed
   // right above the sheet, where the toast used to sit)
-  toastsel: `closeModal(); const out = [];
-for (const l of S.lines) { selected = { type: 'line', id: l.id }; updateUI(); ${W(700)} toast('测试提示'); ${W(450)} document.getAnimations().forEach(a => a.finish());
-  const r = document.getElementById('toast').getBoundingClientRect(), pts = [...l.stops.map(id => toScreen(S.cities[id])), ...(typeof uxVisibleHandles === 'function' ? uxVisibleHandles().map(t => toScreen(t)) : [])], hit = pts.filter(p => p.x > r.left - 4 && p.x < r.right + 4 && p.y > r.top - 4 && p.y < r.bottom + 4).length;
-  out.push(hit); clearSelection(); updateUI(); ${W(200)} }
-// a city whose sheet is fully expanded: only a strip of map is left above it, the toast must not sit on the city
-const full = [];
-for (const c of realCities().slice(0, 6)) { closeModal(); openCity(c.id); ${W(500)} if (portraitMode) uxSheetSet('full'); ${W(700)} toast('测试提示'); ${W(450)} document.getAnimations().forEach(a => a.finish());
-  const r = document.getElementById('toast').getBoundingClientRect(), p = toScreen(c); full.push(p.x > r.left - 4 && p.x < r.right + 4 && p.y > r.top - 4 && p.y < r.bottom + 4 ? 1 : 0); clearSelection(); updateUI(); ${W(200)} }
-return { ok: out.every(n => n === 0) && full.every(n => n === 0), covered: out, cityFull: full };`,
+  toastsel: `closeModal(); const out = [], full = [];
+// real messages through the real toast pipeline (renames included): the line-built feedback, a task reward and the
+// lost-life warning; covered = any part of a station / ＋ tab circle of the selection under the toast (node radius)
+const clearOf = pts => { const r = document.getElementById('toast').getBoundingClientRect(); return pts.filter(q => q.x + q.r > r.left && q.x - q.r < r.right && q.y + q.r > r.top && q.y - q.r < r.bottom).length; };
+const node = c => { const q = toScreen(c); q.r = uxNodePx(c); return q; };
+for (const l of S.lines) { selected = { type: 'line', id: l.id }; updateUI(); ${W(700)} toast('线路已应用 · 支出 ¥6030'); ${W(450)} document.getAnimations().forEach(a => a.finish());
+  const sheetTop = document.getElementById('details').getBoundingClientRect().top || innerHeight;
+  const pts = [...l.stops.map(id => node(S.cities[id])), ...uxVisibleHandles().map(t => { const q = toScreen(t); q.r = 10; return q; })].filter(q => !portraitMode || q.y - q.r < sheetTop);
+  out.push(clearOf(pts)); clearSelection(); updateUI(); ${W(200)} }
+// a city whose sheet is fully expanded: only a strip of map is left above it
+for (const c of realCities().slice(0, 6)) for (const msg of [c.name + '完成任务 · +¥700', c.name + '候客厅持续满员，扣一条生命 · 本城保护45秒']) {
+  closeModal(); openCity(c.id); ${W(500)} if (portraitMode) uxSheetSet('full'); ${W(700)} toast(msg); ${W(450)} document.getAnimations().forEach(a => a.finish());
+  full.push(clearOf([node(c)])); clearSelection(); updateUI(); ${W(200)} }
+return { ok: out.every(n => n === 0) && full.every(n => n === 0), covered: out, cityFull: full.join('') };`,
   lines: `// 1) same-direction departures (overlap risk) with planned bends vs. a fixed bend; 2) vehicles on lanes; 3) grab at
 // drawn midpoints; then stage a construction + a break on 栖山—河岸镇 for the screenshot.
 const segs = new Map();
