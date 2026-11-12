@@ -1144,14 +1144,17 @@ function uxGameOver(m) {
 /* ---------- active city activity: status, progress, stakes ---------- */
 function uxActiveActivity(m) {
   const st = typeof activityState === 'function' ? activityState() : null, e = st?.active; if (!e || m.querySelector('.ux-act')) return;
-  const card = [...m.querySelectorAll('section.infra-card')].find(x => /定位举办城市/.test(x.textContent)); if (!card) return;
+  // upstream's card ends with a locate button: 定位举办城市 (events.js) or, since regional tasks, 定位任务城市 — kept as is
+  const card = [...m.querySelectorAll('section.infra-card')].find(x => /定位(举办|任务)城市/.test(x.textContent)); if (!card) return;
+  const go = [...card.querySelectorAll('button')].find(b => /定位(举办|任务)城市/.test(b.textContent)), goCall = go?.getAttribute('onclick') || `closeModal();openCity(${e.host})`, goTask = /任务城市/.test(go?.textContent || '');
+  const scope = typeof regionalTaskLabel === 'function' ? (() => { try { return regionalTaskLabel(e); } catch { return ''; } })() : '';
   const prep = S.day < e.start, days = (prep ? e.start - S.day : Math.max(0, e.end - S.day)).toFixed(1);
   const pct = Math.min(100, e.delivered / Math.max(1, e.goal) * 100);
   const box = document.createElement('section'); box.className = 'ux-act';
-  box.innerHTML = `<div class="ux-act-head"><span class="ux-act-stars">${'★'.repeat(e.star)}</span><b>${escapeHTML(e.title)}</b><small>${escapeHTML(S.cities[e.host]?.name || '')}</small><em class="${prep ? 'is-prep' : ''}">${prep ? '准备中 · 还需 ' + days + ' 天' : '进行中 · 剩 ' + days + ' 天'}</em></div>
-<div class="ux-act-progress"><span class="ux-bar"><i style="width:${pct}%"></i></span><span><b>${e.delivered}</b> / ${e.goal} 已送达<small>已出发 ${e.spawned}/${e.total} · 候车合格 ${e.good}/${e.delivered}${e.goodRatio ? '（需 80%）' : ''}</small></span></div>
+  box.innerHTML = `<div class="ux-act-head"><span class="ux-act-stars">${'★'.repeat(e.star)}</span><b>${escapeHTML(e.title)}</b><small>${escapeHTML([S.cities[e.host]?.name, scope].filter(Boolean).join(' · '))}</small><em class="${prep ? 'is-prep' : ''}">${prep ? '准备中 · 还需 ' + days + ' 天' : '进行中 · 剩 ' + days + ' 天'}</em></div>
+<div class="ux-act-progress"><span class="ux-bar"><i style="width:${pct}%"></i></span><span><b>${e.delivered}</b> / ${e.goal} 已送达<small>已出发 ${e.spawned}/${e.total} · 候车合格 ${e.good}/${e.delivered}${e.goodRatio ? '（需 ' + Math.round(e.goodRatio * 100) + '%）' : ''}</small></span></div>
 <div class="ux-act-stakes"><div class="ok"><small>完成</small><b>${typeof activityRewardText === 'function' ? activityRewardText(e) : ''}</b></div><div class="bad"><small>未完成</small><b>最高 ¥${e.fine}${e.scoreLoss ? ' · 评分 −' + e.scoreLoss : ''}</b></div></div>
-<button class="ux-act-go" onclick="closeModal();openCity(${e.host})">在地图上定位举办城市</button>`;
+<button class="ux-act-go" onclick="${escapeHTML(goCall)}">在地图上定位${goTask ? '任务' : '举办'}城市</button>`;
   card.replaceWith(box);
 }
 // Activity page footer: an unpaid fine is a warning; with nothing owed only the rule remains, as a footnote.

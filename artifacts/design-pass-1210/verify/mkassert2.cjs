@@ -49,6 +49,14 @@ const r = strip.getBoundingClientRect(), dr = d.getBoundingClientRect(), inView 
 strip.querySelector('button[data-i]').click(); ${W(900)}
 const tile = d.querySelector('.ux-fac-tile').getBoundingClientRect(), d2 = d.getBoundingClientRect();
 return { ok: inView && (!portraitMode || d.classList.contains('is-full')) && tile.top >= d2.top - 1 && tile.bottom <= d2.bottom + 2, inView };`,
+  // a running activity shows the structured card (progress, stakes) whatever the upstream locate button is called, and
+  // its button still does upstream's locate (regional: 定位任务城市 → locateActivityCity)
+  actrun: `S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers(); ${W(100)}
+try { acceptActivity(st.offers[0].id); } catch (e) {} closeModal(); S.day = (st.active?.start ?? S.day) + .2; updateUI(); ${W(200)} closeModal();
+uxOpenHub('goal', 1); ${W(600)} const m = document.getElementById('modal-content'), box = m.querySelector('.ux-act'), go = box?.querySelector('.ux-act-go');
+const upstream = [...m.querySelectorAll('section.infra-card')].some(x => /定位(举办|任务)城市/.test(x.textContent)), call = go?.getAttribute('onclick') || '';
+go?.click(); ${W(700)} const located = !modalOpen && (selected?.type === 'city' || selected?.type === 'stop');
+return { ok: !!box && !upstream && !!box.querySelector('.ux-act-progress .ux-bar') && located && (typeof locateActivityCity !== 'function' || /locateActivityCity/.test(call)), box: !!box, upstream, call, located };`,
   cards: `S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers();
 ${W(100)} closeModal(); uxOpenHub('goal', 1); ${W(500)}
 document.querySelector('#modal-content .activity-back')?.click(); ${W(900)} document.getAnimations().forEach(a => a.finish());
@@ -193,7 +201,7 @@ const box = document.querySelector('#modal-content .card-content128').getBoundin
 return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-risk') && inside('h3'), stats: inside('.card-stats'), reward: inside('.card-reward'), risk: inside('.card-risk') };`
 };
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
-mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice', 'capsules']);
+mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice', 'capsules', 'actrun']);
 mk('scenA_F.json', ['coach']);
 mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines', 'toastsel']);
 console.log('built');
