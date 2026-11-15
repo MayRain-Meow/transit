@@ -125,10 +125,15 @@ function openNotice130(hub, city) {
 }
 function showNotice130() {
   if (!safePopup130()) return;
-  let x = notices130().queue.shift();
-  if (!x) return;
+  const queue=notices130().queue,first=queue.shift();
+  if (!first) return;
+  const construction=new Set(['school','repair','weather','hub','bank','broker','farm']);
+  const batch=[first];
+  if(construction.has(first.id))for(let i=0;i<queue.length;){if(construction.has(queue[i].id))batch.push(queue.splice(i,1)[0]);else i++;}
   S.paused = true;
-  openModal('<section class="notice130"><div class="modal-head"><h2>' + escapeHTML(x.title) + '</h2><button class="close" onclick="closeModal()">×</button></div><p>' + escapeHTML(x.copy) + `</p><button class="primary" onclick="openNotice130('` + x.hub + "'," + (x.city ?? "null") + ')">查看建设</button><button onclick="closeModal()">稍后</button></section>');
+  const title=batch.length>1?'新设施可以建设了':first.title;
+  const rows=batch.map(x=>'<section class="unlock-item158"><div><b>'+escapeHTML(x.title.replace('可以建设了',''))+'</b><p>'+escapeHTML(x.copy)+'</p></div><button onclick="openNotice130(\''+x.hub+'\','+(x.city??'null')+')">查看</button></section>').join('');
+  openModal('<section class="notice130"><div class="modal-head"><h2>'+escapeHTML(title)+'</h2><button class="close" onclick="closeModal()">×</button></div><div class="unlock-list158">'+rows+'</div><div class="unlock-actions158"><button class="primary" onclick="openNotice130(\'build\',null)">查看建造</button><button onclick="closeModal()">知道了</button></div></section>');
   save();
 }
 function constructionNotices130() {

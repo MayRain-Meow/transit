@@ -24,3 +24,6 @@ const outlyingBeforeBasinWeb=findOutlier;
 findOutlier=function(){if(mapSpec.id!=='west')return outlyingBeforeBasinWeb();let old=growthAvailable;try{for(let i=0;i<20;i++){let p=outlyingBeforeBasinWeb();if(!p)return null;if(basinSpawnAllowedWeb(p))return p;growthAvailable=growthAvailable.filter(q=>q!==p);}return null;}finally{growthAvailable=old;}};
 const maturityBeforeBasinWeb=updateGrowthMaturity;
 updateGrowthMaturity=function(){if(mapSpec.id!=='west')return maturityBeforeBasinWeb();let gs=growthState(),r=cityRegions().find(r=>r.id===gs.focus);if(!r||gs.readyAt!==null||r.id===0)return;let n=clusterMembers(r,true).length;if(S.day-r.discoveredAt<90||n<5||growthDirections(r).size<2)return;let noRoom=n<6&&!growthAvailable.some(p=>localAllowed(p,r));if(n>=6||noRoom){gs.readyAt=S.day+25;gs.maturity.push({id:r.id,day:S.day,readyAt:gs.readyAt,open:n,directions:growthDirections(r).size});}};
+
+const activateGrowthBefore158=activateAtlasGeometry;
+activateAtlasGeometry=function(...args){let r=activateGrowthBefore158(...args);basinGraphWeb=null;basinPathsWeb.clear();return r;};

@@ -1,3 +1,13 @@
+# v1.5.13 — Sync gameplay updates without background music
+
+Sync the latest western basin terrain and spawn constraints, connected inner/outer mountain ranges, weather particles, western typhoon removal and earthquake rule, grouped facility unlock notices, simplified exit actions, curved-road tutorial paths, card-flip effects and quiet five/six-star reveal chimes. Retain city-snap feedback, sound-effect preferences and background save/pause behavior.
+
+Background music, its playback script and its controls are excluded from this GitHub snapshot. Connection and card WAV effects remain included. The existing hosted game and distributed APK are unchanged by this source update.
+
+Android preparation now stages the current root web release directly, preserving script order and assets rather than regenerating the old v1.4 frontend from the historical test04 directory. Version metadata is 1.5.13. APKs, signing keys and build dependencies remain excluded.
+
+Validation: gameplay regression suite, card-audio and curved-road tutorial tests; Android asset preparation and local-reference verification. DOM tests do not establish Android device compatibility.
+
 # v1.5.7 — Sound on city snap
 
 Move the connection effect from construction confirmation to the accepted city snap while dragging. New lines and either-end extensions sound as each city joins the draft. Hover repeats, pointer release over the same city, bridge endpoints, rejected snaps, removal, cancellation and construction confirmation do not produce an extra sound. Effects settings and background protection are retained; music remains deferred.

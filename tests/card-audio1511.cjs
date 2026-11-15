@@ -1,0 +1,26 @@
+const assert=require('node:assert/strict');
+const g=require('./harness156.cjs')(),{run,w}=g;
+const flush=()=>{for(const id of [...run('cardTimers1511')])g.timers[id-1].f();};
+(async()=>{
+ run(`activateAtlasGeometry('east');reset();atlasMenuOpen=false;S.tutorial123=null;S.interruption=null;closeModal();S.unlocked=['bus','emu','rail','air'];S.cities.forEach(c=>c.dormant=false);activityState().offers=[1,5,6].map(star=>makeActivityCard(star,0,[1,2]));showActivityCards();var cardIds1511=activityState().offers.map(e=>e.id);`);
+ assert.equal(g.plays,0,'opening the deck is silent');
+ run('revealActivity(cardIds1511[0])');assert.equal(g.plays,1);
+ assert.equal(w.document.querySelector('#card-flip1511').volume,.15,'card audio uses 30% of the effects setting');
+ run('revealActivity(cardIds1511[0]);showActivityCards()');assert.equal(g.plays,1,'repeated reveal/revisit is silent');
+ run('revealActivity(cardIds1511[1])');assert.equal(g.plays,2,'five star flip is immediate');flush();assert.equal(g.plays,3,'five star reveal gets a delayed chime');
+ assert(w.document.querySelector('#card-rare-51511'));
+ run('revealActivity(cardIds1511[2])');assert.equal(g.plays,4);flush();assert.equal(g.plays,5);assert(w.document.querySelector('#card-rare-61511'));
+ run('showActivityCards()');assert.equal(g.plays,5);
+ run('stopEffect156();activityState().offers.forEach(e=>e.revealed=false);showActivityCards();revealAllActivities()');
+ const before=g.plays;assert.equal(before,6,'reveal all starts one flip immediately');flush();assert.equal(g.plays,before+3,'then two staggered flips and one maximum-rarity chime');
+ run('setEffects156("enabled",false);activityState().offers.forEach(e=>e.revealed=false);showActivityCards();revealAllActivities()');
+ const muted=g.plays;flush();assert.equal(g.plays,muted);assert(run('activityState().offers.every(e=>e.revealed)'),'muting does not change reveal state');
+ run('setEffects156("enabled",true);activityState().offers.forEach(e=>e.revealed=false);showActivityCards();revealActivity(cardIds1511[2])');
+ const last=g.plays;g.setHidden(true);flush();assert.equal(g.plays,last);assert.equal(run('cardTimers1511.size'),0,'background cancels delayed chimes');
+ g.setHidden(false);flush();assert.equal(g.plays,last,'foreground never replays old sounds');
+ run('setEffects156("volume",.2)');assert.equal(w.document.querySelector('#card-flip1511').volume,.06);
+ g.setRejected(true);run('playCardSound1511("card-flip")');await new Promise(r=>setImmediate(r));
+ g.setRejected(false);run('playCardSound1511("card-flip")');await new Promise(r=>setImmediate(r));
+ assert.equal(g.errors.length,0);assert.equal(run('runtimeFault13'),null);g.dom.window.close();
+ console.log('PASS card reveal-only effects, quiet volume, 5/6-star chimes, reveal-all staggering, no revisit repeats, shared mute and background/rejection recovery');
+})();

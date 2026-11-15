@@ -1,5 +1,5 @@
 'use strict';
-// One short, local connection effect. Music is deferred to a separate release.
+// Local connection and card effects with persistent sound settings.
 const effectsKey156 = 'transit-effects-v1';
 let effectsPrefs156 = { enabled: true, volume: 0.5 };
 try {
@@ -8,7 +8,56 @@ try {
   if (Number.isFinite(saved?.volume)) effectsPrefs156.volume = Math.max(0, Math.min(1, saved.volume));
 } catch (_) {}
 let effect156 = null, effectsAway156 = false;
-function stopEffect156() { try { effect156?.pause(); } catch (_) {} }
+const cardAudio1511=new Map(),cardTimers1511=new Set();
+let cardGeneration1511=0,rarityTimer1511=null,cardRevealBatch1511=null;
+function stopEffect156() {
+  try { effect156?.pause(); } catch (_) {}
+  cardGeneration1511++;
+  for(const timer of cardTimers1511)clearTimeout(timer);
+  cardTimers1511.clear();rarityTimer1511=null;
+  for(const a of cardAudio1511.values())try{a.pause();}catch(_){}
+}
+function cardSoundAllowed1511(){return effectsPrefs156.enabled&&effectsPrefs156.volume>0&&!effectsAway156&&!document.hidden&&!window.transitAndroidBackground13;}
+function playCardSound1511(name){
+  if(!cardSoundAllowed1511())return;
+  try{
+    let a=cardAudio1511.get(name);
+    if(!a){a=new Audio('audio/'+name+'.wav');a.id=name+'1511';a.hidden=true;a.preload='auto';document.body.appendChild(a);cardAudio1511.set(name,a);}
+    const generation=cardGeneration1511;
+    a.pause();a.currentTime=0;a.volume=effectsPrefs156.volume*.3;
+    Promise.resolve(a.play()).then(()=>{if(generation!==cardGeneration1511||!cardSoundAllowed1511())a.pause();}).catch(()=>{});
+  }catch(_){}
+}
+function cardDelay1511(callback,delay){
+  if(!cardSoundAllowed1511())return null;
+  const generation=cardGeneration1511;
+  const timer=setTimeout(()=>{if(!cardTimers1511.delete(timer)||generation!==cardGeneration1511||!cardSoundAllowed1511())return;callback();},delay);
+  cardTimers1511.add(timer);return timer;
+}
+function cardRarity1511(star,delay){
+  if(star<5)return;
+  if(rarityTimer1511!==null){clearTimeout(rarityTimer1511);cardTimers1511.delete(rarityTimer1511);}
+  rarityTimer1511=cardDelay1511(()=>{rarityTimer1511=null;playCardSound1511('card-rare-'+(star>=6?6:5));},delay);
+}
+const revealBefore1511=revealActivity;
+revealActivity=function(id){
+  const card=activityState().offers.find(e=>e.id===id),wasRevealed=card?.revealed;
+  const result=revealBefore1511(id);
+  if(card&&!wasRevealed&&card.revealed){
+    if(cardRevealBatch1511)cardRevealBatch1511.push(card.star);
+    else{playCardSound1511('card-flip');cardRarity1511(card.star,280);}
+  }
+  return result;
+};
+const revealAllBefore1511=revealAllActivities;
+revealAllActivities=function(...args){
+  const stars=[];cardRevealBatch1511=stars;
+  let result;try{result=revealAllBefore1511(...args);}finally{cardRevealBatch1511=null;}
+  // A soft stagger avoids three simultaneous flips or stacked rarity chimes.
+  stars.forEach((star,i)=>i?cardDelay1511(()=>playCardSound1511('card-flip'),i*160):playCardSound1511('card-flip'));
+  if(stars.length)cardRarity1511(Math.max(...stars),(stars.length-1)*160+280);
+  return result;
+};
 function playConnect156() {
   if (!effectsPrefs156.enabled || !effectsPrefs156.volume || effectsAway156 || document.hidden || window.transitAndroidBackground13) return;
   try {
@@ -25,6 +74,7 @@ function setEffects156(key, value) {
   else return;
   try { localStorage.setItem(effectsKey156, JSON.stringify(effectsPrefs156)); } catch (_) {}
   if (!effectsPrefs156.enabled || !effectsPrefs156.volume) stopEffect156();
+  for(const a of cardAudio1511.values())a.volume=effectsPrefs156.volume*.3;
   renderEffects156();
 }
 function renderEffects156() {
@@ -33,14 +83,14 @@ function renderEffects156() {
   if (volume && document.activeElement !== volume) volume.value = Math.round(effectsPrefs156.volume * 100);
 }
 function openEffects156() {
-  openModal('<div class="effects-sheet156"><div class="modal-head"><h2>音效</h2><button class="close" onclick="closeModal()" aria-label="关闭音效设置">×</button></div><div class="effects-row156"><label for="effects-on156">连接城市音效</label><button id="effects-on156" onclick="setEffects156(\'enabled\',!effectsPrefs156.enabled)"></button></div><label class="effects-volume156" for="effects-volume156">音量<input id="effects-volume156" type="range" min="0" max="100" step="5" oninput="setEffects156(\'volume\',this.value/100)"></label><p>拖线连上下一座城市时，轻轻响一声。</p><button onclick="playConnect156()">试听</button><button class="primary" onclick="closeModal()">完成</button></div>');
+  openModal('<div class="effects-sheet156"><div class="modal-head"><h2>声音设置</h2><button class="close" onclick="closeModal()" aria-label="关闭声音设置">×</button></div><div class="effects-row156"><label for="effects-on156">游戏音效</label><button id="effects-on156" onclick="setEffects156(\'enabled\',!effectsPrefs156.enabled)"></button></div><label class="effects-volume156" for="effects-volume156">音量<input id="effects-volume156" type="range" min="0" max="100" step="5" oninput="setEffects156(\'volume\',this.value/100)"></label><p>包含连接城市、翻牌和高星揭晓音效；翻牌声采用较低音量。</p><button onclick="playConnect156()">试听</button><button class="primary" onclick="closeModal()">完成</button></div>');
   renderEffects156();
 }
 for (const parent of [document.querySelector('header .controls'), document.querySelector('.atlas-top')]) {
   if (!parent) continue;
   const button = document.createElement('button');
   button.type = 'button'; button.className = 'ctl effects-button156'; button.textContent = '♪';
-  button.title = '音效'; button.setAttribute('aria-label', '音效设置'); button.onclick = openEffects156;
+  button.title = '声音设置'; button.setAttribute('aria-label', '声音设置'); button.onclick = openEffects156;
   parent.appendChild(button);
 }
 // Observe accepted snap transitions across new lines and either-end extensions.

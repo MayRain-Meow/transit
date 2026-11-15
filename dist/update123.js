@@ -33,10 +33,10 @@ const createBridge123=createBridge;
 createBridge=function(){let count=S.bridges.length;createBridge123();if(S.bridges.length>count&&tutorialStage123()==='bridge')tutorialSet123('connect');};
 // Exit and manual save are explicit. Automatic saves continue during play and interruption.
 const exitButton123=document.createElement('button');exitButton123.id='game-exit';exitButton123.textContent='↶';exitButton123.setAttribute('aria-label','保存与退出');exitButton123.onclick=askExit123;document.querySelector('header')?.appendChild(exitButton123);
-function askExit123(){exitWasPaused123=S.paused;S.paused=true;openModal('<div class="modal-head"><h2>保存与退出</h2></div><p>退出后返回选图界面。当前游戏已暂停。</p><div class="ux-actions"><button class="primary" onclick="saveExit123()">保存并退出</button><button onclick="saveContinue127()">保存并返回本局</button><button onclick="cancelExit123()">取消</button></div>');}
+function askExit123(){exitWasPaused123=S.paused;S.paused=true;openModal('<div class="modal-head"><h2>保存与退出</h2></div><p>返回选图前会保存当前进度。</p><div class="ux-actions"><button class="primary" onclick="saveExit123()">保存并返回选图</button><button onclick="cancelExit123()">继续游戏</button></div>');}
 function manualSave123(){if(save()===false){toast('保存失败，请检查设备空间');return false;}toast('存档已保存');return true;}
 function saveExit123(){S.paused=true;if(!manualSave123())return;closeModal();showAtlasMaps(false);}
-function cancelExit123(){closeModal();S.paused=exitWasPaused123||interruptionPending();updateUI();}
+function cancelExit123(){closeModal();S.paused=exitWasPaused123||interruptionPending();last=performance.now();updateUI();save();}
 window.transitAndroidControl.back=function(){if(modalOpen){S.paused=true;closeModal();return false;}if(draft||bridgeDraft){cancelDraft(false);bridgeDraft=null;engineeringPointer=null;return false;}if(selected){clearSelection();return false;}if(!atlasMenuOpen){askExit123();return false;}return true;};
 const hideMaps123=hideAtlasMaps;
 hideAtlasMaps=function(...args){hideMaps123(...args);tutorialUI123();};

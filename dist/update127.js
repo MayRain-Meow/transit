@@ -35,8 +35,8 @@ render=function(){
  try{renderBefore127();}finally{tutorialStage123=stageFn;}
  if(!restore||draft||atlasMenuOpen||modalOpen)return;
  const l=S.lines.find(l=>l.id===t.line),c=S.cities[t.end];if(!l||!c)return;
- let best=null,d=Infinity;for(let i=1;i<l.stops.length;i++){const a=S.cities[l.stops[i-1]],b=S.cities[l.stops[i]],dist=segDist(c,a,b);if(dist<d){d=dist;best={x:(a.x+b.x)/2,y:(a.y+b.y)/2};}}
- if(!best)return;const a={x:view.x+best.x*view.scale,y:view.y+best.y*view.scale},b={x:view.x+c.x*view.scale,y:view.y+c.y*view.scale};
- ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.strokeStyle='#c2943a';ctx.fillStyle='#c2943a';ctx.lineWidth=2.5;ctx.setLineDash([5,5]);ctx.beginPath();ctx.arc(a.x,a.y,24,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);const u=(performance.now()%1800)/1800;ctx.beginPath();ctx.arc(a.x+(b.x-a.x)*u,a.y+(b.y-a.y)*u,6,0,Math.PI*2);ctx.fill();ctx.restore();
+ const start=tutorialRestorePoint159(l,c);if(!start)return;
+ tutorialDrawPath159([start,c],start);
 };
+
 syncTutorial127();tutorialUI123();

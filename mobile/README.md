@@ -1,3 +1,15 @@
+# 交通线 v1.5.13 安卓源码（无背景音乐）
+
+版本 1.5.13-playtest，versionCode 15130，包名 com.transitatlas.playtest。此 GitHub 快照按要求排除背景音乐，保留连接、翻牌和高星音效。此前分发的 APK 含音乐，不受此次源码上传影响。
+
+使用项目根目录 `dist/` 的当前前端，保留脚本顺序、地图、教学和原生生命周期桥接。`dist/test04/` 为历史版本，不作为当前安卓构建输入。
+
+构建需 JDK21、Android SDK36、Build Tools35/36 和 Node22以上。进入 `mobile/`，运行 `npm ci`、`npm run sync:android`、`npm run verify`，然后设置 JAVA_HOME/ANDROID_HOME，执行 `python3 scripts/build-android.py`。
+
+私有升级签名置于 `mobile/signing/playtest.keystore`，不得提交。没有原签名时生成的本地调试包无法覆盖此前分发包。APK、签名、依赖及缓存均不入库。最低 Android7/API24，WebView108以上；本地运行，无登录、广告或云存档。真机触控和性能仍需设备验收。
+
+以下为历史工程记录。
+
 # 交通线 v1.4 安卓试玩工程
 
 版本 1.4.0-playtest，versionCode 14000，包名 com.transitatlas.playtest。沿用原试玩签名，可覆盖安装并保留存档。APK与签名私钥不入GitHub。

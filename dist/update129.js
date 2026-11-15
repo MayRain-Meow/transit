@@ -24,7 +24,7 @@ case 'view':return ['查看城市','点一下圈出的城市。'];
 case 'city-intro':return ['城市里有什么？','这里看候车、任务和建筑；满足条件后可建设。','开始拉线'];
 case 'build':return ['连接三座城市',draft&&!$('drawdone').disabled?'点下方「建设」。':'从一座城市拖到另一座，再接上第三座。'];
 case 'trim-end':return ['删除一段路',draft?.stopRemoval?'点「应用修改」，确认删路。':'从末站沿原线往回拖，越过上一站一点。'];
-case 'restore-end':return ['把城市接回来',draft?'点「应用修改」。':'按住剩下的线段，拖到刚移除的城市。'];
+case 'restore-end':return ['把城市接回来',draft?'点「应用修改」。':'按住圈出的实际线段，拖到刚移除的城市。'];
 case 'wait':return ['等待河对岸的新城','先运行游戏，观察客流。'];
 case 'bridge':return ['架一座公路桥',bridgeDraft?'从河岸拖到对岸，再确认架桥。':modalOpen?'点「拉建公路桥」。':'点「建造」，打开「桥梁与道路」。'];
 case 'connect':return ['接通河对岸','从城市出发，沿桥拖过两端，再连到新城。'];

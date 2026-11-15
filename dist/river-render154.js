@@ -12,7 +12,7 @@ drawPortraitScenery=function(){
  if(!sceneryTrees153){sceneryTrees153=[];let b=portraitBounds();for(let y=Math.floor(b.ymin/125)*125;y<=b.ymax;y+=125)for(let x=Math.floor(b.xmin/135)*135;x<=b.xmax;x+=135){if(x>=-1000&&x<=1200&&y>=-300&&y<=1200)continue;if(Math.sin(x*.019+y*.013)+Math.cos(y*.027-x*.011)<1.25||riverDistance({x,y})<55)continue;sceneryTrees153.push({x,y});}}
  for(let {x,y}of sceneryTrees153){if(x<left||x>right||y<top||y>bottom)continue;for(let k=0;k<3;k++)artTree(x+k*9,y+Math.sin(k*4)*6,.65,mapSpec.id==='west');}ctx.restore();
 };
-function riverGeometryKey154(){return JSON.stringify([mapSpec.id,mapSpec.bounds,mapSpec.main,mapSpec.branches]);}
+function riverGeometryKey154(){return JSON.stringify([mapSpec.id,mapSpec.bounds,mapSpec.main,mapSpec.branches,activeBasinRevision158]);}
 function drawRiverNetwork154(){
  let paths=[mapSpec.main,...mapSpec.branches];ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
  // Each branch starts a separate subpath. Banks are painted layer-first so no
@@ -27,10 +27,11 @@ drawTerrain=function(){
  if(!activeAtlasMap)return drawBefore154();
  let key=riverGeometryKey154();if(key!==terrainRiverKey154){terrainCache=null;sceneryTrees153=null;terrainRiverKey154=key;}
  drawPortraitScenery();
- if(!terrainCache){let cache=document.createElement('canvas');cache.width=2640;cache.height=1800;let live=ctx;
-  try{terrainOnly154=true;ctx=cache.getContext('2d');ctx.scale(1.2,1.2);ctx.translate(1000,300);paintTerrain();terrainCache=cache;}
+ let b=mapSpec.id==='west'?mapSpec.bounds:{xmin:-1000,xmax:1200,ymin:-300,ymax:1200},width=b.xmax-b.xmin,height=b.ymax-b.ymin,scale=mapSpec.id==='west'?.7:1.2;
+ if(!terrainCache){let cache=document.createElement('canvas');cache.width=Math.ceil(width*scale);cache.height=Math.ceil(height*scale);let live=ctx;
+  try{terrainOnly154=true;ctx=cache.getContext('2d');ctx.scale(scale,scale);ctx.translate(-b.xmin,-b.ymin);paintTerrain();terrainCache=cache;}
   finally{ctx=live;terrainOnly154=false;}
  }
- ctx.drawImage(terrainCache,-1000,-300,2200,1500);drawRiverNetwork154();
+ ctx.drawImage(terrainCache,b.xmin,b.ymin,width,height);drawRiverNetwork154();
 };
 terrainCache=null;
