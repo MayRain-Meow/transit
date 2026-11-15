@@ -1,0 +1,128 @@
+#routes .panel-heading {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) max-content 40px;
+  gap: 8px;
+  position: static;
+  min-height: 42px;
+}
+#routes .panel-heading > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  overflow-wrap: normal;
+  font-size: 14px;
+}
+#routes .panel-heading #route-new130 {
+  width: auto !important;
+  min-width: 104px !important;
+  max-width: none !important;
+  height: 42px;
+  white-space: nowrap;
+  font-size: 12px;
+  flex-shrink: 0;
+  padding: 8px 10px;
+}
+#routes .panel-heading #collapse {
+  width: 40px !important;
+  height: 42px;
+  padding: 0;
+  margin: 0;
+}
+#routes.route-panel.collapsed {
+  max-height: none !important;
+}
+#drawbar,
+#drawbar.db-line {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+#drawbar .db-actions,
+#drawbar.quote-compact .db-actions {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 70px !important;
+  grid-template-rows: auto auto !important;
+  width: 100%;
+  min-width: 0;
+  gap: 8px !important;
+}
+#drawbar #quote-expand,
+#drawbar.quote-compact #quote-expand {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 44px;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal !important;
+  text-align: left;
+}
+#drawbar #drawcancel,
+#drawbar.quote-compact #drawcancel {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  width: 70px !important;
+  min-width: 70px !important;
+  min-height: 44px;
+  white-space: nowrap;
+}
+#drawbar #drawdone,
+#drawbar.quote-compact #drawdone {
+  grid-column: 1/-1 !important;
+  grid-row: 2 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 48px;
+  white-space: nowrap !important;
+  margin: 0 !important;
+  background: #263b42;
+  color: white;
+}
+#drawbar #drawundo {
+  display: none !important;
+}
+#runtime-recovery13 {
+  position: fixed;
+  z-index: 2147483646;
+  inset: auto 12px calc(16px + env(safe-area-inset-bottom));
+  padding: 20px;
+  border: 1px solid #b7c7b1;
+  border-radius: 18px;
+  background: #fffef8;
+  box-shadow: 0 0 0 100vmax #263b4270;
+  color: #263b42;
+  font: 15px/1.6 system-ui;
+}
+#runtime-recovery13[hidden] {
+  display: none;
+}
+#runtime-recovery13 h2 {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+#runtime-recovery13 button {
+  min-height: 44px;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 5px;
+  background: #36594d;
+  color: #fff;
+}
+@media (max-width: 340px) {
+  #routes .panel-heading {
+    grid-template-columns: minmax(0, 1fr) max-content 36px;
+    gap: 4px;
+  }
+  #routes .panel-heading #route-new130 {
+    min-width: 94px !important;
+    padding: 8px 6px;
+  }
+  #routes .panel-heading > span {
+    font-size: 12px;
+  }
+}

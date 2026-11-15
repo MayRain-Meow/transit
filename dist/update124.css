@@ -1,0 +1,3 @@
+.portrait-shell #tutorial-button-ring124{position:absolute;z-index:100;pointer-events:none;border:3px solid #c2943a;border-radius:14px;box-shadow:0 0 0 4px #e8d39966;animation:cue124 1.1s ease-in-out infinite alternate}
+@keyframes cue124{to{border-color:#f0bc51;box-shadow:0 0 0 7px #e8d39922}}
+@media(prefers-reduced-motion:reduce){.portrait-shell #tutorial-button-ring124{animation:none}}

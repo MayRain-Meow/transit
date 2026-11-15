@@ -3,7 +3,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
 // Android stages its own game/world baseline; both entry points must keep quote-only calls read-only.
-for (const base of ['dist/test04', 'mobile/web-base127']) {
+for (const base of ['dist']) {
   const canvas = new Proxy({ measureText: t => ({ width: String(t).length * 7 }) }, { get: (o, k) => o[k] || (() => {}) });
   const nodes = new Map();
   const node = id => {
@@ -13,7 +13,7 @@ for (const base of ['dist/test04', 'mobile/web-base127']) {
   const disk = new Map();
   const ctx = vm.createContext({ document: { getElementById: node, createElement: () => node('offscreen'), addEventListener() {}, activeElement: { tagName: 'BODY' } }, innerWidth: 1440, innerHeight: 900, devicePixelRatio: 1, window: { addEventListener() {} }, screen: {}, performance: { now: () => 100 }, localStorage: { setItem: (k, v) => disk.set(k, v), getItem: k => disk.get(k) ?? null }, requestAnimationFrame() {}, setTimeout() {}, clearTimeout() {}, console, confirm: () => true });
   for (const file of ['game', 'progression', 'world', 'economy', 'management']) {
-    vm.runInContext(fs.readFileSync(`${['game', 'world'].includes(file) ? base : 'dist/test04'}/${file}.js`, 'utf8'), ctx, { filename: file + '.js' });
+    vm.runInContext(fs.readFileSync(`${['game', 'world'].includes(file) ? base : 'dist'}/${file}.js`, 'utf8'), ctx, { filename: file + '.js' });
   }
   const run = code => vm.runInContext(code, ctx);
   // This contract test excludes presentation (native details depend on later revision130 helpers).
