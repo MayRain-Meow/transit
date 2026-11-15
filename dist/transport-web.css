@@ -1,0 +1,12 @@
+/* Explicit zero-minimum grid track stops long six-star text expanding behind the clip. */
+.deck128 .activity-flipper{grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr);min-height:0!important}
+.deck128 .activity-front{min-width:0;min-height:0!important;align-self:stretch;justify-content:flex-start!important}
+.deck128 .card-content128{display:block!important;min-height:0;flex:1 1 0;overflow-y:auto;overflow-x:hidden;overflow-anchor:none;scroll-padding-top:12px}
+.deck128 .card-content128>*{flex-shrink:0}
+.deck128 .card-actions128{position:relative;z-index:1;flex:0 0 auto}
+.deck128 .stars-6 .card-reward p,.deck128 .stars-6 .card-reward small{color:#f6e4b5!important;opacity:1!important}
+.deck128 .stars-6 .card-reward{background:#d4b46c18!important}
+.deck128 .stars-6 .card-content128{color:#c9d7cb}
+.deck128 .activity-front::after{z-index:0;pointer-events:none}
+.deck128 .card-reward p{overflow-wrap:anywhere}
+.deck128 .reward-line-web{display:block;padding:2px 0;font-size:14px;line-height:1.5}

@@ -1,0 +1,46 @@
+const assert = require('node:assert/strict');
+const createGame = require('./harness156.cjs');
+(async () => {
+  const g = createGame(), {run,w} = g;
+  assert.equal(g.plays,0);
+  assert(!w.document.querySelector('script[src*="audio155"]'));
+  assert.equal(w.document.querySelectorAll('.effects-button156').length,2);
+  for (const map of ['east','west']) {
+    run(`activateAtlasGeometry('${map}');reset();atlasMenuOpen=false;closeModal();S.tutorial123=null;S.interruption=null;S.points=100000;`);
+    let before=g.plays;
+    run('beginDraft("bus");draft.stops=[0,1];commitDraft(false)');
+    assert.equal(g.plays,before,'quote is silent');
+    run('cancelDraft(false);closeModal();beginDraft("bus");draft.stops=[0,1];S.points=0;commitDraft(true)');
+    assert.equal(g.plays,before,'insufficient funds is silent');
+    run('S.points=100000;commitDraft(true);commitDraft(true)');
+    assert.equal(g.plays,before+1,'successful connection plays exactly once');
+    const line=run('S.lines[0].id');
+    run(`beginDraft('bus',${line});commitDraft(true)`);
+    assert.equal(g.plays,before+1,'unchanged edit is silent');
+    run(`beginDraft('bus',${line});draft.stops.push(2);commitDraft(true)`);
+    assert.equal(g.plays,before+2,'extension sounds once');
+    run(`beginDraft('bus',${line});draft.stops=draft.stops.filter(id=>id!==2);commitDraft(true)`);
+    assert.equal(g.plays,before+2,'stop removal is silent');
+    run(`beginDraft('bus',${line});draft.stops=[0];commitDraft(true);cancelDraft(false)`);
+    assert.equal(g.plays,before+2,'invalid route is silent');
+  }
+  run('setEffects156("enabled",false);playConnect156()');
+  let before=g.plays;
+  assert.equal(JSON.parse(w.localStorage.getItem('transit-effects-v1')).enabled,false);
+  run('openEffects156()');assert.equal(w.document.querySelector('#effects-on156').getAttribute('aria-pressed'),'false');
+  run('setEffects156("volume",.2);setEffects156("enabled",true);playConnect156()');
+  assert.equal(run('effect156.volume'),.2);assert.equal(g.plays,before+1);
+  g.setHidden(true);before=g.plays;run('playConnect156()');assert.equal(g.plays,before);
+  g.setHidden(false);assert.equal(g.plays,before,'return does not replay a completed effect');
+  w.dispatchEvent(new w.Event('pagehide'));run('playConnect156()');assert.equal(g.plays,before);
+  w.dispatchEvent(new w.Event('pageshow'));
+  g.setRejected(true);run('playConnect156()');await new Promise(r=>setImmediate(r));
+  g.setRejected(false);run('playConnect156()');await new Promise(r=>setImmediate(r));
+  assert.equal(g.plays,before+2,'blocked playback can recover');
+  run('window.transitAndroidBackground13=true;playConnect156()');assert.equal(g.plays,before+2);
+  assert.equal(g.errors.length,0);
+  const saved=JSON.parse(w.localStorage.getItem('transit-effects-v1'));g.dom.window.close();
+  const next=createGame({prefs:saved});assert.equal(next.run('effectsPrefs156.volume'),.2);assert.equal(next.run('effectsPrefs156.enabled'),true);next.dom.window.close();
+  const blocked=createGame({blockStorage:true});blocked.run('setEffects156("enabled",false);setEffects156("volume",.2)');blocked.dom.window.close();
+  console.log('PASS both maps: successful once-only sound, silent quotes/rejections/removal, toggle/volume/reload, background, play/storage failure recovery');
+})();

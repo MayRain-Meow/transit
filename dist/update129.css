@@ -1,0 +1,17 @@
+/* PR navigation and sheets follow the native usable portrait viewport. */
+.portrait-shell footer .dock{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px}
+.portrait-shell .dock-legacy,.portrait-shell #atlas-menu,.portrait-shell #orientation-hint{display:none!important}
+.portrait-shell .portrait-modal-close{display:none!important}
+.portrait-shell .overlay:not(:has(.modal-head .close,.deck-heading128 .close))>.portrait-modal-close{display:block!important}
+.portrait-shell .modal-head.has-hub{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.portrait-shell .has-hub h2{flex:1;min-width:0;margin:0}
+.portrait-shell .ux-hub-tabs{order:3;display:flex;width:100%;gap:5px;overflow-x:auto;flex:1 0 100%;padding:4px 0}
+.portrait-shell .ux-hub-tabs button{flex:1 0 auto;min-height:42px;padding:8px 12px;font-size:13px;white-space:nowrap}
+.portrait-shell .has-hub>.close{margin:0;flex:none}
+.portrait-shell #junction-picker{position:absolute!important;left:calc(8px + var(--safe-l))!important;right:calc(8px + var(--safe-r))!important;top:auto!important;bottom:calc(var(--dock-height) + var(--safe-b) + 18px)!important;width:auto!important;max-height:45dvh!important;overflow:auto;border-radius:18px}
+.portrait-shell .junction-line button{min-height:46px}
+.portrait-shell #tutorial-guide{position:absolute;z-index:95;left:calc(10px + var(--safe-l));right:calc(10px + var(--safe-r));width:auto;max-width:none;max-height:28dvh;overflow:auto;padding:12px 14px;background:#fffef8f5;border:1px solid #bccbb4;border-radius:16px;box-shadow:0 5px 20px #263b4215;font-size:14px;line-height:1.5}
+.portrait-shell #tutorial-guide b{font-size:16px}.portrait-shell #tutorial-guide p{margin:5px 0 9px;font-size:14px}
+.portrait-shell #tutorial-guide>div{display:flex;flex-wrap:wrap;gap:8px}.portrait-shell #tutorial-guide button{min-height:40px;padding:8px 12px;border-radius:10px;background:#36594d;color:white;font-size:13px}.portrait-shell #tutorial-guide .guide-skip129{background:#e9eee3;color:#60705c}
+#ux-coach{display:none!important}
+@media(max-height:650px){.portrait-shell #tutorial-guide{padding:8px 12px;max-height:26dvh}.portrait-shell #tutorial-guide p{font-size:12px}.portrait-shell .dock-btn{min-height:46px}}

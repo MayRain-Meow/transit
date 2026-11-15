@@ -1,0 +1,13 @@
+/* Explicit columns override the earlier inherited full-row undo/auto-placement rules. */
+.portrait-shell #drawbar .db-actions,.portrait-shell #drawbar.quote-compact .db-actions{display:grid;grid-template-columns:minmax(0,1fr) 44px 58px;grid-template-rows:auto auto;gap:6px;min-width:0;width:100%;align-items:stretch}
+.portrait-shell #drawbar #quote-expand{grid-column:1;grid-row:1;width:100%;min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left;padding:7px 9px;font-size:12px;line-height:1.4;min-height:42px}
+.portrait-shell #drawbar #drawundo{grid-column:2;grid-row:1;width:44px;min-width:44px;max-width:44px;min-height:42px;padding:0}
+.portrait-shell #drawbar #drawcancel{grid-column:3;grid-row:1;width:58px;min-width:0;min-height:42px;padding:5px;font-size:12px}
+.portrait-shell #drawbar #drawdone,.portrait-shell #drawbar.quote-compact #drawdone{grid-column:1/-1;grid-row:2;min-width:0;width:100%;min-height:46px;margin:0;padding:9px;font-size:14px;line-height:1.4}
+.portrait-shell #drawbar.quote-compact .db-actions{grid-template-columns:minmax(0,1fr) 58px minmax(108px,1.1fr);grid-template-rows:auto}
+.portrait-shell #drawbar.quote-compact #quote-expand{grid-column:1;grid-row:1}
+.portrait-shell #drawbar.quote-compact #drawcancel{grid-column:2;grid-row:1}
+.portrait-shell #drawbar.quote-compact #drawdone{grid-column:3;grid-row:1;min-height:44px}
+.portrait-shell body:has(#tutorial-guide:not([hidden])) .notice-wrap{display:none!important}
+.portrait-shell #tutorial-guide{background:#fffef8}
+@media(max-width:330px){.portrait-shell #drawbar.quote-compact .db-actions{grid-template-columns:minmax(0,1fr) 50px}.portrait-shell #drawbar.quote-compact #drawcancel{grid-column:2;width:50px}.portrait-shell #drawbar.quote-compact #drawdone{grid-column:1/-1;grid-row:2}.portrait-shell #drawbar #quote-expand{font-size:11px}}

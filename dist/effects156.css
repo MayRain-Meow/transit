@@ -1,0 +1,11 @@
+.effects-button156{min-width:32px;min-height:32px;flex-shrink:0}
+.atlas-top .effects-button156{margin-left:auto;color:inherit;border:1px solid #cbd4c5;background:#fffef9;border-radius:50%}
+.atlas-top .effects-button156+small{margin-left:8px}
+.effects-sheet156 p{font-size:13px;color:#68766b;margin:16px 0}
+.effects-row156{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:24px 0 16px}
+.effects-row156 button{min-width:64px;min-height:44px}
+.effects-row156 button[aria-pressed=false]{opacity:.6}
+.effects-volume156{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.effects-volume156 input{min-width:0;flex:1;min-height:44px;accent-color:#456f58}
+.effects-sheet156>.primary{float:right;min-height:44px}
+body.atlas-selecting #modal:has(.effects-sheet156){z-index:10010!important}

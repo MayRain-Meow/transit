@@ -1,0 +1,3 @@
+/* The selector owns both gesture axes, including vertical reading inside a card. */
+.portrait-shell .atlas-rail,.atlas-rail,.atlas-rail .atlas-card,.atlas-rail .atlas-card *{touch-action:none!important}
+.atlas-rail{cursor:grab}.atlas-rail:active{cursor:grabbing}.atlas-rail .atlas-terrain,.atlas-rail .atlas-terrain *{user-select:none;-webkit-user-drag:none}
