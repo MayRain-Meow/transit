@@ -1,3 +1,7 @@
+# v1.5.7 — Sound on city snap
+
+Move the connection effect from construction confirmation to the accepted city snap while dragging. New lines and either-end extensions sound as each city joins the draft. Hover repeats, pointer release over the same city, bridge endpoints, rejected snaps, removal, cancellation and construction confirmation do not produce an extra sound. Effects settings and background protection are retained; music remains deferred.
+
 # v1.5.6 — Connection feedback, music deferred
 
 Successful new routes and extensions play the previously auditioned 0.24-second soft connection sound once after construction commits. Quotes, cancellation, insufficient funds, invalid routes, unchanged edits and stop removal are silent. Sound effects have their own toggle and volume in a compact settings sheet, remembered across both maps and reloads. Hidden pages and native background transitions stop playback; playback/storage failures cannot interrupt construction. Background music and its MP3 are excluded from this release.

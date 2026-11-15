@@ -33,7 +33,7 @@ function renderEffects156() {
   if (volume && document.activeElement !== volume) volume.value = Math.round(effectsPrefs156.volume * 100);
 }
 function openEffects156() {
-  openModal('<div class="effects-sheet156"><div class="modal-head"><h2>音效</h2><button class="close" onclick="closeModal()" aria-label="关闭音效设置">×</button></div><div class="effects-row156"><label for="effects-on156">连接城市音效</label><button id="effects-on156" onclick="setEffects156(\'enabled\',!effectsPrefs156.enabled)"></button></div><label class="effects-volume156" for="effects-volume156">音量<input id="effects-volume156" type="range" min="0" max="100" step="5" oninput="setEffects156(\'volume\',this.value/100)"></label><p>线路建设成功时，轻轻响一声。</p><button onclick="playConnect156()">试听</button><button class="primary" onclick="closeModal()">完成</button></div>');
+  openModal('<div class="effects-sheet156"><div class="modal-head"><h2>音效</h2><button class="close" onclick="closeModal()" aria-label="关闭音效设置">×</button></div><div class="effects-row156"><label for="effects-on156">连接城市音效</label><button id="effects-on156" onclick="setEffects156(\'enabled\',!effectsPrefs156.enabled)"></button></div><label class="effects-volume156" for="effects-volume156">音量<input id="effects-volume156" type="range" min="0" max="100" step="5" oninput="setEffects156(\'volume\',this.value/100)"></label><p>拖线连上下一座城市时，轻轻响一声。</p><button onclick="playConnect156()">试听</button><button class="primary" onclick="closeModal()">完成</button></div>');
   renderEffects156();
 }
 for (const parent of [document.querySelector('header .controls'), document.querySelector('.atlas-top')]) {
@@ -43,16 +43,20 @@ for (const parent of [document.querySelector('header .controls'), document.query
   button.title = '音效'; button.setAttribute('aria-label', '音效设置'); button.onclick = openEffects156;
   parent.appendChild(button);
 }
-// Preview and rejection leave the draft intact. Only a committed connection sounds.
-const commitBeforeEffects156 = commitDraft;
-commitDraft = function (...args) {
-  const pending = draft;
-  const previous = pending?.original ? S.lines.find(line => line.id === pending.original)?.stops || [] : [];
-  const added = pending?.stops.filter(id => !previous.includes(id) && S.cities[id]?.kind !== 'bridgehead') || [];
-  const result = commitBeforeEffects156(...args);
-  if (pending && !draft && pending.stops.length >= 2 && added.length) playConnect156();
+// Observe accepted snap transitions across new lines and either-end extensions.
+// Repeated move/up events over the same city do not add another stop or sound.
+function withSnapSound156(handler, event) {
+  const before = [...(draft?.stops || gesture?.baseStops || gesture?.cityLine?.stops || [])];
+  const kind = gesture?.kind;
+  const result = handler(event);
+  if (!draft || !['draft', 'city-edit'].includes(gesture?.kind || kind)) return result;
+  const cities = draft.stops.filter(id => S.cities[id]?.kind !== 'bridgehead');
+  if (cities.length >= 2 && cities.some(id => !before.includes(id)) && !draftCost().invalid) playConnect156();
   return result;
-};
+}
+const moveBeforeEffects156 = movePointer, finishBeforeEffects156 = finishPointer;
+movePointer = function (event) { return withSnapSound156(moveBeforeEffects156, event); };
+finishPointer = function (event) { return withSnapSound156(finishBeforeEffects156, event); };
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopEffect156(); });
 window.addEventListener('pagehide', () => { effectsAway156 = true; stopEffect156(); });
 window.addEventListener('pageshow', () => { effectsAway156 = false; });

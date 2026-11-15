@@ -10,7 +10,7 @@ for(const map of ['east','west']) {
   run('finishPointer({pointerId:11,type:"pointerup",clientX:160,clientY:300});finishPointer({pointerId:12,type:"pointerup",clientX:290,clientY:300});');
   assert.equal(run('JSON.stringify(S.lines)'),line);assert.equal(run('S.points'),points);
   run('beginDraft("bus");draft.stops=[0,1];var oldPause156=S.paused;');
-  const pauses=g.pauses;g.setHidden(true);
+  run('playConnect156()');const pauses=g.pauses;g.setHidden(true);
   assert(run('S.paused&&interruptionPending()'));assert.equal(run('draft'),null);assert.equal(run('pointers.size'),0);assert(g.pauses>pauses);
   assert.equal(run('S.points'),points);assert.equal(run('JSON.stringify(S.lines)'),line);
   const save=JSON.parse(w.localStorage.getItem('transit-atlas-v1'));

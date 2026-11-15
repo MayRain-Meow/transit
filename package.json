@@ -1,7 +1,7 @@
 {
   "name": "transit-basin-playtest",
   "private": true,
-  "version": "1.5.6",
+  "version": "1.5.7",
   "scripts": {
     "test": "node tests/transport.cjs && node tests/basin.cjs && node tests/brief15.cjs && node tests/route-commit.cjs && node tests/path-cache15.cjs && node tests/onboarding15.cjs && node tests/preview-hotfix15.cjs && node tests/map-swipe15.cjs && node tests/growth-hotfix152.cjs && node tests/revision153.cjs && node tests/river-render154.cjs && node tests/effects156.cjs && node tests/lifecycle156.cjs"
   },
