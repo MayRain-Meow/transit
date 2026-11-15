@@ -55,6 +55,7 @@ toast = function (t, ...a) {
     else if (S && !S.lines.length && S.day < 1) return;
   }
   if (/^从一座城市拖向另一座/.test(t) && uxCoachActive()) return;   // the coach already says this
+  if (/^从河岸拖向对岸/.test(t) && typeof bridgeDraft !== 'undefined' && bridgeDraft) return;   // the bridge bar already says this
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
   if (now < uxToastHold && UX_IDLE_INFO.test(t)) {
     uxToastQueued = [t, ...a]; clearTimeout(uxToastTimer);
@@ -229,34 +230,57 @@ toast = function (t) {
   uxToast(uxRename(t));
   uxPlaceToast();
 };
-// Portrait: float messages just above whatever sheet is at the bottom, inside the thumb zone.
+// Where a message floats. Portrait: just above whatever sheet is at the bottom (thumb zone). Landscape / desktop: the
+// stylesheet's place (top of the map on short screens, above the dock otherwise).
+// Either way it must not land on the selection: the selection is framed in the free map, so one of its stations often
+// sits right where the toast goes. Candidate spots — the usual row, then the other end of the map (under the top status
+// column; only the strip under the header when a portrait sheet is fully open), each centred / left / right of the
+// free map — are tried in order, and the toast takes the first that leaves every visible station or ＋ tab of the
+// selection clear, node included. A long message that fits nowhere in the map (a reward or a lost-life warning beside
+// a full portrait sheet) goes over the bottom of the sheet, above the dock, rather than onto the selection.
 function uxPlaceToast() {
   const el = uxEl('toast'); if (!el) return;
-  if (!portraitMode) { el.style.top = el.style.bottom = el.style.left = ''; return; }
-  let top = H;
-  for (const sel of ['#ux-coach', '#junction-picker', '#details', '#routes', '#drawbar', 'footer .dock']) {
-    const e = document.querySelector(sel);
-    if (!e || e.hidden || typeof getComputedStyle !== 'function' || getComputedStyle(e).display === 'none') continue;
-    const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
-  }
-  // A sheet that fills most of the screen leaves no room above it: use the top of the map instead.
-  const tall = ['details', 'junction-picker'].some(id => { const e = uxEl(id); return !!e && !e.hidden && e.getBoundingClientRect().top < H * .35; });
-  el.style.left = '';
-  if (tall) { el.style.bottom = 'auto'; el.style.top = ((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8) + 'px'; return; }
-  // The selection is framed in the space above the sheet, so its lowest station often sits right where the toast
-  // goes. Two places are tried — above the sheet, then under the top status column — and the toast takes the first
-  // that covers none of the selection's stations or ＋ tabs (with room to spare if possible, else the fewest).
-  const w = el.offsetWidth || 200, h = el.offsetHeight || 36, pts = uxSelectionPoints().map(p => toScreen(p));
+  el.style.top = el.style.bottom = el.style.left = '';
+  const vis = id => { const e = uxEl(id), r = e && !e.hidden && (typeof getComputedStyle !== 'function' || getComputedStyle(e).display !== 'none') && e.getBoundingClientRect?.(); return r && r.height ? r : null; };
+  const headB = document.querySelector('header')?.getBoundingClientRect().bottom || 60, dockT = document.querySelector('footer .dock')?.getBoundingClientRect().top || H;
   const st = document.querySelector('.top-stack'), sr = st?.getBoundingClientRect && (typeof getComputedStyle !== 'function' || getComputedStyle(st).visibility !== 'hidden') ? st.getBoundingClientRect() : null;
-  const upper = Math.max((document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8, sr && sr.height ? sr.bottom + 8 : 0);
-  // centred first; a line running down the middle of the screen pushes it to one side
-  const xs = [W / 2, 16 + w / 2, W - 16 - w / 2].filter((x, i) => !i || w < W - 48), spots = [];
-  for (const [y, place] of [[top - 10 - h, () => { el.style.top = 'auto'; el.style.bottom = (H - top + 10) + 'px'; }], [upper, () => { el.style.bottom = 'auto'; el.style.top = upper + 'px'; }]])
+  const upper = Math.max(headB + 8, sr && sr.height ? sr.bottom + 8 : 0);
+  const w = el.offsetWidth || 200, h = el.offsetHeight || 36;
+  const atTop = y => () => { el.style.bottom = 'auto'; el.style.top = y + 'px'; }, atBottom = b => () => { el.style.top = 'auto'; el.style.bottom = (H - b) + 'px'; };
+  let mapL = 0, mapR = W, mapB, rows, sheetSpot = null;
+  if (portraitMode) {
+    let top = H;
+    for (const sel of ['#ux-coach', '#junction-picker', '#details', '#routes', '#drawbar', 'footer .dock']) {
+      const e = document.querySelector(sel);
+      if (!e || e.hidden || typeof getComputedStyle !== 'function' || getComputedStyle(e).display === 'none') continue;
+      const r = e.getBoundingClientRect(); if (r.height && r.top > H * 0.35) top = Math.min(top, r.top);
+    }
+    // a sheet that fills most of the screen leaves only a strip of map under the header
+    const tallTop = Math.min(...['details', 'junction-picker'].map(id => { const r = vis(id); return r && r.top < H * .35 ? r.top : Infinity; }));
+    mapB = tallTop < Infinity ? tallTop : top;
+    rows = tallTop < Infinity ? [[upper, atTop(upper)], ...(tallTop - 10 - h > upper + h ? [[tallTop - 10 - h, atTop(tallTop - 10 - h)]] : [])]
+      : [[top - 10 - h, atBottom(top - 10)], [upper, atTop(upper)]];
+    if (mapB < dockT - 10 - h) sheetSpot = { key: 'sheet', x: W / 2, y: dockT - 10 - h, place: atBottom(dockT - 10) };
+  } else {
+    // side panels (details, line picker, route list) take the right or left of the map
+    for (const id of ['details', 'junction-picker']) { const r = vis(id); if (r && r.left > W / 2) mapR = Math.min(mapR, r.left); }
+    const rl = vis('routes'); if (rl && rl.right < W / 2 && rl.top < H / 2) mapL = Math.max(mapL, rl.right);
+    mapB = dockT;
+    const r0 = el.getBoundingClientRect?.() || { top: H - 80 }, home = r0.top < H / 2;
+    rows = home ? [[r0.top, atTop(r0.top)], [dockT - 10 - h, atBottom(dockT - 10)]] : [[r0.top, atTop(r0.top)], [upper, atTop(upper)]];
+  }
+  const pts = uxSelectionPoints().map(p => { const q = toScreen(p); q.r = S.cities.includes(p) ? uxNodePx(p) + 4 : 13; return q; })
+    .filter(q => q.y + q.r > headB && q.y - q.r < mapB && q.x - q.r < mapR && q.x + q.r > mapL);   // under a panel it is hidden anyway
+  // centred in the free map first; a line running down the middle pushes it to one side
+  const mid = (mapL + mapR) / 2, xs = [W / 2, mid, mapL + 16 + w / 2, mapR - 16 - w / 2].filter((x, i, a) => x - w / 2 >= mapL + 8 - (i ? 0 : 1e9) && x + w / 2 <= mapR - 8 + (i ? 0 : 1e9) && a.indexOf(x) === i);
+  const spots = [];
+  for (const [y, place] of rows)
     for (const x of xs) spots.push({ key: spots.length, x, y, place: () => { place(); el.style.left = x === W / 2 ? '' : x + 'px'; } });
-  const cover = (s, m) => pts.filter(p => p.x > s.x - w / 2 - m && p.x < s.x + w / 2 + m && p.y > s.y - m && p.y < s.y + h + m).length;
+  if (sheetSpot) spots.push(sheetSpot);
+  const cover = (s, m) => pts.filter(p => p.x + p.r > s.x - w / 2 - m && p.x - p.r < s.x + w / 2 + m && p.y + p.r > s.y - m && p.y - p.r < s.y + h + m).length;
   // while one toast shows, it stays where it is as long as that spot is still clear (no hopping while the camera glides)
-  const shown = el.classList.contains('show') && el.uxText === el.textContent ? spots.find(s => s.key === el.uxSpot && !cover(s, 4)) : null;
-  const pick = shown || spots.find(s => !cover(s, 18)) || spots.find(s => !cover(s, 4)) || spots.reduce((a, s) => cover(s, 4) < cover(a, 4) ? s : a);
+  const shown = el.classList.contains('show') && el.uxText === el.textContent ? spots.find(s => s.key === el.uxSpot && !cover(s, 2)) : null;
+  const pick = shown || spots.find(s => !cover(s, 12)) || spots.find(s => !cover(s, 2)) || spots.reduce((a, s) => cover(s, 2) < cover(a, 2) ? s : a);
   pick.place(); el.uxSpot = pick.key; el.uxText = el.textContent;
 }
 const uxStopUndo = offerStopUndo;
@@ -1121,14 +1145,17 @@ function uxGameOver(m) {
 /* ---------- active city activity: status, progress, stakes ---------- */
 function uxActiveActivity(m) {
   const st = typeof activityState === 'function' ? activityState() : null, e = st?.active; if (!e || m.querySelector('.ux-act')) return;
-  const card = [...m.querySelectorAll('section.infra-card')].find(x => /定位举办城市/.test(x.textContent)); if (!card) return;
+  // upstream's card ends with a locate button: 定位举办城市 (events.js) or, since regional tasks, 定位任务城市 — kept as is
+  const card = [...m.querySelectorAll('section.infra-card')].find(x => /定位(举办|任务)城市/.test(x.textContent)); if (!card) return;
+  const go = [...card.querySelectorAll('button')].find(b => /定位(举办|任务)城市/.test(b.textContent)), goCall = go?.getAttribute('onclick') || `closeModal();openCity(${e.host})`, goTask = /任务城市/.test(go?.textContent || '');
+  const scope = typeof regionalTaskLabel === 'function' ? (() => { try { return regionalTaskLabel(e); } catch { return ''; } })() : '';
   const prep = S.day < e.start, days = (prep ? e.start - S.day : Math.max(0, e.end - S.day)).toFixed(1);
   const pct = Math.min(100, e.delivered / Math.max(1, e.goal) * 100);
   const box = document.createElement('section'); box.className = 'ux-act';
-  box.innerHTML = `<div class="ux-act-head"><span class="ux-act-stars">${'★'.repeat(e.star)}</span><b>${escapeHTML(e.title)}</b><small>${escapeHTML(S.cities[e.host]?.name || '')}</small><em class="${prep ? 'is-prep' : ''}">${prep ? '准备中 · 还需 ' + days + ' 天' : '进行中 · 剩 ' + days + ' 天'}</em></div>
-<div class="ux-act-progress"><span class="ux-bar"><i style="width:${pct}%"></i></span><span><b>${e.delivered}</b> / ${e.goal} 已送达<small>已出发 ${e.spawned}/${e.total} · 候车合格 ${e.good}/${e.delivered}${e.goodRatio ? '（需 80%）' : ''}</small></span></div>
+  box.innerHTML = `<div class="ux-act-head"><span class="ux-act-stars">${'★'.repeat(e.star)}</span><b>${escapeHTML(e.title)}</b><small>${escapeHTML([S.cities[e.host]?.name, scope].filter(Boolean).join(' · '))}</small><em class="${prep ? 'is-prep' : ''}">${prep ? '准备中 · 还需 ' + days + ' 天' : '进行中 · 剩 ' + days + ' 天'}</em></div>
+<div class="ux-act-progress"><span class="ux-bar"><i style="width:${pct}%"></i></span><span><b>${e.delivered}</b> / ${e.goal} 已送达<small>已出发 ${e.spawned}/${e.total} · 候车合格 ${e.good}/${e.delivered}${e.goodRatio ? '（需 ' + Math.round(e.goodRatio * 100) + '%）' : ''}</small></span></div>
 <div class="ux-act-stakes"><div class="ok"><small>完成</small><b>${typeof activityRewardText === 'function' ? activityRewardText(e) : ''}</b></div><div class="bad"><small>未完成</small><b>最高 ¥${e.fine}${e.scoreLoss ? ' · 评分 −' + e.scoreLoss : ''}</b></div></div>
-<button class="ux-act-go" onclick="closeModal();openCity(${e.host})">在地图上定位举办城市</button>`;
+<button class="ux-act-go" onclick="${escapeHTML(goCall)}">在地图上定位${goTask ? '任务' : '举办'}城市</button>`;
   card.replaceWith(box);
 }
 // Activity page footer: an unpaid fine is a warning; with nothing owed only the rule remains, as a footnote.
@@ -1387,6 +1414,15 @@ function uxNoticeKey(t) {
   }
   return null;
 }
+// The top notice gets a category icon on its left, the same round slot as the undo pill and the edge pointers. Only an
+// attribute is set (other layers read the notice text); a leading ★ / ♪ in the text is hidden since the icon says it.
+const UX_NOTICE_KINDS = [['activity', /^★|活动|邀请/], ['concert', /^♪|音乐|演出/], ['weather', /雨|雾|台风|天气/], ['damage', /受损|断开|断线|待拆/], ['works', /施工/], ['opening', /开放|新城|待接入/]];
+function uxNoticeIcon() {
+  const n = uxEl('notice'), wrap = n?.closest?.('.notice-wrap'); if (!n || !wrap || typeof MutationObserver !== 'function') return;
+  const apply = () => { const t = n.textContent || '', k = t ? (UX_NOTICE_KINDS.find(([, re]) => re.test(t))?.[0] || 'info') : '', sym = /^[★♪]/.test(t) ? '1' : '';
+    if (wrap.dataset.kind !== k) wrap.dataset.kind = k; if ((wrap.dataset.sym || '') !== sym) wrap.dataset.sym = sym; };
+  new MutationObserver(apply).observe(n, { childList: true, characterData: true, subtree: true }); apply();
+}
 function uxNoticeDismiss() {
   const btn = uxEl('notice-close'), n = uxEl('notice'); if (!btn || !n) return;
   let closed = null; const up = btn.onclick;
@@ -1449,11 +1485,17 @@ function uxAchievements() {
   showAchievements14.ux = true;
   const b = uxEl('achievements-entry14'); if (b) b.onclick = () => showAchievements14();
 }
+// v1.5 save-and-exit button (update123.js): an exit glyph (door, arrow out); its label and action stay upstream's
+function uxExitIcon() {
+  const b = uxEl('game-exit'); if (!b || b.dataset.ux) return;
+  b.dataset.ux = '1'; b.title = b.getAttribute('aria-label') || '保存与退出';
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M14 8l4 4-4 4M18 12H9"/></svg>';
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
@@ -1468,6 +1510,7 @@ function uxLate() {
     return r;
   };
   uxEl('notice')?.closest?.('.notice-wrap')?.addEventListener('click', e => { if (e.target.closest('#notice-close')) return; if (/活动邀请/.test(uxEl('notice').textContent)) uxOpenHub('goal', 1); });
+  uxNoticeIcon();
   uxNoticeDismiss();   // outermost: sees the banner text after every layer (and the rename) has written it
   updateUI();
 }
@@ -1665,8 +1708,18 @@ globalThis.LANE_RAMP = (a, b, len) => {
 const UX_OCT_R = 20;                      // corner radius (world units)
 const uxOctFree = (p, q, type) => { try { const r = requirements(p, q, type); return !(r.bridge || r.tunnel); } catch { return false; } };
 const uxOctDir = (p, q) => (Math.round(Math.atan2(q.y - p.y, q.x - p.x) / (Math.PI / 4)) + 8) % 8;
+// Options per station pair are fixed while the towns and the terrain are: cached (lanePoint asks for them for every
+// segment sample and every vehicle, each answer costing three terrain checks). The cache belongs to one game state and
+// is dropped every few seconds anyway; the key carries the towns' coordinates.
+let uxOctOptCache = {}, uxOctOptState = null, uxOctOptAt = 0;   // type → Map(pair number → { ax, ay, bx, by, o })
 function uxOctOptions(a, b, type) {
   if (!a || !b || a.id === undefined || b.id === undefined || type === 'air' || a.kind === 'bridgehead' || b.kind === 'bridgehead' || a === b) return null;
+  if (uxOctOptState !== S) { uxOctOptCache = {}; uxOctOptState = S; }
+  const lo = a.id < b.id ? a : b, hi = lo === a ? b : a, m = uxOctOptCache[type] || (uxOctOptCache[type] = new Map()), k = lo.id * 65536 + hi.id, e = m.get(k);
+  if (e && e.ax === lo.x && e.ay === lo.y && e.bx === hi.x && e.by === hi.y) return e.o;
+  const o = uxOctOptionsNow(a, b, type); m.set(k, { ax: lo.x, ay: lo.y, bx: hi.x, by: hi.y, o }); return o;
+}
+function uxOctOptionsNow(a, b, type) {
   const lo = a.id < b.id ? a : b, hi = lo === a ? b : a, dx = hi.x - lo.x, dy = hi.y - lo.y, m = Math.min(Math.abs(dx), Math.abs(dy)), sx = Math.sign(dx), sy = Math.sign(dy);
   if (m < 6 || Math.max(Math.abs(dx), Math.abs(dy)) - m < 6 || !uxOctFree(lo, hi, type)) return null;
   const A = { x: lo.x + sx * m, y: lo.y + sy * m }, B = { x: hi.x - sx * m, y: hi.y - sy * m };
@@ -1683,6 +1736,7 @@ function uxOctPlanNow() {
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
   if (now - uxOctPlanAt < 200) return uxOctPlan;
   uxOctPlanAt = now;
+  if (now - uxOctOptAt > 3000) { uxOctOptCache = {}; uxOctOptAt = now; }   // terrain checks are re-read every few seconds
   const lines = [...(S?.lines || []), ...(draft?.stops ? [draft] : [])];
   const key = lines.map(l => l.type + ':' + l.stops.join(',')).join('|');
   if (key === uxOctPlanKey) return uxOctPlan;

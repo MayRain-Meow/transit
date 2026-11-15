@@ -63,7 +63,7 @@ document.querySelector('#modal-content .activity-back')?.click(); ${W(900)} docu
 const c = document.querySelector('#modal-content .card-content128'), h = c ? c.getBoundingClientRect().height : 0;
 const tools = [...document.querySelectorAll('.deck-tools128 button')].every(b => b.getBoundingClientRect().bottom <= innerHeight);
 return { ok: h >= 120 && tools, contentH: Math.round(h), tools };`,
-  coach: `const c = document.getElementById('ux-coach'), before = !c.hidden;
+  coach: `const c = document.getElementById('ux-coach'); if (!c || document.querySelector('script[src*="update129"]')) return { ok: true, skipped: 'v1.5 replaces the coach with its own tutorial (update129.js removes #ux-coach)' }; const before = !c.hidden;
 openCity(realCities()[1].id); ${W(500)} uxSheetSet('full'); ${W(700)}
 const during = !document.getElementById('ux-coach').hidden;
 clearSelection(); ${W(700)}

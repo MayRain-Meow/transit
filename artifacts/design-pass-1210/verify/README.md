@@ -6,7 +6,7 @@
 
 ```sh
 python -I serve.py 8791            # 多线程、长监听队列、no-store；根目录默认 D:\06_codex\transit\dist
-# 浏览器打开 http://127.0.0.1:8791/test04/
+# 浏览器打开 http://127.0.0.1:8791/（v1.5 起正式入口在 dist 根目录；旧入口仍在 /test04/）
 ```
 
 Python 自带的 `http.server` 单线程，监听队列只有 5。页面有 31 个脚本，并发请求时可能拒绝连接，个别脚本加载失败，会表现为「xxx is not defined」之类的假报错。复验请使用 `serve.py`。
@@ -36,4 +36,12 @@ node reload.mjs                                       # 带候车乘客的存档
 python -I cmpjpg.py out.jpg 0.5 "标签=a.png" ...       # 同倍率对比图
 ```
 
-尺寸后缀 `m` 表示模拟手机（触摸、mobile）。`tour.mjs` 默认打开 `http://127.0.0.1:8791/test04/`，可用 `URL=` 改为其他端口，例如 8792 上的上游基线。
+尺寸后缀 `m` 表示模拟手机（触摸、mobile）。所有工具默认打开 `http://127.0.0.1:8791/`（v1.5 正式入口），可用 `URL=` 改为其他端口，例如 8792 上的上游基线。
+
+## 性能
+
+```sh
+SETUP=setupLate.js+setupHeavy.js MODE=pan node dragperf.mjs 461x709   # 拖动时的输入耗时、帧间隔和耗时最多的函数
+```
+
+`MODE`：`pan` 拖空白地图，`new` 点「新建线路」后拉线，`extend` 选中线路后拖延长按钮，`grab` 按在线上拖（改线）。`DSF=3` 模拟高像素密度手机。`SETUP` 可用 `+` 连接多个场景文件依次执行；`setupHeavy.js` 在后期场景基础上扩到约 24 城、17 线。

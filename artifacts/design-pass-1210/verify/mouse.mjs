@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 const size = process.argv[2] || "390x844";
-const url = process.env.URL || 'http://127.0.0.1:8791/test04/';
+const url = process.env.URL || 'http://127.0.0.1:8791/';
 const port = 9334 + Math.floor(Math.random() * 400);
 const profile = (process.env.VERIFY_TMP || fileURLToPath(new URL('../../../.verify-tmp', import.meta.url))) + '/cdp_' + (process.env.PROFILE || 'tour') + '_' + port;
 const __profile=(profile);

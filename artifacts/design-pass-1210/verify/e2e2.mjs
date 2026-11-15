@@ -22,7 +22,7 @@ const city = i => ev(`const p=toScreen(S.cities[${i}]);return {x:p.x,y:p.y}`);
 fs.mkdirSync(out, { recursive: true });
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 2, mobile: true });
 await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 2 }); await send('Runtime.enable');
-const url = 'http://127.0.0.1:8791/test04/';
+const url = process.env.URL || 'http://127.0.0.1:8791/';
 await send('Page.navigate', { url });
 for (let i = 0; i < 60; i++) { await wait(250); if (await ev("return document.readyState==='complete'&&typeof startAtlasMap==='function'&&!!S").catch(() => false)) break; }
 await ev(fs.readFileSync(new URL('./setupE.js', import.meta.url), 'utf8') + ';S.paused=true;clearSelection();uxCoachFinish&&uxCoachFinish();');

@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 const [outdir, size, scenFile] = process.argv.slice(2);
 const scen = JSON.parse(fs.readFileSync(scenFile, 'utf8'));
-const url = process.env.URL || 'http://127.0.0.1:8791/test04/';
+const url = process.env.URL || 'http://127.0.0.1:8791/';
 const port = 9334 + Math.floor(Math.random() * 400);
 const profile = (process.env.VERIFY_TMP || fileURLToPath(new URL('../../../.verify-tmp', import.meta.url))) + '/cdp_' + (process.env.PROFILE || 'tour') + '_' + port;
 const __profile=(profile);
@@ -25,7 +25,8 @@ await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceSc
 await send('Emulation.setTouchEmulationEnabled', { enabled: mobile });
 await send('Runtime.enable');
 fs.mkdirSync(outdir, { recursive: true });
-const setup = fs.existsSync(process.env.SETUP || '') ? fs.readFileSync(process.env.SETUP, 'utf8') : '';
+// SETUP may list several files joined with + (e.g. setupLate.js+setupHeavy.js); they run in order
+const setup = (process.env.SETUP || '').split('+').filter(f => f && fs.existsSync(f)).map(f => fs.readFileSync(f, 'utf8')).join('\n;\n');
 for (const s of scen) {
   await send('Page.navigate', { url });
   for (let i = 0; i < 40; i++) { await wait(250); const ok = await run("return typeof S!=='undefined'&&!!S&&typeof uxVisibleRect==='function'&&typeof addStockAsset==='function'&&document.readyState==='complete'&&typeof startAtlasMap==='function'"); if (ok.value) break; }
