@@ -1549,11 +1549,38 @@ function uxSwipeAttach() {
   };
   addDraftCity.uxSwipe = true;
 }
+// While a route is drawn or re-routed, other lines' bridge and tunnel decks (drawn in full colour) are toned down with
+// the lines themselves; building a bridge keeps them as they are.
+function uxDraftInfra() {
+  // tunnel mouths and bridge decks are drawn per line segment (drawTunnelSpans) in full colour: they fade with their line
+  if (typeof drawTunnelSpans === 'function' && !drawTunnelSpans.uxFade) {
+    const ts = drawTunnelSpans;
+    drawTunnelSpans = function (a, b, l, ...r) {
+      if (ctx.canvas !== cv || !l || l === draft) return ts.call(this, a, b, l, ...r);
+      const f = draft ? (draft.original ?? -1) : uxHandleFocus(), k = f !== null && f !== undefined ? (l.id === f ? 1 : .25) : (typeof LINE_ALPHA === 'function' ? LINE_ALPHA(l, null) : 1);
+      if (k >= 1) return ts.call(this, a, b, l, ...r);
+      // upstream sets globalAlpha = 1 inside: for this call, whatever it sets is scaled by the line's fade
+      const d = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ctx), 'globalAlpha');
+      if (!d?.set) return ts.call(this, a, b, l, ...r);
+      Object.defineProperty(ctx, 'globalAlpha', { configurable: true, get() { return d.get.call(this); }, set(v) { d.set.call(this, v * k); } });
+      ctx.save(); ctx.globalAlpha = 1;
+      try { return ts.call(this, a, b, l, ...r); } finally { ctx.restore(); delete ctx.globalAlpha; }
+    };
+    drawTunnelSpans.uxFade = true;
+  }
+  if (typeof drawInfrastructure !== 'function' || drawInfrastructure.uxDraft) return;
+  const di = drawInfrastructure;
+  drawInfrastructure = function (...a) {
+    if (!draft || bridgeDraft || ctx.canvas !== cv) return di.apply(this, a);
+    ctx.save(); ctx.globalAlpha *= .4; try { return di.apply(this, a); } finally { ctx.restore(); }
+  };
+  drawInfrastructure.uxDraft = true;
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
@@ -1898,7 +1925,18 @@ function uxOctInfra(draw) {
 const UX_MODE_RANK = { bus: 0, emu: 1, rail: 2, air: 3 };
 // widths relative to upstream's (bus 3.7, 动车 4.5, 高铁 7, air 2.8), so the zoom scaling applied by earlier layers stays
 const UX_MODE_WIDTH = { bus: 3.4 / 3.7, emu: 5.2 / 4.5, rail: 7 / 7, air: 2.2 / 2.8 };
-globalThis.LINE_ORDER = lines => lines.map((l, i) => [l, i]).sort((x, y) => (UX_MODE_RANK[x[0].type] ?? 0) - (UX_MODE_RANK[y[0].type] ?? 0) || x[1] - y[1]).map(x => x[0]);
+// Re-routing a line (user 2026-11-15: 改线时看不清当前走向): the line as it is now stays on the map as a wide, pale band
+// in its colour under everything else, and the new route (upstream's dashed draft) runs over it — before and after at a
+// glance. Drawn when the line pass begins (LINE_ORDER is asked for the drawing order right before lines are drawn).
+function uxDraftGhost() {
+  if (!draft?.original || ctx.canvas !== cv || typeof strokeLaneRange !== 'function') return;
+  const l = S.lines.find(x => x.id === draft.original); if (!l || l.stops.length < 2) return;
+  ctx.save();
+  try { lineStyle(l); ctx.setLineDash([]); ctx.globalAlpha = .3; ctx.lineWidth *= 3.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (let i = 1; i < l.stops.length; i++) { const a = S.cities[l.stops[i - 1]], b = S.cities[l.stops[i]]; if (a && b) { strokeLaneRange(a, b, l); ctx.stroke(); } } } catch {}
+  ctx.restore();
+}
+globalThis.LINE_ORDER = lines => (uxDraftGhost(), lines).map((l, i) => [l, i]).sort((x, y) => (UX_MODE_RANK[x[0].type] ?? 0) - (UX_MODE_RANK[y[0].type] ?? 0) || x[1] - y[1]).map(x => x[0]);
 function uxModeStyle() {
   if (typeof lineStyle !== 'function' || lineStyle.uxMode) return;
   const ls = lineStyle;
