@@ -1395,3 +1395,7 @@ body #routes.collapsed .panel-heading > span.ux-swatches{display:flex!important;
 #drawbar .db-actions:has(#quote-expand:empty) #drawdone{flex:1 1 auto;width:auto!important;grid-column:auto!important;grid-row:auto!important}
 /* achievements in the shell: its sheet padding is 14px, so the sticky header bleeds by 14 (not 18) to the sheet edge */
 .portrait-shell.achievements-open14 #modal-content > .modal-head,.portrait-shell .achievements-open14 #modal-content > .modal-head{margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px}
+/* portrait sheet, peek state: the shell fixes every detail sheet at 48% of the screen, which left a selected line's
+   lower stations and ＋ tabs (and the towns to extend to) under the sheet in a late network. Peek is the short state
+   (title, numbers, stops, main action — ~36%); 展开全部 / swipe up still opens everything. */
+@media (orientation:portrait){ .portrait-shell .detail-panel.is-peek{max-height:min(36dvh,300px)!important;overflow:hidden!important} }
