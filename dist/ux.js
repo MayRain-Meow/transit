@@ -502,10 +502,16 @@ openCity = function (id) { uxFocusCity(id); };
 /* ---------- shop ---------- */
 shop = function () {
   openModal(`<div class="modal-head"><div><h2>交通采购</h2><small>余额 ${money(S.points)} · 新车进入库存，在线路详情点「＋」派车</small></div><button class="close" onclick="closeModal()">×</button></div>
-<div class="ux-list">${uxTypes().map(t => {
-    const on = S.unlocked.includes(t), T = TYPES[t];
-    return `<div class="ux-product${on ? '' : ' is-locked'}">${transportIcon(t)}<div><b>${T.name}</b><small>${isTrain(t) ? '初始 2 节，最多 8 节' : T.cap + ' 人'} · 票价 ×${T.fare ?? 1}${on ? ' · 库存 ' + S.inventory[t] : ''}</small>${on ? '' : `<small class="ux-lock"><i>未解锁</i>${unlockText(t)}</small>`}</div><button class="${on ? 'primary' : ''}" onclick="purchase('v-${t}')" ${!on || S.points < T.vehicle ? 'disabled' : ''}>¥${T.vehicle}</button></div>`;
-  }).join('')}</div>
+${(() => {
+    // what can be bought now, specs on one line; what is still locked in its own short list: name, condition, price
+    const all = uxTypes(), open = all.filter(t => S.unlocked.includes(t)), shut = all.filter(t => !S.unlocked.includes(t));
+    const spec = t => { const T = TYPES[t]; return (isTrain(t) ? '2–8 节' : T.cap + ' 人') + ' · 票价 ×' + (T.fare ?? 1) + ' · 库存 ' + S.inventory[t]; };
+    let h = '<div class="ux-list">' + open.map(t => { const T = TYPES[t];
+      return `<div class="ux-product">${transportIcon(t)}<div><b>${T.name}</b><small>${spec(t)}</small></div><button class="primary" onclick="purchase('v-${t}')" ${S.points < T.vehicle ? 'disabled' : ''}>¥${T.vehicle}</button></div>`; }).join('') + '</div>';
+    if (shut.length) h += '<div class="ux-locked-title">待解锁</div><div class="ux-locked">' + shut.map(t => { const T = TYPES[t];
+      return `<div class="ux-product is-locked">${transportIcon(t)}<div><b>${T.name}<em>¥${T.vehicle}</em></b><small class="ux-lock">${unlockText(t)}</small></div></div>`; }).join('') + '</div>';
+    return h;
+  })()}
 ${shopTrainCarsHTML()}
 <div class="ux-links"><button onclick="showEngineering()"><span>工程</span><small>桥梁 · 道路升级 · 气象站 · 枢纽 · 检修中心</small><i>›</i></button><button onclick="showFinance()"><span>收支账本</span><small>收入、支出与月底维护</small><i>›</i></button></div>`);
 };
@@ -1893,6 +1899,12 @@ function uxBridgeRoutes() {
     const db = draftBar;
     draftBar = function (...a) {
       const r = db.apply(this, a);
+      // collapsed quote: the route it builds (大巴 · 湖湾镇 → … → 河岸镇 · 4站) instead of only the type and a count
+      try { const qx = uxEl('quote-expand'), bar = uxEl('drawbar');
+        if (qx && draft && !bridgeDraft) { const st = draft.stops.filter(id => S.cities[id] && S.cities[id].kind !== 'bridgehead'), nm = id => S.cities[id].name.split('·')[0];
+          const compact = bar?.classList.contains('quote-compact'), route = st.length > 2 ? nm(st[0]) + ' → … → ' + nm(st.at(-1)) : st.map(nm).join(' → ');
+          const txt = compact && st.length >= 2 ? TYPES[draft.type].name + ' · ' + route + ' · ' + st.length + '站 ⌄' : compact ? qx.textContent : '⌃ 收起明细';
+          if (qx.textContent !== txt) qx.textContent = txt; } } catch {}
       try { const q = draft && !bridgeDraft ? draftCost() : null, p = q?.uxBridges, t = uxEl('drawtext');
         if (p && t && !t.querySelector('.ux-bridge-note')) { const n = p.items.filter(i => i.kind === 'new'), re = p.items.length - n.length, s = document.createElement('span'); s.className = 'ux-bridge-note';
           s.textContent = (n.length ? ' · 含新桥 ' + n.length + ' 座 ¥' + n.reduce((v, i) => v + i.price, 0) : '') + (re ? ' · 经已有桥 ' + re + ' 座' : ''); t.appendChild(s);
