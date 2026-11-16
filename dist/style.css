@@ -1525,3 +1525,25 @@ html body #routes.collapsed .panel-heading > #collapse{width:38px!important;min-
 html body #routes.collapsed .panel-heading > #overview{width:34px!important;min-width:34px!important;height:34px!important;min-height:34px!important;padding:0!important}
 html body #routes.collapsed .ux-tsum{gap:5px}
 html body #routes.collapsed .ux-tsum .ux-tpill{gap:4px;padding:0 9px 0 8px!important}
+
+/* ---------- line picker grouped by mode (ux.js uxJunctionGroups) ---------- */
+#junction-picker .junction-heading small{font-size:11.5px}
+#junction-picker .junction-lines{display:grid;gap:8px;margin-top:8px}
+.ux-jg{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:start;gap:6px}
+.ux-jg-head{display:flex;align-items:center;gap:5px;height:38px;font-size:12.5px;color:#3f524b;white-space:nowrap}
+.ux-jg-head b{font-weight:650}
+.ux-jg-head small{font-size:11.5px;color:#7a877f}
+.ux-jg-cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px;min-width:0}
+html body #junction-picker .ux-jg .junction-line{display:flex;align-items:stretch;gap:0;min-height:38px;height:38px;margin:0;padding:0;border:1px solid #e3e7dc!important;border-radius:12px!important;background:#f6f7f0;overflow:hidden}
+html body #junction-picker .ux-jg .junction-line.chosen{background:#fff;border-color:var(--ink)!important}
+html body #junction-picker .ux-jg .junction-line > button:first-child{display:flex;align-items:center;gap:7px;flex:1 1 auto;min-width:0;padding:0 6px 0 9px;background:none}
+html body #junction-picker .ux-jg .junction-line i{flex:0 0 12px;width:12px;height:4px;border-radius:2px;background:var(--c)!important}
+.ux-jg[data-mode="emu"] .junction-line i{height:6px!important;border-radius:1px!important;background:linear-gradient(var(--c) 0 2px,transparent 2px 4px,var(--c) 4px)!important}
+.ux-jg[data-mode="rail"] .junction-line i{height:7px!important;border-radius:1px!important;background:linear-gradient(var(--c) 0 2.5px,transparent 2.5px 4.5px,var(--c) 4.5px)!important}
+.ux-jg[data-mode="air"] .junction-line i{height:3px!important;border-radius:0!important;background:repeating-linear-gradient(90deg,var(--c) 0 3px,transparent 3px 5px)!important}
+html body #junction-picker .ux-jg .junction-line span{display:flex;align-items:baseline;gap:6px;min-width:0;font-size:12px}
+html body #junction-picker .ux-jg .junction-line span b{font-size:14px;font-weight:650;color:var(--ink);font-variant-numeric:tabular-nums}
+html body #junction-picker .ux-jg .junction-line span small{display:inline;margin:0;font-size:11px;color:#7a877f}
+html body #junction-picker .ux-jg .junction-line .junction-drag{flex:0 0 36px;width:36px!important;min-width:36px!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;border-left:1px solid #e3e7dc!important;border-radius:0!important;box-shadow:none!important;background:#fffef9!important;font-size:15px;font-weight:700;color:#36594c}
+html body #junction-picker .junction-city-task{display:flex;align-items:center;gap:8px;min-height:40px!important;padding:0 12px!important}
+html body #junction-picker .junction-city-task span{flex:1 1 auto}

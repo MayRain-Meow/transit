@@ -261,7 +261,7 @@ function uxPlaceToast() {
     rows = tallTop < Infinity ? [[upper, atTop(upper)], ...(tallTop - 10 - h > upper + h ? [[tallTop - 10 - h, atTop(tallTop - 10 - h)]] : [])]
       : [[top - 10 - h, atBottom(top - 10)], [upper, atTop(upper)]];
     // over the bottom of a details / picker sheet as a last resort — never over the network tray, whose chips are controls
-    if (mapB < dockT - 10 - h && (vis('details') || vis('junction-picker'))) sheetSpot = { key: 'sheet', x: W / 2, y: dockT - 10 - h, place: atBottom(dockT - 10) };
+    if (mapB < dockT - 10 - h && vis('details')) sheetSpot = { key: 'sheet', x: W / 2, y: dockT - 10 - h, place: atBottom(dockT - 10) };
   } else {
     // side panels (details, line picker, route list) take the right or left of the map
     for (const id of ['details', 'junction-picker']) { const r = vis(id); if (r && r.left > W / 2) mapR = Math.min(mapR, r.left); }
@@ -1237,10 +1237,36 @@ function uxMarkColor() {
 }
 // Line picker at a shared station: the city entry says how loaded the station is and comes first; drawing a line
 // out of it is a secondary chip on each row.
+// Line picker at a shared station (user 2026-11-16: 页面大胆重构): the lines through the station grouped by mode, like
+// the tray — the mode named once, each line a compact cell (colour, number, stops) with its ↗ edit button beside it.
+// Upstream's own rows are moved into the groups as they are (handlers, data-junction-line for the drag and the
+// tutorial, the chosen highlight); only their text is shortened.
+function uxJunctionGroups(id) {
+  const el = uxEl('junction-picker'), list = el?.querySelector('.junction-lines'); if (!list || list.dataset.ux) return;
+  list.dataset.ux = '1';
+  const head = el.querySelector('.junction-heading small'), lines = typeof cityLines === 'function' ? cityLines(id) : [];
+  if (head) head.textContent = lines.length + ' 条线路经过 · 点线路查看，↗ 改线';
+  const rows = [...list.querySelectorAll(':scope > .junction-line')];
+  const byId = new Map(rows.map(r => [+r.querySelector('[data-junction-line]')?.dataset.junctionLine, r]));
+  const frag = document.createDocumentFragment();
+  for (const [t, name] of UX_MODES) {
+    const ls = lines.filter(l => l.type === t).sort((a, b) => (+uxLineLabel(a) || 1e9) - (+uxLineLabel(b) || 1e9) || a.id - b.id); if (!ls.length) continue;
+    const g = document.createElement('section'); g.className = 'ux-jg'; g.dataset.mode = t;
+    g.innerHTML = '<div class="ux-jg-head"><i class="ux-tmark ' + t + '"></i><b>' + name + '</b><small>' + ls.length + '</small></div><div class="ux-jg-cells"></div>';
+    const cells = g.querySelector('.ux-jg-cells');
+    for (const l of ls) { const r = byId.get(l.id); if (!r) continue; r.style.setProperty('--c', l.color);
+      const sp = r.querySelector('button:first-child span'); if (sp) sp.innerHTML = '<b>' + escapeHTML(uxLineLabel(l)) + '</b><small>' + l.stops.filter(s => S.cities[s]?.kind !== 'bridgehead').length + '站</small>';
+      const go = r.querySelector('.junction-drag'); if (go) go.textContent = '↗';
+      cells.appendChild(r); }
+    frag.appendChild(g);
+  }
+  for (const r of list.querySelectorAll(':scope > .junction-line')) frag.appendChild(r);   // anything left (no mode match)
+  list.appendChild(frag);
+}
 function uxJunctionCity(id) {
   const c = S.cities[id], b = uxEl('junction-picker')?.querySelector('.junction-city-task'); if (!c || !b || typeof capacity !== 'function') return;
   const n = c.q.filter(p => !p.cardId && !p.eventId).length, cap = capacity(c), cls = n >= cap ? 'is-over' : n >= cap * .8 ? 'is-near' : '';
-  b.innerHTML = '<span><b>城市详情</b><small>任务、设施与候车明细</small></span><em class="' + cls + '">候车 ' + n + '/' + cap + '</em><i>›</i>';
+  b.innerHTML = '<span><b>城市详情</b></span><em class="' + cls + '">候车 ' + n + '/' + cap + '</em><i>›</i>';
 }
 let uxLineEdit = null;   // { id, preview } while the line settings sheet is open; preview = picked, not yet saved colour
 function uxWrapHubs() {
@@ -1337,7 +1363,7 @@ function uxWrapHubs() {
   if (typeof showJunction === 'function') { const sj = showJunction; showJunction = function (...a) {
     showJunction.openedAt = performance.now();
     const r = sj.apply(this, a);
-    uxJunctionCity(a[0]);
+    uxJunctionCity(a[0]); uxJunctionGroups(a[0]);
     if (portraitMode) { const el = uxEl('junction-picker'); if (el?.style) el.style.maxHeight = '';
       // opening the picker hides the details sheet, which may start a 280ms view restore: frame once that settles
       setTimeout(() => { if (selected?.type === 'junction' && typeof requestAnimationFrame === 'function') requestAnimationFrame(uxFrameSelection); }, 320); }
