@@ -60,5 +60,25 @@ else {
   await stroke(trio.a, end, 60, 30); s = await state(); await lift(); await run('if (draft) cancelDraft(false); return 1');
   step('5 slow stroke attaches it', s.draft && s.stops.includes(trio.m), { via: trio.m, stops: s.stops });
 }
+// 6: 多站移除 → preview → 应用: same line, vehicles kept, charged exactly the quote
+await fresh();
+const r6 = await run(`S.points = 1e6; const l = S.lines.find(l => l.stops.filter(id => S.cities[id].kind !== 'bridgehead').length >= 4); if (!l) return null; selectLine(l.id); await new Promise(r => setTimeout(r, 600));
+  const v0 = S.vehicles.filter(v => v.line === l.id).length, real = l.stops.filter(id => S.cities[id].kind !== 'bridgehead'), drop = [real[1], real[2]], cash0 = S.points;
+  uxStopPickToggle(l.id); drop.forEach(id => uxStopMark(l.id, id)); uxStopPickApply(l.id); await new Promise(r => setTimeout(r, 300));
+  const quote = draftCost().cash; document.getElementById('drawdone').click(); await new Promise(r => setTimeout(r, 400)); if (modalOpen) document.querySelector('#modal .primary')?.click(); await new Promise(r => setTimeout(r, 300));
+  const after = S.lines.find(x => x.id === l.id); return { id: l.id, gone: drop.every(id => !after.stops.includes(id)), kept: S.vehicles.filter(v => v.line === l.id).length === v0, charged: cash0 - S.points, quote, draft: !!draft };`);
+step('6 multi-stop removal applies once', !!r6 && r6.gone && r6.kept && Math.abs(r6.charged - r6.quote) < 1 && !r6.draft, r6);
+// 7: 整条重画 by touch: a new route drawn with the finger replaces the old one on the same line
+await fresh();
+const r7a = await run(`S.points = 1e6; const l = S.lines[0]; selectLine(l.id); await new Promise(r => setTimeout(r, 600)); window.__v0 = S.vehicles.filter(v => v.line === l.id).length; window.__old = l.stops.join(); uxRedraw(l.id); await new Promise(r => setTimeout(r, 500));
+  const bar = document.getElementById('drawbar').getBoundingClientRect().top, cz = realCities().map(c => ({ c, q: toScreen(c) })).filter(({ q }) => q.x > 30 && q.x < innerWidth - 30 && q.y > 150 && q.y < bar - 30);
+  let pair = null; for (const a of cz) for (const b of cz) if (!pair && a !== b && Math.hypot(a.q.x - b.q.x, a.q.y - b.q.y) > 120) pair = [a, b];
+  return pair && { id: l.id, a: { x: pair[0].q.x, y: pair[0].q.y }, b: { x: pair[1].q.x, y: pair[1].q.y }, names: pair.map(p => p.c.name) };`);
+if (r7a) {
+  await stroke(r7a.a, r7a.b, 30, 25); await lift();
+  const r7 = await run(`const st = draft?.stops?.slice(); document.getElementById('drawdone').click(); await new Promise(r => setTimeout(r, 400)); if (modalOpen) document.querySelector('#modal .primary')?.click(); await new Promise(r => setTimeout(r, 300));
+    const l = S.lines.find(x => x.id === ${r7a.id}); return { drawn: st?.map(i => S.cities[i].name), now: l?.stops.map(i => S.cities[i].name), same: !!l, changed: !!l && l.stops.join() !== window.__old, kept: S.vehicles.filter(v => v.line === ${r7a.id}).length === window.__v0, draft: !!draft };`);
+  step('7 redraw by touch replaces the route', r7.same && r7.changed && r7.kept && !r7.draft && r7.drawn?.length >= 2, r7);
+} else step('7 redraw by touch replaces the route', false, { reason: 'no two towns above the bar' });
 console.log(results.every(Boolean) ? 'ALL PASS' : 'SOME FAILED');
 chrome.kill(); for (let i = 0; i < 8; i++) { await wait(500); try { fs.rmSync(profile, { recursive: true, force: true }); break; } catch {} } process.exit(0);

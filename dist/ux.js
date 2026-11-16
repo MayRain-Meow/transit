@@ -309,7 +309,9 @@ function uxLineSheet(rebuild) {
   const seats = vs.reduce((n, v) => n + vehCap(v), 0), load = vs.reduce((n, v) => n + v.people.length, 0);
   const blocked = l.stops.some((id, i) => i && S.blockages[key(S.cities[l.stops[i - 1]], S.cities[id], l.type)]);
   const stops = l.stops.filter(id => S.cities[id] && !S.cities[id].removed && S.cities[id].kind !== 'bridgehead');
-  const sig = JSON.stringify([l.id, l.name, l.color, l.stops, l.retiring, inv, S.points >= T.vehicle, blocked,
+  if (uxStopPick && uxStopPick.line !== l.id) uxStopPick = null;
+  const pick = uxStopPick;
+  const sig = JSON.stringify([l.id, l.name, l.color, l.stops, l.retiring, inv, S.points >= T.vehicle, blocked, pick ? [...pick.marked] : null,
     vs.map(v => [v.id, v.cars, v.people.length, uxServiceLabel(v), isTrain(v.type) && v.cars < 8 && S.points >= carPrice(v)])]);
   if (!rebuild && sig === uxLineSheet.sig && !el.hidden) return;
   uxLineSheet.sig = sig; el.hidden = false;
@@ -321,10 +323,30 @@ ${blocked ? '<p class="ux-alert">部分路段停止接入，两侧车辆分段�
 ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不会使用这条线路。点「＋」加一辆。</p>' : ''}
 <div class="ux-fleet" style="--lc:${l.color}"><div><small>车辆</small><b>${vs.length}<span> 辆</span></b></div><div class="ux-fleet-load"><small>载客${seats ? ' · ' + Math.round(load / seats * 100) + '%' : ''}</small><b>${load}<span> / ${seats}</span></b><span class="ux-bar"><i style="width:${seats ? Math.min(100, load / seats * 100) : 0}%"></i></span></div>
 <div class="ux-stepper"><button onclick="uxFleetMinus(${l.id})" ${!vs.some(v => !v.recall) ? 'disabled' : ''} aria-label="回收一辆">−</button><button class="primary" onclick="uxFleetPlus(${l.id})" ${canAdd ? '' : 'disabled'}>＋ ${inv > 0 ? '库存 ' + inv : '¥' + T.vehicle}</button></div></div>
-<div class="ux-route" style="--lc:${l.color}">${stops.map((id, k) => `<span class="ux-hop">${k ? '<i></i>' : ''}<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span></span>`).join('')}</div>
+<div class="ux-route${pick ? ' is-picking' : ''}" style="--lc:${l.color}">${stops.map((id, k) => `<span class="ux-hop">${k ? '<i></i>' : ''}${pick ? `<button class="ux-stop${pick.marked.has(id) ? ' is-off' : ''}" onclick="uxStopMark(${l.id},${id})" aria-pressed="${pick.marked.has(id)}">${escapeHTML(S.cities[id].name)}</button>` : `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`}</span>`).join('')}</div>
+${l.retiring ? '' : pick ? `<div class="ux-route-tools is-picking"><span>点选要去掉的站 · 已选 ${pick.marked.size}</span><button onclick="uxStopPickToggle(${l.id})">取消</button><button class="primary" onclick="uxStopPickApply(${l.id})" ${pick.marked.size ? '' : 'disabled'}>预览移除 ${pick.marked.size || ''} 站</button></div>` : `<div class="ux-route-tools"><button onclick="uxStopPickToggle(${l.id})" ${stops.length > 2 ? '' : 'disabled'}>多站移除</button><button onclick="uxRedraw(${l.id})">整条重画</button></div>`}
 
 ${vs.length ? `<div class="ux-list">${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${vs.length > 1 ? v.people.length + '/' + vehCap(v) + ' 人' : ''}${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
 <div class="ux-actions-row">${l.type !== 'air' ? `<button onclick="openInfrastructure(${l.id})">道路升级</button>` : ''}<button class="ux-danger" onclick="uxDeleteLine(${l.id})">${uxArmedDelete?.id === l.id && uxArmedDelete.until > performance.now() ? '再点一次确认撤销' : '取消线路'}</button></div>`;
+}
+// Re-routing a whole line (user 2026-11-15: 大改线路). Both tools only open an edit draft of the line; the quote in the
+// route bar and 应用修改 commit it, as for any drag edit, and 取消 leaves the line as it was.
+// - 多站移除: mark several stops in the sheet, then preview the line without them (one quote, one apply);
+// - 整条重画: the line keeps its id, colour, vehicles and number; its route is drawn again from scratch (the old route
+//   stays on the map as a pale band, see uxDraftGhost).
+let uxStopPick = null;   // { line, marked: Set(city id) } while stops are being picked in the line sheet
+function uxStopPickToggle(lineId) { uxStopPick = uxStopPick?.line === lineId ? null : { line: lineId, marked: new Set() }; haptic(); showDetails(true); }
+function uxStopMark(lineId, cityId) { if (uxStopPick?.line !== lineId) return; const m = uxStopPick.marked; m.has(cityId) ? m.delete(cityId) : m.add(cityId); haptic(); showDetails(true); }
+function uxStopPickApply(lineId) {
+  const l = S.lines.find(x => x.id === lineId); if (!l || l.retiring || !uxStopPick?.marked.size) return;
+  const keep = l.stops.filter(id => !uxStopPick.marked.has(id));
+  if (keep.filter(id => S.cities[id] && S.cities[id].kind !== 'bridgehead').length < 2) return toast('一条线路至少连接两座城市；整条撤销请用「取消线路」');
+  uxStopPick = null; beginDraft(l.type, l.id); draft.stops = keep; draftBar(); updateUI();
+}
+function uxRedraw(lineId) {
+  const l = S.lines.find(x => x.id === lineId); if (!l || l.retiring) return;
+  uxStopPick = null; beginDraft(l.type, l.id); draft.stops = []; draft.uxRedraw = true; draftBar(); updateUI();
+  toast('从一座城市拖出新的走向 · 原走向留作参照');
 }
 // Cancellation opens an itemised recovery quote before any assets are retired.
 let uxArmedDelete = null;
@@ -1532,16 +1554,20 @@ function uxGestureRules() {
   movePointer.uxRules = true;
 }
 // While drawing, a station attaches at once when the finger passes its centre (v1.5.3), so a quick stroke across a
-// late network picked up every town on the way. A fast-moving finger (> ~450 px/s) now has to pause on a town (the
-// 90 ms dwell upstream already uses for the wider halo); slow passes and pauses attach as before.
-let uxStrokeSpeed = 0, uxStrokeLast = null;
+// late network picked up every town on the way. A fast-moving finger (> ~350 px/s over the last 100 ms) now has to
+// pause on a town (the 90 ms dwell upstream already uses for the wider halo); slow passes and pauses attach as before.
+let uxStrokeSpeed = 0, uxStrokeTrail = [];
 function uxSwipeAttach() {
   if (typeof addDraftCity !== 'function' || addDraftCity.uxSwipe || typeof cv === 'undefined') return;
-  cv.addEventListener('pointermove', e => { const t = e.timeStamp || performance.now(); if (uxStrokeLast && t > uxStrokeLast.t) { const v = Math.hypot(e.clientX - uxStrokeLast.x, e.clientY - uxStrokeLast.y) / (t - uxStrokeLast.t); uxStrokeSpeed = uxStrokeSpeed * .6 + v * .4; } uxStrokeLast = { x: e.clientX, y: e.clientY, t }; }, { capture: true, passive: true });
-  cv.addEventListener('pointerdown', () => { uxStrokeSpeed = 0; uxStrokeLast = null; }, { capture: true, passive: true });
+  cv.addEventListener('pointermove', e => {
+    const t = e.timeStamp || performance.now(); uxStrokeTrail.push({ x: e.clientX, y: e.clientY, t });
+    while (uxStrokeTrail.length > 2 && t - uxStrokeTrail[0].t > 100) uxStrokeTrail.shift();
+    const o = uxStrokeTrail[0]; uxStrokeSpeed = t > o.t ? Math.hypot(e.clientX - o.x, e.clientY - o.y) / (t - o.t) : 0;
+  }, { capture: true, passive: true });
+  cv.addEventListener('pointerdown', e => { uxStrokeSpeed = 0; uxStrokeTrail = [{ x: e.clientX, y: e.clientY, t: e.timeStamp || performance.now() }]; }, { capture: true, passive: true });
   const add = addDraftCity;
   addDraftCity = function (c, force = false, ...rest) {
-    if (!force && gesture?.kind === 'draft' && draft?.pointer && uxStrokeSpeed > .45 && c?.kind !== 'bridgehead') {
+    if (!force && gesture?.kind === 'draft' && draft?.pointer && uxStrokeSpeed > .35 && c?.kind !== 'bridgehead') {
       const p = draft.pointer; draft.pointer = null;   // hides the centre test of map-revision153 → the dwell guard decides
       try { return add.call(this, c, force, ...rest); } finally { if (draft) draft.pointer = p; }
     }
