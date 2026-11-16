@@ -976,7 +976,17 @@ function uxMarketStocks() { uxMoneyIntent = 3; showFinancialMarket('stocks'); }
 function uxOpenHub(key, i = 0) { haptic(); globalThis[UX_HUBS[key].tabs[i][1]](); }
 function uxHubBar(key, idx, m) {
   const hub = UX_HUBS[key];
-  if (!m || m.hidden === true || m.querySelector('.ux-hub-tabs, .deck128')) return;
+  if (!m || m.hidden === true || m.querySelector('.ux-hub-tabs, .ux-deck-tabs')) return;
+  // the activity deck (web128) has its own full-height layout and header: the tabs go into that header in place of its
+  // two title lines, next to its own × (the shell hid that ×; it is shown again in style.css)
+  const deckHead = m.querySelector('.deck128 .deck-heading128, .deck-heading128');
+  if (deckHead) {
+    const nav = document.createElement('nav'); nav.className = 'ux-deck-tabs'; nav.setAttribute('role', 'tablist');
+    nav.innerHTML = hub.tabs.map(([label], i) => `<button role="tab" aria-selected="${i === idx}" class="${i === idx ? 'on' : ''}" onclick="uxOpenHub('${key}',${i})">${label}</button>`).join('');
+    const titles = deckHead.querySelector(':scope > div'); if (titles) titles.hidden = true;
+    deckHead.insertBefore(nav, deckHead.querySelector('.close'));
+    return;
+  }
   let head = m.querySelector('.modal-head');
   if (!head) { head = document.createElement('div'); head.className = 'modal-head'; head.innerHTML = '<h2></h2><button class="close" onclick="closeModal()">×</button>'; m.prepend(head); }
   uxHeadFirst(m);
@@ -1299,7 +1309,25 @@ function uxWrapHubs() {
     const secs = [...m.querySelectorAll('.ux-eng > .ux-eng-sec')], damage = card.closest('.ux-eng-sec'), calm = /暂无受损路段/.test(card.textContent);
     // with nothing damaged, line upgrades (something to do) come before the quiet damage/earthquake status
     if (calm && secs.length > 1 && secs.at(-1) !== damage) secs.at(-1).after(damage);
+    // …and says it in one row: 路网状态 — 地震监测 · 暂无震情 · 无受损路段 [自动聚焦]
+    if (calm) { const tt = damage.querySelector('.ux-eng-title'); if (tt) tt.textContent = '路网状态';
+      for (const p of damage.querySelectorAll('p')) if (/暂无受损路段/.test(p.textContent)) p.remove();
+      const sm = damage.querySelector('.quake-summary b small'); if (sm && !/路段/.test(sm.textContent)) sm.textContent = '无震情 · 路段完好'; }
     damage.after(sec);
+  }));
+  // 9b. finance pages (理财 / 股票): the pause note, the cash / return figures and the 收益记录 link were three rows above
+  // the products; they become one strip — 现金 · 收益率 · [收益记录] — with the pause note as its small print
+  uxAfter('showFinancialMarket', m => Promise.resolve().then(() => {   // after the hub bar has turned the market tabs into links
+    const fm = m.querySelector('.financial-market'), hl = fm?.querySelector(':scope > .market-headline'); if (!hl || hl.classList.contains('ux-strip')) return;
+    hl.classList.add('ux-strip');
+    // a trade re-renders the page and restores the scroll position on the full layout: keep it through this change
+    // (scroll anchoring would otherwise move the page up by the rows removed here)
+    const sc = m.scrollTop;
+    for (const s of hl.querySelectorAll(':scope > div > small')) s.textContent = s.textContent.replace('可用现金', '现金').replace('累计投资收益率', '累计收益');
+    const note = fm.querySelector(':scope > .market-pause-note'), links = fm.querySelector(':scope > .ux-help-links'), rec = links?.querySelector('button[onclick*="portfolio"]');
+    if (rec) { hl.appendChild(rec); if (!links.querySelector('button')) links.remove(); }
+    if (note) { note.classList.add('ux-strip-note'); hl.after(note); }
+    if (m.scrollTop !== sc) m.scrollTop = sc;
   }));
   // 10. stocks before the first settled trading day: an explained empty chart instead of a blank one with controls
   uxAfter('showFinancialMarket', m => {

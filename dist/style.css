@@ -1562,3 +1562,21 @@ html body #details .ux-wait-row > small{grid-row:1;grid-column:2;justify-self:en
 html body #details .ux-wait-row > span{grid-row:2;grid-column:1/-1;min-width:0;font-size:11.5px!important;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 html body #details .ux-wait-row > span i{font-style:normal;margin-right:3px}
 html body #details .ux-wait-row.is-late{background:#fdf1ec}
+/* activity deck: hub tabs in its header and its own × back (the shell hides every modal's ×) */
+.portrait-shell .modal .deck-heading128 > .close,html body .deck-heading128 > .close{display:grid!important;place-items:center;flex:0 0 38px!important;width:38px!important;height:38px!important;font-size:22px!important}
+.ux-deck-tabs{flex:1 1 auto;display:flex;gap:4px;padding:3px;border-radius:12px;background:#e6eae0}
+.ux-deck-tabs button{flex:1;min-height:36px;padding:0 6px;border-radius:9px;font-size:12px;font-weight:600;color:#5f6f68;white-space:nowrap}
+.ux-deck-tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px #263b4218}
+/* finance pages: cash · return · 收益记录 in one strip, the pause note as small print under it */
+html body #modal-content .market-headline.ux-strip{display:flex!important;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:2px 0 4px!important;padding:8px 8px 8px 14px!important;border-radius:12px;background:#f6f7f2;border:0}
+html body #modal-content .market-headline.ux-strip > div{display:flex;align-items:baseline;gap:6px;padding:0!important;margin:0;background:none!important;border:0!important;min-width:0}
+html body #modal-content .market-headline.ux-strip > div small{font-size:11.5px;color:#6b7a73;white-space:nowrap}
+html body #modal-content .market-headline.ux-strip > div b{font-size:15px;font-weight:650;white-space:nowrap}
+html body #modal-content .market-headline.ux-strip > div:nth-child(3){display:none!important}
+html body #modal-content .market-headline.ux-strip > button{margin-left:auto;height:30px;padding:0 12px;border-radius:15px;background:#fff;border:1px solid #e1e6da;font-size:12px;font-weight:600;color:#3c534c}
+html body #modal-content .market-pause-note.ux-strip-note{margin:0 2px 8px;font-size:11px;color:#8a968a}
+/* 路网状态 (calm): the status under its title on one line, never broken mid-word */
+html body #modal-content .quake-summary.is-idle b small{display:block;margin:2px 0 0;white-space:nowrap}
+/* market pages restore their own scroll position after a trade; the browser's scroll anchoring must not move it again
+   when the header strip is assembled */
+#modal-content:has(.financial-market){overflow-anchor:none}
