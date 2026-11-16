@@ -49,7 +49,7 @@ if (seg3) { await stroke(seg3, { x: seg3.x + 50, y: seg3.y - 60 }, 10, 20); s = 
 else step('3 selected line drag → edit it', false, { reason: 'no grabbable stretch above the sheet' });
 // 4/5: a straight stroke between two towns with a third town right on the way (new line from a town without lines)
 await fresh();
-const trio = await run(`const cz = realCities().map(c => ({ c, q: toScreen(c) })).filter(({ q }) => q.x > 30 && q.x < innerWidth - 30 && q.y > 150 && q.y < innerHeight * .6); let best = null;
+const trio = await run(`const lowB = Math.min(innerHeight * .6, (document.getElementById('routes')?.getBoundingClientRect().top || innerHeight) - 30), cz = realCities().map(c => ({ c, q: toScreen(c) })).filter(({ q }) => q.x > 30 && q.x < innerWidth - 30 && q.y > 150 && q.y < lowB); let best = null;
   for (const a of cz) for (const b of cz) for (const m of cz) { if (a === b || m === a || m === b) continue; const L = Math.hypot(b.q.x - a.q.x, b.q.y - a.q.y); if (L < 160) continue; const t = ((m.q.x - a.q.x) * (b.q.x - a.q.x) + (m.q.y - a.q.y) * (b.q.y - a.q.y)) / (L * L); if (t < .3 || t > .7) continue; const px = a.q.x + (b.q.x - a.q.x) * t, py = a.q.y + (b.q.y - a.q.y) * t, off = Math.hypot(m.q.x - px, m.q.y - py); if (off < 6 && (!best || off < best.off)) best = { a: { x: a.q.x, y: a.q.y, name: a.c.name.split('·')[0] }, b: { x: b.q.x, y: b.q.y, name: b.c.name.split('·')[0] }, m: m.c.name.split('·')[0], off, mx: m.q.x, my: m.q.y }; }
   return best;`);
 if (!trio) { step('4 fast stroke skips a town', false, { reason: 'no aligned trio on screen' }); step('5 slow stroke attaches it', false, {}); }

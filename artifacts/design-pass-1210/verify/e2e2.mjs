@@ -53,7 +53,7 @@ s = await ev(`const d=document.getElementById('details');return {open:!d.hidden,
 step('5 picker → city sheet', s.open && s.load, s); await shot('04_city_from_picker');
 await tap(await at('#details .close')); await wait(500);
 // 6. tray chip → line sheet → rename → 取消
-await tap(await at('#routes .route-row')); await wait(700);
+await tap(await at('#routes .ux-tline')); await wait(700);
 s = await ev(`return {sel:selected&&selected.type,open:!document.getElementById('details').hidden}`);
 step('9 tray chip → line sheet', s.sel === 'line' && s.open, s); await shot('07_line');
 const name0 = await ev('return S.lines.find(l=>l.id===selected.id).name');

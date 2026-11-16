@@ -260,7 +260,8 @@ function uxPlaceToast() {
     mapB = tallTop < Infinity ? tallTop : top;
     rows = tallTop < Infinity ? [[upper, atTop(upper)], ...(tallTop - 10 - h > upper + h ? [[tallTop - 10 - h, atTop(tallTop - 10 - h)]] : [])]
       : [[top - 10 - h, atBottom(top - 10)], [upper, atTop(upper)]];
-    if (mapB < dockT - 10 - h) sheetSpot = { key: 'sheet', x: W / 2, y: dockT - 10 - h, place: atBottom(dockT - 10) };
+    // over the bottom of a details / picker sheet as a last resort — never over the network tray, whose chips are controls
+    if (mapB < dockT - 10 - h && (vis('details') || vis('junction-picker'))) sheetSpot = { key: 'sheet', x: W / 2, y: dockT - 10 - h, place: atBottom(dockT - 10) };
   } else {
     // side panels (details, line picker, route list) take the right or left of the map
     for (const id of ['details', 'junction-picker']) { const r = vis(id); if (r && r.left > W / 2) mapR = Math.min(mapR, r.left); }
@@ -273,6 +274,8 @@ function uxPlaceToast() {
     .filter(q => q.y + q.r > headB && q.y - q.r < mapB && q.x - q.r < mapR && q.x + q.r > mapL);   // under a panel it is hidden anyway
   // …and of every town on screen: the capsule can stay up for the 20 s undo window, it must not sit on a town
   for (const c of realCities()) { if (c.dormant && !c.discovered) continue; const q = toScreen(c); if (q.x < -20 || q.x > W + 20 || q.y < headB - 20 || q.y > mapB + 20) continue; q.r = uxNodePx(c) + 4; pts.push(q); }
+  // …and of the notices at the top (status column)
+  for (const n of document.querySelectorAll('.top-stack > :not([hidden])')) { const r = n.getBoundingClientRect(); if (r.width && r.height) for (let x = r.left + r.height / 2; x < r.right; x += r.height) pts.push({ x, y: r.top + r.height / 2, r: r.height / 2 }); }
   for (const p of document.querySelectorAll('.ux-edge-pill:not([hidden])')) { const r = p.getBoundingClientRect(); if (r.width) pts.push({ x: r.left + r.width / 2, y: r.top + r.height / 2, r: Math.max(r.width, r.height) / 2 }); }
   // centred in the free map first; a line running down the middle pushes it to one side
   const mid = (mapL + mapR) / 2, xs = [W / 2, mid, mapL + 16 + w / 2, mapR - 16 - w / 2].filter((x, i, a) => x - w / 2 >= mapL + 8 - (i ? 0 : 1e9) && x + w / 2 <= mapR - 8 + (i ? 0 : 1e9) && a.indexOf(x) === i);
@@ -1395,13 +1398,7 @@ function uxWrapHubs() {
 const UX_TRAY_KEY = 'transit-ux-tray-collapsed';
 function uxTray() {
   const p = uxEl('routes'), head = p?.querySelector?.('.panel-heading'); if (!head || !S) return;
-  let sw = head.querySelector('.ux-swatches');
-  if (!sw) { sw = document.createElement('span'); sw.className = 'ux-swatches'; head.insertBefore(sw, head.children[1] || null); }
-  const key = S.lines.map(l => l.id + l.color + l.name + (selected?.type === 'line' && selected.id === l.id ? '*' : '')).join();
-  if (sw.dataset.key !== key) {
-    sw.dataset.key = key;
-    sw.innerHTML = S.lines.map(l => `<button style="--c:${l.color}" class="${selected?.type === 'line' && selected.id === l.id ? 'on' : ''}" onclick="selectLine(${l.id})" aria-label="${escapeHTML(l.name)}" title="${escapeHTML(l.name)}">${escapeHTML(uxLineCode(l))}</button>`).join('');
-  }
+  head.querySelector('.ux-swatches')?.remove();   // the per-line code row is replaced by the per-mode pills (uxTrayGroups)
   // swatches speak the map's language: bus a solid line, 动车 / 高铁 a double track (heavier for 高铁), air a dash
   for (const row of p.querySelectorAll('.route-row[data-line]')) {
     const l = S.lines.find(x => x.id === +row.dataset.line), sw = row.querySelector('.swatch'); if (!l || !sw) continue;
@@ -1413,9 +1410,46 @@ function uxTray() {
   const col = uxEl('collapse'), shut = p.classList.contains('collapsed');
   if (col) { const t = shut ? '⌃' : '⌄'; if (col.textContent !== t) col.textContent = t; col.setAttribute('aria-label', shut ? '展开线路列表' : '收起线路列表'); }
   const cnt = uxEl('routecount'); if (cnt && shut) { const t = S.lines.length + ' 条'; if (cnt.textContent !== t) cnt.textContent = t; }
+  uxTrayGroups(p, head, shut);
+  // short landscape: the shell's tray offset assumes the portrait dock; keep the tray above the dock that is really there
+  // (the shell keeps portraitMode on in landscape too, and its offset is !important)
+  const dk = document.querySelector('footer .dock')?.getBoundingClientRect?.(), want = innerWidth > innerHeight && innerHeight <= 500 && dk && dk.height ? Math.ceil(innerHeight - dk.top + 8) + 'px' : '';
+  if (p.style.getPropertyValue?.('bottom') !== want) want ? p.style.setProperty('bottom', want, 'important') : p.style.removeProperty?.('bottom');
   const ov = uxEl('overview'), foot = p.querySelector('.route-foot');
   if (ov && portraitMode && ov.parentElement !== head) head.insertBefore(ov, uxEl('route-new130') || uxEl('collapse'));
   else if (ov && !portraitMode && foot && ov.parentElement !== foot) foot.appendChild(ov);
+}
+// Lines grouped by mode (user 2026-11-16: 同种交通线归并). Expanded: one group per mode — the mode named once (大巴 · 14),
+// its lines as compact chips by number in their colour (a renamed line keeps its own name). Collapsed: one row, a pill
+// per mode with its count and colour dots; tapping a pill opens the tray at that mode. Upstream's list stays in the
+// page (hidden) — the chips select lines with the same call it uses.
+const UX_MODES = [['bus', '大巴'], ['emu', '动车'], ['rail', '高铁'], ['air', '航空']];
+function uxLineLabel(l) {
+  const m = String(l.name).match(/^(?:大巴|公交|动车|高铁|飞机|航空|航线)?\s*(\d+)\s*(?:号)?线?$/);
+  return m ? m[1] : String(l.name).replace(/线$/, '').slice(0, 4);
+}
+let uxTrayFocus = null;   // mode the collapsed pill asked for
+function uxTrayGroups(p, head, shut) {
+  let g = p.querySelector(':scope > .ux-tgroups'), sum = head.querySelector('.ux-tsum');
+  if (!g) { g = document.createElement('div'); g.className = 'ux-tgroups'; head.after(g); }
+  if (!sum) { sum = document.createElement('div'); sum.className = 'ux-tsum'; head.insertBefore(sum, head.firstChild); }
+  const sel = selected?.type === 'line' ? selected.id : null, live = S.lines.filter(l => !l.retiring || true);
+  const groups = UX_MODES.map(([t, name]) => ({ t, name, lines: live.filter(l => l.type === t).sort((a, b) => (+uxLineLabel(a) || 1e9) - (+uxLineLabel(b) || 1e9) || a.id - b.id) })).filter(x => x.lines.length);
+  const key = shut + '|' + sel + '|' + uxTrayFocus + '|' + groups.map(x => x.t + ':' + x.lines.map(l => l.id + l.color + l.name + (l.retiring ? 'r' : '')).join(',')).join(';');
+  if (g.dataset.key === key) return; g.dataset.key = key;
+  // one row whatever the network: the more modes, the shorter each pill (full name + 8 dots → 简称 + 4 → 简称 + count)
+  const nd = groups.length === 1 ? 8 : groups.length === 2 ? 4 : 0, shortName = groups.length > 1;
+  sum.innerHTML = groups.map(x => '<button type="button" class="ux-tpill" data-mode="' + x.t + '" aria-label="' + x.name + ' ' + x.lines.length + ' 条，展开">' + (groups.length < 3 ? '<i class="ux-tmark ' + x.t + '"></i>' : '') + '<b>' + (shortName ? UX_TYPE_CHAR[x.t] || x.name : x.name) + '</b><small>' + x.lines.length + '</small>' + (nd ? '<span class="ux-tdots">'
+    + x.lines.slice(0, nd).map(l => '<i style="--c:' + l.color + '"></i>').join('') + (x.lines.length > nd ? '<em>+' + (x.lines.length - nd) + '</em>' : '') + '</span>' : '') + '</button>').join('');
+  g.innerHTML = groups.map(x => '<section class="ux-tg' + (uxTrayFocus === x.t ? ' is-focus' : '') + '" data-mode="' + x.t + '"><div class="ux-tg-head"><i class="ux-tmark ' + x.t + '"></i><b>' + x.name + '</b><small>' + x.lines.length + '</small></div><div class="ux-tg-lines">'
+    + x.lines.map(l => '<button type="button" class="ux-tline' + (l.id === sel ? ' on' : '') + (l.retiring ? ' is-retiring' : '') + '" style="--c:' + l.color + '" data-line="' + l.id + '" title="' + escapeHTML(l.name) + '" aria-label="' + escapeHTML(l.name) + '"><i></i>' + escapeHTML(uxLineLabel(l)) + '</button>').join('') + '</div></section>').join('');
+  if (!g.uxWired) {
+    g.uxWired = true;
+    g.addEventListener('click', e => { const b = e.target.closest('[data-line]'); if (b) { haptic(); selectLine(+b.dataset.line); } });
+    sum.addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; e.stopPropagation(); haptic(); uxTrayFocus = b.dataset.mode;
+      if (p.classList.contains('collapsed')) uxEl('collapse')?.click(); else updateUI();
+      setTimeout(() => { g.querySelector('.ux-tg[data-mode="' + uxTrayFocus + '"]')?.scrollIntoView?.({ block: 'nearest' }); }, 60); setTimeout(() => { uxTrayFocus = null; updateUI(); }, 1600); });
+  }
 }
 function uxTrayInit() {
   const btn = uxEl('collapse'), p = uxEl('routes'); if (!btn || !p) return;

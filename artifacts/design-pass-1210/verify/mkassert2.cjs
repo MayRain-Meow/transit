@@ -69,17 +69,24 @@ const during = !document.getElementById('ux-coach').hidden;
 clearSelection(); ${W(700)}
 return { ok: before && !during && !document.getElementById('ux-coach').hidden && !document.getElementById('notice').textContent, before, during };`,
   tray: `const p0 = document.getElementById('routes'); if (p0.classList.contains('collapsed')) { document.getElementById('collapse').click(); ${W(200)} }   // short landscape starts collapsed
-const p = document.getElementById('routes'), rows = [...p.querySelectorAll('.route-row')], pr = p.getBoundingClientRect();
-const allIn = rows.every(r => { const b = r.getBoundingClientRect(); return b.top >= pr.top && b.bottom <= pr.bottom + 1 && b.left >= pr.left - 1 && b.right <= pr.right + 1; });
+// grouped by mode (2026-11-16): every line has one chip, in its mode's group, inside the tray's width; tapping a chip
+// selects that line; collapsed, one pill per mode (counts add up), all tappable, the tray one row high; a pill opens
+// the tray again
+const p = document.getElementById('routes'), rows = [...p.querySelectorAll('.ux-tline')], pr = p.getBoundingClientRect();
+const allIn = rows.every(r => { const b = r.getBoundingClientRect(); return b.left >= pr.left - 1 && b.right <= pr.right + 1; });
+const modes = new Set(S.lines.map(l => l.type)), groupsOk = [...p.querySelectorAll('.ux-tg')].every(g => [...g.querySelectorAll('.ux-tline')].every(b => S.lines.find(l => l.id === +b.dataset.line)?.type === g.dataset.mode));
+const lastChip = rows.find(b => +b.dataset.line === S.lines.at(-1).id); lastChip?.scrollIntoView?.({ block: 'nearest' }); ${W(100)} lastChip?.click(); ${W(300)} const picked = selected?.type === 'line' && selected.id === S.lines.at(-1).id; clearSelection(); ${W(300)}
 document.getElementById('collapse').click(); ${W(200)}
-// a swatch counts only if the point at its centre really hits it (catches clipping by any ancestor, overlap, off-screen)
+// a pill counts only if the point at its centre really hits it (catches clipping by any ancestor, overlap, off-screen)
 const hit = b => { const r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; return r.width >= 12 && x > 0 && x < innerWidth && y > 0 && y < innerHeight && b.contains(document.elementFromPoint(x, y)); };
-const sws = [...p.querySelectorAll('.ux-swatches button')], sw = sws.filter(hit).length, h = p.getBoundingClientRect().height;
+const pills = [...p.querySelectorAll('.ux-tpill')]; pills.forEach(b => b.scrollIntoView?.({ inline: 'nearest', block: 'nearest' })); const sw = pills.filter(b => (b.scrollIntoView?.({ inline: 'nearest', block: 'nearest' }), hit(b))).length, h = p.getBoundingClientRect().height;
+const total = pills.reduce((n, b) => n + +b.querySelector('small').textContent, 0);
 const newC = document.getElementById('route-new130'), newOk = hit(newC), colOk = hit(document.getElementById('collapse'));
-const last = sws.at(-1); last.click(); ${W(300)} const picked = selected?.type === 'line' && selected.id === S.lines.at(-1).id; clearSelection(); ${W(300)}
+pills[0]?.click(); ${W(300)} const reopened = !p.classList.contains('collapsed');
+if (reopened) { document.getElementById('collapse').click(); ${W(100)} }
 document.getElementById('collapse').click(); ${W(100)}
 const nb = document.getElementById('route-new130').getBoundingClientRect(), fits = nb.right <= p.getBoundingClientRect().right + 1;
-return { ok: rows.length === S.lines.length && allIn && sw === S.lines.length && picked && newOk && colOk && fits && (!portraitMode || h < 100), rows: rows.length, allIn, swatches: sw + '/' + sws.length, tapLast: picked, newBtn: newOk, collapsedH: Math.round(h) };`,
+return { ok: rows.length === S.lines.length && allIn && groupsOk && pills.length === modes.size && sw === pills.length && total === S.lines.length && picked && reopened && newOk && colOk && fits && (!portraitMode || h < 100), rows: rows.length, allIn, groupsOk, pills: sw + '/' + pills.length + '/' + modes.size, total, tapLast: picked, reopened, newBtn: newOk, collapsedH: Math.round(h) };`,
   wait: `openCity(window.__hub); ${W(600)} const d = document.getElementById('details');
 const rows = [...d.querySelectorAll('.ux-wait-row')].map(r => +r.querySelector('b').textContent), groups = d.querySelectorAll('.ux-wait-group').length;
 const load = d.querySelector('.ux-load em')?.textContent || '';
@@ -209,7 +216,7 @@ return { ok: clashPlanned <= clashFixed && worst < .01 && grabbed === bent, clas
   capsules: `S.paused = true; closeModal(); S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers(); ${W(100)} closeModal(); updateUI();
 constructionUndo = { label: '建线', expires: performance.now() + 9000, paid: 1200 }; showUndoBuild(); ${W(200)}
 const u = document.getElementById('undo-build'), fb = document.getElementById('ux-feedback'), nw = document.querySelector('.notice-wrap'), ru = (fb || u).getBoundingClientRect(), rn = nw.getBoundingClientRect();
-const inStack = !!fb && u.closest('#ux-feedback') === fb && fb.classList.contains('show'), apart = ru.top >= rn.bottom - 1 || rn.top >= ru.bottom - 1, sameH = Math.abs(ru.height - rn.height) <= 2;
+const inStack = !!fb && u.closest('#ux-feedback') === fb && fb.classList.contains('show'), apart = ru.top >= rn.bottom - 1 || rn.top >= ru.bottom - 1 || ru.left >= rn.right - 1 || rn.left >= ru.right - 1, sameH = Math.abs(ru.height - rn.height) <= 2;
 constructionUndo = null; showUndoBuild();
 achievements14.best.day100 = 50; showAchievements14(); ${W(400)} document.getAnimations().forEach(a => a.finish());
 const mc = document.getElementById('modal-content'), rows = mc.querySelectorAll('.uxa-row').length, closes = [...mc.querySelectorAll('button')].filter(b => /×/.test(b.textContent) && b.offsetParent).length;

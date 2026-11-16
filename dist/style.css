@@ -1481,3 +1481,47 @@ body #routes.collapsed .panel-heading > span.ux-swatches{display:flex!important;
 }
 /* route bar: what the quote contains when a crossing is resolved automatically (new bridge / existing bridge) */
 .ux-bridge-note{color:#8a6d3b;font-weight:600}
+
+/* ---------- network tray grouped by mode (ux.js uxTrayGroups) ---------- */
+html body #routes:not(.ux-x) > #route-list,html body #routes:not(.ux-x) .ux-swatches{display:none!important}
+.ux-tgroups{display:grid;gap:6px;margin:6px 0 2px;max-height:min(112px,18dvh);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.ux-tgroups::-webkit-scrollbar{display:none}
+#routes.collapsed .ux-tgroups{display:none}
+.ux-tg{display:grid;grid-template-columns:58px minmax(0,1fr);align-items:start;gap:6px;padding:2px;border-radius:12px;transition:background-color .4s}
+.ux-tg.is-focus{background:#f6efdc}
+.ux-tg > .ux-tg-head{display:flex;align-items:center;gap:5px;height:30px;padding-left:2px;font-size:12.5px;color:#3f524b;white-space:nowrap}
+.ux-tg > .ux-tg-head b{font-weight:650}
+.ux-tg > .ux-tg-head small{font-size:11.5px;color:#7a877f;font-variant-numeric:tabular-nums}
+.ux-tg-lines{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+.ux-tline{display:inline-flex;align-items:center;gap:6px;height:30px;min-width:42px;padding:0 10px 0 8px;border-radius:15px;background:#f3f5ef;border:1.5px solid transparent;font-size:13px;font-weight:650;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ux-tline i{flex:0 0 12px;height:4px;border-radius:2px;background:var(--c)}
+.ux-tg[data-mode="emu"] .ux-tline i{height:6px;border-radius:1px;background:linear-gradient(var(--c) 0 2px,transparent 2px 4px,var(--c) 4px)}
+.ux-tg[data-mode="rail"] .ux-tline i{height:7px;border-radius:1px;background:linear-gradient(var(--c) 0 2.5px,transparent 2.5px 4.5px,var(--c) 4.5px)}
+.ux-tg[data-mode="air"] .ux-tline i{height:3px;border-radius:0;background:repeating-linear-gradient(90deg,var(--c) 0 3px,transparent 3px 5px)}
+.ux-tline.on{background:#fff;border-color:var(--ink)}
+.ux-tline.is-retiring{opacity:.5}
+/* mode marks: the line style of the mode, in ink */
+.ux-tmark{display:inline-block;flex:0 0 14px;width:14px;height:3px;border-radius:2px;background:#4f5f58}
+.ux-tmark.emu{height:6px;border-radius:1px;background:linear-gradient(#4f5f58 0 2px,transparent 2px 4px,#4f5f58 4px)}
+.ux-tmark.rail{height:7px;border-radius:1px;background:linear-gradient(#4f5f58 0 2.5px,transparent 2.5px 4.5px,#4f5f58 4.5px)}
+.ux-tmark.air{height:2px;border-radius:0;background:repeating-linear-gradient(90deg,#4f5f58 0 3px,transparent 3px 5px)}
+/* collapsed: one pill per mode (count + colour dots) */
+.ux-tsum{display:none}
+#routes.collapsed .ux-tsum{display:flex;flex:1 1 auto;min-width:0;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none}
+#routes.collapsed .ux-tsum::-webkit-scrollbar{display:none}
+.ux-tpill{display:inline-flex;flex:0 0 auto;align-items:center;gap:5px;height:34px;padding:0 11px 0 10px;border-radius:17px;background:#f3f5ef;border:1px solid #e3e7dc;font-size:12.5px;color:#2f4640;white-space:nowrap}
+.ux-tpill b{font-weight:650}
+.ux-tpill small{font-size:12px;font-weight:650;color:#6b7a73;font-variant-numeric:tabular-nums}
+.ux-tdots{display:inline-flex;align-items:center;gap:2px;margin-left:1px}
+.ux-tdots i{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.ux-tdots em{font-style:normal;font-size:10.5px;color:#7a877f;margin-left:2px}
+/* collapsed tray: the mode pills take the row (the heading's button sizing does not apply to them; the title steps aside) */
+html body #routes.collapsed .ux-tsum .ux-tpill{width:auto!important;min-width:0!important;max-width:none!important;flex:0 0 auto!important;height:34px!important;min-height:34px!important;padding:0 11px 0 10px!important;font-size:12.5px!important}
+html body #routes.collapsed .panel-heading > span:not(.ux-swatches){display:none!important}
+/* collapsed tray: compact controls so three or four mode pills fit on a 360px phone */
+html body #routes.collapsed .panel-heading{gap:6px!important}
+html body #routes.collapsed .panel-heading > #route-new130{width:42px!important;min-width:42px!important;max-width:42px!important;height:40px!important;min-height:40px!important;padding:0!important;border-radius:13px!important}
+html body #routes.collapsed .panel-heading > #collapse{width:38px!important;min-width:38px!important;max-width:38px!important;height:40px!important;min-height:40px!important;padding:0!important;border-radius:13px!important}
+html body #routes.collapsed .panel-heading > #overview{width:34px!important;min-width:34px!important;height:34px!important;min-height:34px!important;padding:0!important}
+html body #routes.collapsed .ux-tsum{gap:5px}
+html body #routes.collapsed .ux-tsum .ux-tpill{gap:4px;padding:0 9px 0 8px!important}
