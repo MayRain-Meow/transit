@@ -45,7 +45,7 @@ d.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable
 return { ok: vis && full1 && d.classList.contains('is-full'), peekbar: vis, click: full1, wheel: d.classList.contains('is-full') };`,
   facstrip: `openCity(__com); ${W(600)} const d = document.getElementById('details');
 const strip = d.querySelector('.ux-fac-strip'); if (!strip) return { ok: false, strip: false };
-const r = strip.getBoundingClientRect(), dr = d.getBoundingClientRect(), inView = r.bottom <= dr.bottom - (portraitMode ? 40 : 0);
+const r = strip.getBoundingClientRect(), dr = d.getBoundingClientRect(), pb = d.querySelector('.ux-peekbar'), lim = portraitMode && pb && getComputedStyle(pb).display !== 'none' ? pb.getBoundingClientRect().top + 1 : dr.bottom, inView = r.bottom <= lim;   // above the peek bar (its height changed with the compact sheet)
 strip.querySelector('button[data-i]').click(); ${W(900)}
 const tile = d.querySelector('.ux-fac-tile').getBoundingClientRect(), d2 = d.getBoundingClientRect();
 return { ok: inView && (!portraitMode || d.classList.contains('is-full')) && tile.top >= d2.top - 1 && tile.bottom <= d2.bottom + 2, inView };`,
@@ -101,7 +101,9 @@ closeModal(); return { ok: new Set(tops).size === 1, tops };`,
   // the edge clamp must never move a city that the play view placed in the free map area under a panel (the reported
   // 078e99c bug), checked both geometrically and by what the city's centre actually hits; edge ground is measured only
   // where it is visible inside the free area
-  edge: `uxApplyPlayView(false); ${W(300)}
+  // v1.5.3 applies the play view once per game (playState153); the synthetic scene grows its network after that, so
+  // the check asks for a fresh play view first — it tests the framing, not the moment the scene happened to start
+  edge: `if (typeof playState153 !== 'undefined') playState153 = null; uxApplyPlayView(false); ${W(300)}
 const r = uxVisibleRect(), raw = uxPlayTargetRaw(), s = view.scale, at = (v, c) => ({ x: v.x + c.x * v.scale, y: v.y + c.y * v.scale });
 const free = (v, c) => { const p = at(v, c); return p.x >= r.l && p.x <= r.r && p.y >= r.t && p.y <= r.b; };
 const lost = [], hidden = [];
@@ -180,12 +182,13 @@ S.blockages[key(qa, qb, 'bus')] = { status: 'broken' };
 closeModal(); clearSelection(); uxApplyPlayView(false); await new Promise(r => setTimeout(r, 800)); closeModal(); document.getAnimations().forEach(a => a.finish());
 return { ok: clashPlanned <= clashFixed && worst < .01 && grabbed === bent, clashFixed, clashPlanned, vehicles: nv, worst: +worst.toFixed(4), bent, grabbed, staged: !!inf, segBent: !!uxOctPath(qa, qb, 'bus') };
 `,
-  // capsule family: the undo pill joins the notice column (no overlap, same height); the achievements page renders all
-  // rows with one close button, the medal tiers on one line and nothing wider than the sheet
+  // capsule family: the construction undo sits in the feedback capsule with the message (2026-11-16), clear of the
+  // notice column and as tall as a notice; the achievements page renders all rows with one close button, the medal
+  // tiers on one line and nothing wider than the sheet
   capsules: `S.paused = true; closeModal(); S.day = 40; const st = activityState(); st.offers = []; st.active = null; st.next = 0; generateActivityOffers(); ${W(100)} closeModal(); updateUI();
 constructionUndo = { label: '建线', expires: performance.now() + 9000, paid: 1200 }; showUndoBuild(); ${W(200)}
-const u = document.getElementById('undo-build'), nw = document.querySelector('.notice-wrap'), ru = u.getBoundingClientRect(), rn = nw.getBoundingClientRect();
-const inStack = !!u.closest('.top-stack'), apart = ru.top >= rn.bottom - 1 || rn.top >= ru.bottom - 1, sameH = Math.abs(ru.height - rn.height) <= 2;
+const u = document.getElementById('undo-build'), fb = document.getElementById('ux-feedback'), nw = document.querySelector('.notice-wrap'), ru = (fb || u).getBoundingClientRect(), rn = nw.getBoundingClientRect();
+const inStack = !!fb && u.closest('#ux-feedback') === fb && fb.classList.contains('show'), apart = ru.top >= rn.bottom - 1 || rn.top >= ru.bottom - 1, sameH = Math.abs(ru.height - rn.height) <= 2;
 constructionUndo = null; showUndoBuild();
 achievements14.best.day100 = 50; showAchievements14(); ${W(400)} document.getAnimations().forEach(a => a.finish());
 const mc = document.getElementById('modal-content'), rows = mc.querySelectorAll('.uxa-row').length, closes = [...mc.querySelectorAll('button')].filter(b => /×/.test(b.textContent) && b.offsetParent).length;

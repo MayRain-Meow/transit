@@ -239,7 +239,7 @@ toast = function (t) {
 // selection clear, node included. A long message that fits nowhere in the map (a reward or a lost-life warning beside
 // a full portrait sheet) goes over the bottom of the sheet, above the dock, rather than onto the selection.
 function uxPlaceToast() {
-  const el = uxEl('toast'); if (!el) return;
+  const el = uxEl('ux-feedback') || uxEl('toast'); if (!el) return;
   el.style.top = el.style.bottom = el.style.left = '';
   const vis = id => { const e = uxEl(id), r = e && !e.hidden && (typeof getComputedStyle !== 'function' || getComputedStyle(e).display !== 'none') && e.getBoundingClientRect?.(); return r && r.height ? r : null; };
   const headB = document.querySelector('header')?.getBoundingClientRect().bottom || 60, dockT = document.querySelector('footer .dock')?.getBoundingClientRect().top || H;
@@ -271,6 +271,9 @@ function uxPlaceToast() {
   }
   const pts = uxSelectionPoints().map(p => { const q = toScreen(p); q.r = S.cities.includes(p) ? uxNodePx(p) + 4 : 13; return q; })
     .filter(q => q.y + q.r > headB && q.y - q.r < mapB && q.x - q.r < mapR && q.x + q.r > mapL);   // under a panel it is hidden anyway
+  // …and of every town on screen: the capsule can stay up for the 20 s undo window, it must not sit on a town
+  for (const c of realCities()) { if (c.dormant && !c.discovered) continue; const q = toScreen(c); if (q.x < -20 || q.x > W + 20 || q.y < headB - 20 || q.y > mapB + 20) continue; q.r = uxNodePx(c) + 4; pts.push(q); }
+  for (const p of document.querySelectorAll('.ux-edge-pill:not([hidden])')) { const r = p.getBoundingClientRect(); if (r.width) pts.push({ x: r.left + r.width / 2, y: r.top + r.height / 2, r: Math.max(r.width, r.height) / 2 }); }
   // centred in the free map first; a line running down the middle pushes it to one side
   const mid = (mapL + mapR) / 2, xs = [W / 2, mid, mapL + 16 + w / 2, mapR - 16 - w / 2].filter((x, i, a) => x - w / 2 >= mapL + 8 - (i ? 0 : 1e9) && x + w / 2 <= mapR - 8 + (i ? 0 : 1e9) && a.indexOf(x) === i);
   const spots = [];
@@ -279,9 +282,14 @@ function uxPlaceToast() {
   if (sheetSpot) spots.push(sheetSpot);
   const cover = (s, m) => pts.filter(p => p.x + p.r > s.x - w / 2 - m && p.x - p.r < s.x + w / 2 + m && p.y + p.r > s.y - m && p.y - p.r < s.y + h + m).length;
   // while one toast shows, it stays where it is as long as that spot is still clear (no hopping while the camera glides)
-  const shown = el.classList.contains('show') && el.uxText === el.textContent ? spots.find(s => s.key === el.uxSpot && !cover(s, 2)) : null;
+  // 'same toast' = same message over the same layout (the undo countdown ticks every second and is ignored)
+  const txt = (uxEl('toast')?.textContent || '') + '|' + Math.round(mapB) + '|' + Math.round(mapR);
+  const shown = el.classList.contains('show') && el.uxText === txt ? spots.find(s => s.key === el.uxSpot && !cover(s, 2)) : null;
+  // …unless the preferred place (first spot) has come free meanwhile — e.g. the camera finished framing the selection:
+  // then it returns there once
+  if (shown && shown !== spots[0] && !cover(spots[0], 12)) { spots[0].place(); el.uxSpot = spots[0].key; el.uxText = txt; return; }
   const pick = shown || spots.find(s => !cover(s, 12)) || spots.find(s => !cover(s, 2)) || spots.reduce((a, s) => cover(s, 2) < cover(a, 2) ? s : a);
-  pick.place(); el.uxSpot = pick.key; el.uxText = el.textContent;
+  pick.place(); el.uxSpot = pick.key; el.uxText = txt;
 }
 const uxStopUndo = offerStopUndo;
 offerStopUndo = function (...args) { uxStopUndo(...args); uxPlaceToast(); };
@@ -320,10 +328,10 @@ function uxLineSheet(rebuild) {
 <button class="ux-icon" onclick="renameLine(${l.id})" title="名称 / 颜色" aria-label="修改名称或颜色">✎</button><button class="close" onclick="clearSelection()" aria-label="关闭">×</button></div>
 ${blocked ? '<p class="ux-alert">部分路段停止接入，两侧车辆分段运行。拉线时可支付维修费，或重新接桥改线。</p>' : ''}
 ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不会使用这条线路。点「＋」加一辆。</p>' : ''}
-<div class="ux-fleet" style="--lc:${l.color}"><div><small>车辆</small><b>${vs.length}<span> 辆</span></b></div><div class="ux-fleet-load"><small>载客${seats ? ' · ' + Math.round(load / seats * 100) + '%' : ''}</small><b>${load}<span> / ${seats}</span></b><span class="ux-bar"><i style="width:${seats ? Math.min(100, load / seats * 100) : 0}%"></i></span></div>
+<div class="ux-fleet ux-fleet-row" style="--lc:${l.color}"><div class="ux-fleet-txt"><span><b>${vs.length}</b> 辆</span><span>载客 <b>${load}</b>/${seats}${seats ? ' · ' + Math.round(load / seats * 100) + '%' : ''}</span><span class="ux-bar"><i style="width:${seats ? Math.min(100, load / seats * 100) : 0}%"></i></span></div>
 <div class="ux-stepper"><button onclick="uxFleetMinus(${l.id})" ${!vs.some(v => !v.recall) ? 'disabled' : ''} aria-label="回收一辆">−</button><button class="primary" onclick="uxFleetPlus(${l.id})" ${canAdd ? '' : 'disabled'}>＋ ${inv > 0 ? '库存 ' + inv : '¥' + T.vehicle}</button></div></div>
-<div class="ux-route${pick ? ' is-picking' : ''}" style="--lc:${l.color}">${stops.map((id, k) => `<span class="ux-hop">${k ? '<i></i>' : ''}${pick ? `<button class="ux-stop${pick.marked.has(id) ? ' is-off' : ''}" onclick="uxStopMark(${l.id},${id})" aria-pressed="${pick.marked.has(id)}">${escapeHTML(S.cities[id].name)}</button>` : `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`}</span>`).join('')}</div>
-${l.retiring ? '' : pick ? `<div class="ux-route-tools is-picking"><span>点选要去掉的站 · 已选 ${pick.marked.size}</span><button onclick="uxStopPickToggle(${l.id})">取消</button><button class="primary" onclick="uxStopPickApply(${l.id})" ${pick.marked.size ? '' : 'disabled'}>预览移除 ${pick.marked.size || ''} 站</button></div>` : `<div class="ux-route-tools"><button onclick="uxStopPickToggle(${l.id})" ${stops.length > 2 ? '' : 'disabled'}>多站移除</button><button onclick="uxRedraw(${l.id})">整条重画</button></div>`}
+<div class="ux-route${pick ? ' is-picking' : ''}" style="--lc:${l.color}">${stops.map((id, k) => `<span class="ux-hop">${k ? '<i></i>' : ''}${pick ? `<button class="ux-stop${pick.marked.has(id) ? ' is-off' : ''}" onclick="uxStopMark(${l.id},${id})" aria-pressed="${pick.marked.has(id)}">${escapeHTML(S.cities[id].name)}</button>` : `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`}</span>`).join('')}${l.retiring || pick ? '' : `<span class="ux-route-tools"><button onclick="uxStopPickToggle(${l.id})" ${stops.length > 2 ? '' : 'disabled'}>多站移除</button><button onclick="uxRedraw(${l.id})">重画</button></span>`}</div>
+${!l.retiring && pick ? `<div class="ux-route-tools is-picking"><span>点选要去掉的站 · 已选 ${pick.marked.size}</span><button onclick="uxStopPickToggle(${l.id})">取消</button><button class="primary" onclick="uxStopPickApply(${l.id})" ${pick.marked.size ? '' : 'disabled'}>预览移除 ${pick.marked.size || ''} 站</button></div>` : ''}
 
 ${vs.length ? `<div class="ux-list">${vs.map(v => `<div class="ux-row"><span><b>#${v.id}</b> ${uxServiceLabel(v)}<small>${vs.length > 1 ? v.people.length + '/' + vehCap(v) + ' 人' : ''}${v.people.length >= vehCap(v) ? ' · <em class="danger">满员</em>' : ''}${isTrain(v.type) ? ' · ' + v.cars + '/8 节' : ''}</small></span><span class="ux-row-actions">${isTrain(v.type) && v.cars < 8 ? `<button onclick="upgradeCar(${v.id})" ${S.points < carPrice(v) ? 'disabled' : ''}>＋车厢 ¥${carPrice(v)}</button>` : ''}<button onclick="setService(${v.id})">方案</button></span></div>`).join('')}</div>` : ''}
 <div class="ux-actions-row">${l.type !== 'air' ? `<button onclick="openInfrastructure(${l.id})">道路升级</button>` : ''}<button class="ux-danger" onclick="uxDeleteLine(${l.id})">${uxArmedDelete?.id === l.id && uxArmedDelete.until > performance.now() ? '再点一次确认撤销' : '取消线路'}</button></div>`;
@@ -753,7 +761,7 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
         // portrait: the line picker is a bottom sheet too (fitBand already stops at the tray and the details sheet)
         const pk = uxEl('junction-picker'); if (portraitMode && pk && !pk.hidden) { const r = pk.getBoundingClientRect(); if (r.height) band.bottom = Math.min(band.bottom, r.top - 10); }
         // Stay below the notices and the construction-undo pill so a pointer is never covered.
-        for (const sel of ['.top-stack', '.undo-build']) { const e = document.querySelector(sel); if (!e || e.hidden) continue; const r = e.getBoundingClientRect(); if (r.height) band.top = Math.max(band.top, r.bottom + 4); }
+        for (const sel of ['.top-stack']) { const e = document.querySelector(sel); if (!e || e.hidden) continue; const r = e.getBoundingClientRect(); if (r.height) band.top = Math.max(band.top, r.bottom + 4); }
         const cx = W / 2, cy = (band.top + band.bottom) / 2;
         for (const c of realCities()) {
           const urgent = !c.dormant && c.warning > 0, fresh = c.dormant;
@@ -775,7 +783,7 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
           // cities on screen and the selected line's ＋ tabs (a pill over a tab would take the tap meant for it)
           const nodes = [...realCities(), ...(typeof uxVisibleHandles === 'function' ? uxVisibleHandles() : [])].map(o => toScreen(o)).filter(q => q.x > 0 && q.x < W && q.y > band.top && q.y < band.bottom);
           // …nor the toast while it shows (a pointer pressed against it reads as one blurred message)
-          const tr = uxEl('toast')?.classList.contains('show') ? uxEl('toast').getBoundingClientRect() : null;
+          const fbx = uxEl('ux-feedback'), tr = !fbx && uxEl('toast')?.classList.contains('show') ? uxEl('toast').getBoundingClientRect() : null;   // the feedback capsule steps around pointers itself
           const covers = (x, y) => nodes.some(q => Math.abs(q.x - x) < halfW + 14 && Math.abs(q.y - y) < halfH + 14) || !!(tr && tr.width && x + halfW > tr.left && x - halfW < tr.right && y + halfH > tr.top && y - halfH < tr.bottom);
           let clear = false;
           for (const off of [0, 40, -40, 80, -80, 120, -120, 160, -160, 200, -200, 240, -240, 280, -280]) {
@@ -791,7 +799,7 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
       }
       for (const [id, el] of pills) if (!keep.has(id)) { el.remove(); pills.delete(id); }
     } catch {}
-    if (uxEl('toast')?.classList.contains('show')) uxPlaceToast();
+    if (uxEl('toast')?.classList.contains('show') || uxEl('ux-feedback')?.classList.contains('show')) uxPlaceToast();
     setTimeout(update, 150);
   }
   update();
@@ -1606,11 +1614,51 @@ function uxDraftInfra() {
   };
   drawInfrastructure.uxDraft = true;
 }
+// Portrait header in one row (user 2026-11-16: the second row held four buttons on the right and nothing on the left).
+// Help, sound settings and save-and-exit are occasional: they move into one menu (☰) at the left; date, funds/lives
+// and play/speed share the single row. The original buttons stay in the page and the menu clicks them, so their
+// behaviour (and upstream's handlers) is unchanged. Landscape and desktop keep the original header.
+function uxHeaderMenu() {
+  const head = document.querySelector('header'); if (!head || uxEl('ux-menu')) return;
+  const btn = document.createElement('button'); btn.id = 'ux-menu'; btn.type = 'button'; btn.className = 'ctl'; btn.setAttribute('aria-label', '菜单'); btn.setAttribute('aria-expanded', 'false');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14"/></svg>';
+  const pop = document.createElement('div'); pop.id = 'ux-menu-pop'; pop.hidden = true; pop.setAttribute('role', 'menu');
+  const items = [['help', '操作说明', () => uxEl('help')], ['sound', '声音设置', () => document.querySelector('.effects-button156')], ['exit', '保存并退出', () => uxEl('game-exit')]];
+  pop.innerHTML = items.map(([k, t]) => '<button type="button" role="menuitem" data-k="' + k + '">' + t + '</button>').join('');
+  const close = () => { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+  btn.onclick = e => { e.stopPropagation(); pop.hidden = !pop.hidden; btn.setAttribute('aria-expanded', String(!pop.hidden)); haptic(); };
+  pop.onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; close(); items.find(i => i[0] === b.dataset.k)?.[2]()?.click(); };
+  document.addEventListener('pointerdown', e => { if (!pop.hidden && !pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) close(); }, true);
+  head.prepend(btn); document.body.appendChild(pop);
+}
+// Feedback in one place (user 2026-11-16: 撤回条、反馈提示散落在地图上). The momentary message (toast) and the
+// construction undo share one capsule above the bottom sheet: "线路已应用 · 支出 ¥6800 | ↶ 撤回 19秒" while both show,
+// then "↶ 撤回建线 · 19秒 · 全退 ¥6800" alone until the undo window closes. Both elements keep their ids, text and
+// handlers (upstream writes them); the capsule only holds and places them (uxPlaceToast).
+function uxFeedbackBox() {
+  const t = uxEl('toast'), u = uxEl('undo-build'); if (!t || !u || uxEl('ux-feedback') || !t.parentNode || typeof MutationObserver !== 'function') return;
+  const fb = document.createElement('div'); fb.id = 'ux-feedback';
+  t.parentNode.insertBefore(fb, t); fb.append(t, u);
+  const sync = () => {
+    const msg = t.classList.contains('show'), undo = !u.hidden, on = msg || undo;
+    const short = '撤回 ' + ((u.textContent || '').match(/(\d+)\s*秒/)?.[1] || '') + '秒';
+    if (!msg) fb.uxText = null;   // a new message (or none) picks its place afresh
+    if (u.dataset.short !== short) u.dataset.short = short;
+    fb.classList.toggle('has-msg', msg); fb.classList.toggle('has-undo', undo);
+    if (fb.classList.contains('show') !== on) fb.classList.toggle('show', on);
+    if (on) uxPlaceToast();
+  };
+  try {
+    new MutationObserver(sync).observe(t, { attributes: true, attributeFilter: ['class'] });
+    new MutationObserver(sync).observe(u, { attributes: true, attributeFilter: ['hidden'], childList: true, characterData: true, subtree: true });
+  } catch { t.parentNode === fb && fb.before(t); u.parentNode === fb && fb.before(u); fb.remove(); return; }   // no observers: leave both as they were
+  sync();
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
@@ -1649,7 +1697,7 @@ function uxViewFor(p, cx, cy, s) { return view.rot ? { x: cx + p.y * s, y: cy - 
 function uxVisibleRect() {
   const header = (document.querySelector('header')?.getBoundingClientRect().bottom || 60) + 8;
   // Panels are cut first against the header alone; notices and the undo pill are overlays applied afterwards.
-  const overlays = Math.max(0, ...['.top-stack', '.undo-build'].map(q => { const e = document.querySelector(q); const r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height ? r.bottom + 12 : 0; }));
+  const overlays = Math.max(0, ...['.top-stack'].map(q => { const e = document.querySelector(q); const r = e && !e.hidden && e.getBoundingClientRect(); return r && r.height ? r.bottom + 12 : 0; }));
   const rect = { l: 14, r: W - 14, b: H - 12, t: header };
   // Panels can sit at the bottom (portrait sheets, docks) or at a side (landscape details, route list).
   // For each one that overlaps the map, trim whichever edge keeps the larger usable area.
@@ -1711,10 +1759,23 @@ function uxPeekBar() {
   const d = uxEl('details'); if (!d || d.hidden || !d.appendChild) return;
   let b = d.querySelector(':scope > .ux-peekbar');
   if (!b) { b = document.createElement('button'); b.className = 'ux-peekbar'; b.innerHTML = '展开全部 <i>⌃</i>'; b.onclick = () => uxSheetSet('full'); d.appendChild(b); }
+  uxPeekFit();
+}
+// Peek shows the essentials and stops there (user 2026-11-16: compact portrait): a line down to its stops and route
+// tools, a city down to its facility strip. The sheet's own cap (36%) still applies; everything else is one tap away.
+function uxPeekFit() {
+  const d = uxEl('details'); if (!d?.style?.setProperty) return;
+  if (!portraitMode || d.hidden || !d.classList.contains('is-peek')) { d.style.removeProperty('max-height'); return; }
+  const cut = selected?.type === 'line' ? (d.querySelector(':scope > .ux-route-tools.is-picking') || d.querySelector(':scope > .ux-route'))
+    : (d.querySelector(':scope > .ux-fac-strip') || d.querySelector(':scope > .ux-load'));
+  if (!cut || !cut.offsetHeight) { d.style.removeProperty('max-height'); return; }
+  const h = Math.ceil(cut.offsetTop + cut.offsetHeight + 8 + 30);   // + the 30px peek bar
+  if (d.style.getPropertyValue('max-height') !== h + 'px') d.style.setProperty('max-height', h + 'px', 'important');
 }
 function uxSheetSet(state) {
   const d = uxEl('details'); if (!d) return;
   d.classList.toggle('is-peek', state === 'peek'); d.classList.toggle('is-full', state === 'full');
+  uxPeekFit();
   if (state === 'peek') d.scrollTop = 0;
   setTimeout(() => requestAnimationFrame(uxFrameSelection), 240);   // after the height transition
 }
