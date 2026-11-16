@@ -39,8 +39,40 @@ const pts = await run(`closeModal(); const cz = realCities(), a = cz.find(c => c
   return { a: a.name, b: b.name, pa, pb, mode, newMode: typeof drawMode !== 'undefined' ? drawMode : null };`);
 console.log('drag', JSON.stringify(pts));
 await run(`window.__fr = []; let last = performance.now(); const tick = t => { __fr.push(t - last); last = t; if (!window.__stop) requestAnimationFrame(tick); }; requestAnimationFrame(tick);`);
+if (process.env.THROTTLE) await send('Emulation.setCPUThrottlingRate', { rate: +process.env.THROTTLE });   // e.g. 6 ≈ a mid phone
 await send('Profiler.enable'); await send('Profiler.setSamplingInterval', { interval: 200 }); await send('Profiler.start');
 const steps = +(process.env.STEPS || 40), times = [];
+// MODE=gen: only the invitation generation itself (generateActivityOffers), timed and profiled, game paused
+if (mode === 'gen') {
+  const r = await run(`S.paused = true; const st = activityState(); st.offers = []; st.active = null; const t0 = performance.now(); generateActivityOffers(); const t1 = performance.now(); const tOpen0 = performance.now(); try { showActivityCards(); } catch (e) {} const t2 = performance.now(); return { gen: Math.round(t1 - t0), open: Math.round(t2 - tOpen0), offers: st.offers.length };`);
+  const prof = (await send('Profiler.stop')).result.profile;
+  const self = new Map(), total = new Map(), byId = new Map(prof.nodes.map(n => [n.id, n])), parent = new Map();
+  for (const n of prof.nodes) for (const c of n.children || []) parent.set(c, n.id);
+  prof.samples.forEach((s, i) => { const d = (prof.timeDeltas[i] || 0) / 1000; const cf = byId.get(s).callFrame, k = `${cf.functionName || '(anon)'} ${cf.url.split('/').pop()}:${cf.lineNumber + 1}`; self.set(k, (self.get(k) || 0) + d);
+    const seen = new Set(); for (let id = s; id; id = parent.get(id)) { const f = byId.get(id).callFrame, kk = `${f.functionName || '(anon)'} ${f.url.split('/').pop()}:${f.lineNumber + 1}`; if (!seen.has(kk)) { seen.add(kk); total.set(kk, (total.get(kk) || 0) + d); } } });
+  console.log('gen', JSON.stringify(r));
+  const show = m => [...m].filter(([k]) => !/^\(idle\)|^\(program\)|^\(root\)/.test(k)).sort((a, b) => b[1] - a[1]).slice(0, +(process.env.TOP || 16));
+  console.log('self time (ms):'); for (const [k, v] of show(self)) console.log('  ' + v.toFixed(0).padStart(6) + '  ' + k);
+  console.log('total time (ms):'); for (const [k, v] of show(total)) console.log('  ' + v.toFixed(0).padStart(6) + '  ' + k);
+  chrome.kill(); for (let i = 0; i < 8; i++) { await wait(500); try { fs.rmSync(profile, { recursive: true, force: true }); break; } catch {} } process.exit(0);
+}
+// MODE=cards: no drag — the city-activity invitation falls due while the game runs (what a player meets mid-game)
+if (mode === 'cards') {
+  const t0 = performance.now();
+  await run(`window.__lt = []; try { new PerformanceObserver(l => { for (const e of l.getEntries()) __lt.push([Math.round(e.startTime), Math.round(e.duration)]); }).observe({ type: 'longtask', buffered: false }); } catch (e) {}
+    const st = activityState(); st.offers = []; st.active = null; st.next = S.day; S.paused = false; return 1;`);
+  let opened = null;
+  for (let i = 0; i < 40; i++) { await wait(250); const m = await run(`return modalOpen ? (document.querySelector('#modal-content .deck128, #modal-content .activity-grid') ? 'deck' : 'modal') : null`); if (m && !opened) opened = { what: m, ms: Math.round(performance.now() - t0) }; }
+  const prof = (await send('Profiler.stop')).result.profile;
+  const fr = await run(`window.__stop = true; return { fr: __fr, lt: __lt, offers: activityState().offers.length };`);
+  const self = new Map(), byId = new Map(prof.nodes.map(n => [n.id, n]));
+  prof.samples.forEach((s, i) => { const cf = byId.get(s).callFrame, k = `${cf.functionName || '(anon)'} ${cf.url.split('/').pop()}:${cf.lineNumber + 1}`; self.set(k, (self.get(k) || 0) + (prof.timeDeltas[i] || 0) / 1000); });
+  const sf = [...fr.fr].sort((a, b) => b - a), lt = fr.lt.sort((a, b) => b[1] - a[1]);
+  console.log('cards', JSON.stringify({ opened, offers: fr.offers, longTasks: lt.length, longest: lt.slice(0, 6), longSum: lt.reduce((a, b) => a + b[1], 0) }));
+  console.log('frames:', fr.fr.length, 'max gap', sf[0]?.toFixed(0), 'top5', sf.slice(0, 5).map(v => v.toFixed(0)).join(','));
+  console.log('self time (ms):'); for (const [k, v] of [...self].filter(([k]) => !/^\(idle\)|^\(program\)/.test(k)).sort((a, b) => b[1] - a[1]).slice(0, +(process.env.TOP || 18))) console.log('  ' + v.toFixed(0).padStart(6) + '  ' + k);
+  chrome.kill(); for (let i = 0; i < 8; i++) { await wait(500); try { fs.rmSync(profile, { recursive: true, force: true }); break; } catch {} } process.exit(0);
+}
 const touch = async (type, x, y) => { const t0 = performance.now(); if (mouse) await send('Input.dispatchMouseEvent', { type: type === 'touchStart' ? 'mousePressed' : type === 'touchEnd' ? 'mouseReleased' : 'mouseMoved', x, y, button: 'left', buttons: type === 'touchEnd' ? 0 : 1, clickCount: 1 }); else await send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] }); times.push(performance.now() - t0); };
 await touch('touchStart', pts.pa.x, pts.pa.y); await wait(120);
 if (process.env.DEBUG) console.log('after start', JSON.stringify(await run(`return { gesture: gesture && gesture.kind, moved: gesture?.moved, pointers: pointers.size, sel: selected, modal: modalOpen, paused: S.paused, hit: hitCity(toWorld({ clientX: ${pts.pa.x}, clientY: ${pts.pa.y} }))?.name, picker: !document.getElementById('junction-picker').hidden, top: document.elementFromPoint(${pts.pa.x}, ${pts.pa.y})?.id || document.elementFromPoint(${pts.pa.x}, ${pts.pa.y})?.className }`)));

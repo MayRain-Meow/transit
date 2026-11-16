@@ -1491,11 +1491,27 @@ function uxExitIcon() {
   b.dataset.ux = '1'; b.title = b.getAttribute('aria-label') || '保存与退出';
   b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M14 8l4 4-4 4M18 12H9"/></svg>';
 }
+// City-activity invitations (抽卡) are drawn mid-game: for every possible host town, every other town's full transfer
+// route is planned (activitySources → plan → serviceTravelTime → edgeTime), with the same edges timed again and
+// again. Late in a match this froze the game for seconds (tens of seconds on Android WebView) the moment an
+// invitation fell due. Upstream already memoises routes and travel times inside a routing batch (performance.js,
+// used for vehicle arrivals); the draw is one synchronous computation on an unchanging state, so it runs inside its
+// own batch too. Same routes, same results — computed once.
+function uxBatchOffers() {
+  if (typeof generateActivityOffers !== 'function' || generateActivityOffers.uxBatch || typeof routingBatch === 'undefined') return;
+  const gen = generateActivityOffers;
+  generateActivityOffers = function (...a) {
+    if (routingBatch) return gen.apply(this, a);   // already inside one
+    routingBatch = { routes: new Map(), travel: new Map() };
+    try { return gen.apply(this, a); } finally { routingBatch = null; }
+  };
+  generateActivityOffers.uxBatch = true;
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
@@ -1726,13 +1742,15 @@ function uxOctOptionsNow(a, b, type) {
   const ok = bend => uxOctFree(lo, bend, type) && uxOctFree(bend, hi, type);
   return { lo, hi, A: ok(A) ? [lo, A, hi] : null, B: ok(B) ? [lo, B, hi] : null };
 }
-let uxOctPlan = new Map(), uxOctPlanKey = '', uxOctPlanAt = -1e9, uxOctPlanState = null;
+let uxOctPlan = new Map(), uxOctPlanKey = '', uxOctPlanAt = -1e9, uxOctPlanState = null, uxOctPlanCalls = 0;
 function uxOctPlanNow() {
   // Paths retain city objects: map switches and reloads invalidate them before the time throttle.
   // Note: .agents/notes/implemented/feature/2026-11-08-design-pass.md (折线路径缓存)
   if (uxOctPlanState !== S) {
-    uxOctPlanState = S; uxOctPlan = new Map(); uxOctPlanKey = null; uxOctPlanAt = -1e9;
+    uxOctPlanState = S; uxOctPlan = new Map(); uxOctPlanKey = null; uxOctPlanAt = -1e9; uxOctPlanCalls = 0;
   }
+  // asked thousands of times a frame (every lane sample, every vehicle): the clock is read every 64th call only
+  if (uxOctPlanCalls++ & 63) return uxOctPlan;
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
   if (now - uxOctPlanAt < 200) return uxOctPlan;
   uxOctPlanAt = now;
