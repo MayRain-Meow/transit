@@ -400,13 +400,16 @@ function uxWaitList(el, rows) {
   const total = g => items.filter(x => x.group === g).reduce((s, x) => s + x.n, 0);
   const groups = [...new Set(items.map(x => x.group))].sort((a, b) => (/^本圈/.test(b) - /^本圈/.test(a)) || total(b) - total(a));
   const box = document.createElement('section'); box.className = 'ux-wait';
-  box.innerHTML = '<div class="ux-wait-head"><span>等车去</span><small>人数</small><small>最久</small></div>';
+  const all = items.reduce((s, x) => s + x.n, 0);
+  box.innerHTML = '<div class="ux-wait-head"><span>等车去</span><small>' + all + ' 人 · ' + items.length + ' 个去向</small></div>';
   rows[0].before(box);
   for (const g of groups) {
     if (g && (groups.length > 1 || !/^本圈/.test(g))) { const h = document.createElement('div'); h.className = 'ux-wait-group'; h.innerHTML = escapeHTML(g) + '<small>' + total(g) + ' 人</small>'; box.appendChild(h); }
     for (const x of items.filter(i => i.group === g).sort((a, b) => b.n - a.n || b.wait - a.wait)) {
       x.b.className = 'ux-wait-row' + (x.wait > 120 ? ' is-late' : '');
-      x.b.innerHTML = '<span style="color:' + x.color + '">' + escapeHTML(x.what) + '</span><b>' + x.n + '</b><small>' + (x.wait ? x.wait + 's' : '—') + '</small>';
+      // tile: count large, the destination (shape + colour, as on the map) under it, the longest wait only when it matters
+      const m = x.what.match(/^([■◆●▲])s*(.*)$/), glyph = m ? m[1] : '', name = m ? m[2] : x.what;
+      x.b.innerHTML = '<b>' + x.n + '</b><span style="color:' + x.color + '"><i>' + glyph + '</i>' + escapeHTML(name) + '</span>' + (x.wait > 60 ? '<small>' + x.wait + 's</small>' : '');
       box.appendChild(x.b);
     }
   }
