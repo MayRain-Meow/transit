@@ -1479,3 +1479,5 @@ body #routes.collapsed .panel-heading > span.ux-swatches{display:flex!important;
   #details > h3{padding-right:0!important}
   .portrait-shell #details.detail-panel > .close{min-width:34px!important;min-height:34px!important;width:34px;height:34px;padding:0}
 }
+/* route bar: what the quote contains when a crossing is resolved automatically (new bridge / existing bridge) */
+.ux-bridge-note{color:#8a6d3b;font-weight:600}

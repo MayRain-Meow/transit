@@ -158,6 +158,27 @@ for (const c of realCities().slice(0, 6)) for (const msg of [c.name + '完成任
   closeModal(); openCity(c.id); ${W(500)} if (portraitMode) uxSheetSet('full'); ${W(700)} toast(msg); ${W(450)} document.getAnimations().forEach(a => a.finish());
   full.push(clearOf([node(c)])); clearSelection(); updateUI(); ${W(200)} }
 return { ok: out.every(n => n === 0) && full.every(n => n === 0), covered: out, cityFull: full.join('') };`,
+  // a route across a river with no bridge (2026-11-16): quoted with the best new bridge instead of refused; short of
+  // funds nothing is built (no lone bridge); with funds it charges exactly the quote, builds one bridge, runs over its
+  // heads; a second route over the same river reuses it; a route with no river is left alone
+  autobridge: `S.paused = true; closeModal(); clearSelection(); const cz = realCities().filter(c => !c.dormant), out = {};
+let pair = null, pair2 = null, plain = null;
+for (const a of cz) for (const b of cz) if (!pair && a.id < b.id && requirements(a, b, 'bus').bridge === 1 && !requirements(a, b, 'bus').tunnel && Math.hypot(a.x - b.x, a.y - b.y) < 700) pair = [a, b];
+if (!pair) return { ok: true, skipped: 'no river pair in this scene' };
+const quote = st => { draft = { type: 'bus', name: '测试线', color: '#7a5aa0', stops: st.map(c => c.id), stopRemoval: null }; draftBar(); return draftCost(); };
+let q = quote(pair); out.quoted = !q.invalid && q.uxBridges?.items.some(i => i.kind === 'new');
+S.points = q.cash - 1; const br0 = S.bridges.length, l0 = S.lines.length; document.getElementById('drawdone').click(); ${W(300)}
+out.poor = S.bridges.length === br0 && S.lines.length === l0;
+S.points = 1e6; const cash = S.points; q = quote(pair); document.getElementById('drawdone').click(); ${W(400)} if (modalOpen) document.querySelector('#modal .primary')?.click(); ${W(300)}
+const l = S.lines.at(-1); out.built = S.lines.length === l0 + 1 && S.bridges.length === br0 + 1 && Math.abs(cash - S.points - q.cash) < 1 && l.stops.filter(id => S.cities[id].kind === 'bridgehead').length === 2 && !draft;
+for (const a of cz) for (const b of cz) if (!pair2 && a.id < b.id && !(a === pair[0] && b === pair[1]) && requirements(a, b, 'bus').bridge === 1 && !requirements(a, b, 'bus').tunnel && Math.hypot(a.x - b.x, a.y - b.y) < 900) pair2 = [a, b];
+if (pair2) { clearSelection(); q = quote(pair2); out.reuse = !q.invalid && !!q.uxBridges?.items.length && q.uxBridges.items.every(i => i.kind === 'reuse'); cancelDraft(false); } else out.reuse = true;
+for (const a of cz) for (const b of cz) if (!plain && a.id < b.id && !requirements(a, b, 'bus').bridge && !requirements(a, b, 'bus').tunnel) plain = [a, b];
+if (plain) { q = quote(plain); out.plain = !q.invalid && !q.uxBridges; cancelDraft(false); } else out.plain = true;
+// one undo takes back the route and its new bridge, refunding all of it
+const open = () => S.bridges.filter(x => x.status === 'open').length, ob = open(), p1 = S.points; document.getElementById('undo-build').click(); ${W(300)}
+out.undo = S.lines.length === l0 && open() === ob - 1 && Math.abs(S.points - p1 - (cash - p1)) < 1;
+return { ok: out.quoted && out.poor && out.built && out.reuse && out.plain && out.undo, ...out };`,
   lines: `// 1) same-direction departures (overlap risk) with planned bends vs. a fixed bend; 2) vehicles on lanes; 3) grab at
 // drawn midpoints; then stage a construction + a break on 栖山—河岸镇 for the screenshot.
 const segs = new Map();
@@ -206,5 +227,5 @@ return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-ri
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
 mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice', 'capsules', 'actrun']);
 mk('scenA_F.json', ['coach']);
-mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines', 'toastsel']);
+mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines', 'toastsel', 'autobridge']);
 console.log('built');

@@ -149,7 +149,7 @@ ${sec('资金与车辆', [
     '动车、高铁可加车厢（最多8节），回库存后保留编组。取消线路可保留资产，或回收闲置道路50%、车辆车厢70%。',
     '刚完成建线、改线、建桥或升级后，20秒内可点右上「撤回」全额退款；已载客、被共用或开始后续付费建设时不适用。'])}
 ${sec('工程与天气', [
-    '<b>桥梁</b>：建造 → 桥梁与道路 → 拉建公路桥 / 铁路桥，从一岸拖到对岸。',
+    '<b>桥梁</b>：拉线跨河时自动经由已有的桥；没有合适的桥，就规划一座最省的新桥并计入报价，点「建设」时一起建成（撤回时一起退）。想自己选桥位：建造 → 桥梁与道路 → 拉建公路桥 / 铁路桥，从一岸拖到对岸。',
     '<b>道路升级</b>：线路详情 → 道路升级，施工期间该路段减速 30%。',
     '<b>气象站</b>范围内天气减速减半；<b>交通枢纽</b>候车容量翻倍，基础最多 3 座，六星活动可增加名额；换乘准备−30%，附近进站提速15%。',
     (S.mapId==='west'?'西部没有台风；第150天后满足高铁解锁、至少6城接入及80天地震间隔时，每天有2%概率地震。':'东部7月下旬至9月可能有台风；第150天后满足条件时每天有0.8%概率地震。')+'受损路段可在建造面板支付维修费。',
@@ -1654,11 +1654,183 @@ function uxFeedbackBox() {
   } catch { t.parentNode === fb && fb.before(t); u.parentNode === fb && fb.before(u); fb.remove(); return; }   // no observers: leave both as they were
   sync();
 }
+// ---------- bridges form with the route (user 2026-11-16: 无桥自动得到最优解 + 吸附复用已有桥) ----------
+// Upstream (update124) accepts a river crossing only when the finger walked along an existing bridge; otherwise the
+// route is refused (请手动沿选定的桥面拖过两岸) and a bridge has to be built first, separately. Now, when that is the
+// only problem, each crossing is resolved like this:
+//  - an open bridge of the right kind that both sides reach without more water is reused (the cheapest detour);
+//  - otherwise the best new bridge is planned: along the river near the crossing, a pair of heads on the river's normal
+//    (as the manual bridge snaps them), checked by upstream's own bridge rules (bridgeTerrainIssue), scored by bridge
+//    price + the two approach legs (length and tunnels); a reused bridge wins unless a new one is cheaper overall.
+// The quote is upstream's: planned bridges are put in place for the computation and taken out again, and their price
+// is added. Building creates them with upstream's createBridge (assets, maintenance, accounting) right before the
+// route is committed, after checking the funds for the whole quote. Air routes and valid routes are left alone.
+const UX_ROUTE_RATE = { bus: .38, emu: .65, rail: 1.1, air: .18 };
+function uxLegCost(a, b, type) { const r = requirements(a, b, type); if (r.invalid || r.bridge) return Infinity; return 10 * Math.ceil(Math.hypot(a.x - b.x, a.y - b.y) * (UX_ROUTE_RATE[type] || .5)) + (r.tunnel || 0) * 2200; }
+function uxNewBridge(a, b, type) {
+  if (typeof riverSpans !== 'function' || typeof riverSegments === 'undefined' || typeof bridgeTerrainIssue !== 'function') return null;
+  const spans = riverSpans(a, b); if (!spans.length) return null;
+  const t0 = (spans[0][0] + spans[0][1]) / 2, m = { x: a.x + (b.x - a.x) * t0, y: a.y + (b.y - a.y) * t0 }, bt = physicalGroup(type), need = requirements(a, b, type).bridge;
+  // candidates nearest the cheapest first: a lower bound (shortest bridge price + straight approach legs) orders them,
+  // and the search stops once the bound passes the best found — only a handful get the full terrain checks
+  const rate = 10 * (UX_ROUTE_RATE[type] || .5), minPrice = bridgePrice({ x: 0, y: 0 }, { x: 38, y: 0 }, bt), cand = [];
+  for (const s of riverSegments) {
+    const L = Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y); if (!L) continue;
+    const nx = -(s.b.y - s.a.y) / L, ny = (s.b.x - s.a.x) / L;
+    for (const fr of [.2, .5, .8]) {
+      const c = { x: s.a.x + (s.b.x - s.a.x) * fr, y: s.a.y + (s.b.y - s.a.y) * fr };
+      if (Math.hypot(c.x - m.x, c.y - m.y) > 420) continue;
+      for (const off of [19, 27]) cand.push({ c, nx, ny, off, bound: minPrice + rate * Math.max(0, Math.hypot(a.x - c.x, a.y - c.y) + Math.hypot(b.x - c.x, b.y - c.y) - 2 * off) });
+    }
+  }
+  cand.sort((p, q) => p.bound - q.bound);
+  let best = null;
+  for (const { c, nx, ny, off, bound } of cand) {
+    if (best && bound >= best.score) break;
+    let h1 = { x: c.x + nx * off, y: c.y + ny * off }, h2 = { x: c.x - nx * off, y: c.y - ny * off };
+    if (bridgeTerrainIssue(h1, h2)) continue;
+    if (requirements(a, h1, type).bridge) [h1, h2] = [h2, h1];
+    const leg1 = uxLegCost(a, h1, type); if (!isFinite(leg1)) continue;
+    const rest = requirements(h2, b, type); if (rest.invalid || rest.bridge >= need) continue;   // must get closer
+    const leg2 = rest.bridge ? rate * Math.hypot(h2.x - b.x, h2.y - b.y) + rest.bridge * 1500 : uxLegCost(h2, b, type);
+    const price = bridgePrice(h1, h2, bt), score = price + leg1 + leg2;
+    if (!best || score < best.score) best = { kind: 'new', h1, h2, type: bt, price, score, rest: rest.bridge };
+  }
+  return best;
+}
+function uxReuseBridge(a, b, type) {
+  const need = requirements(a, b, type).bridge; let best = null;
+  for (const x of S.bridges || []) {
+    if (x.status !== 'open' || !bridgeCompatible(x, type)) continue;
+    let [h1, h2] = x.heads.map(id => S.cities[id]); if (!h1 || !h2) continue;
+    if (requirements(a, h1, type).bridge) [h1, h2] = [h2, h1];
+    const leg1 = uxLegCost(a, h1, type); if (!isFinite(leg1)) continue;
+    const rest = requirements(h2, b, type); if (rest.invalid || rest.bridge >= need) continue;
+    const leg2 = rest.bridge ? 10 * Math.hypot(h2.x - b.x, h2.y - b.y) * (UX_ROUTE_RATE[type] || .5) + rest.bridge * 1500 : uxLegCost(h2, b, type);
+    const score = leg1 + leg2;
+    if (!best || score < best.score) best = { kind: 'reuse', heads: [h1.id, h2.id], h2, score, rest: rest.bridge };
+  }
+  return best;
+}
+// stops of the draft with every unresolved crossing resolved: items[] = reused or new bridges; stops[] holds city ids
+// and, for new bridges, {nb: index, end: 0|1} placeholders
+let uxBridgeMemo = { key: null, plan: null };
+function uxBridgePlan(d) {
+  if (!d || d.type === 'air' || !d.stops || d.stops.length < 2 || typeof requirements !== 'function') return null;
+  const key = d.type + ':' + d.stops.join(',') + ':' + (S.bridges || []).map(x => x.id + x.status).join(',') + ':' + S.cities.length;
+  if (uxBridgeMemo.key === key) return uxBridgeMemo.plan;
+  let plan = { stops: [], items: [], price: 0 };
+  try {
+    for (const id of d.stops) {
+      const b = S.cities[id]; if (!b) { plan = null; break; }
+      const prevId = plan.stops.at(-1); if (prevId === undefined) { plan.stops.push(id); continue; }
+      const a = typeof prevId === 'object' ? plan.cur : S.cities[prevId];
+      if (b.kind === 'bridgehead' || a.kind === 'bridgehead' || bridgeFor(a, b) || !requirements(a, b, d.type).bridge) { plan.stops.push(id); plan.cur = b; continue; }
+      let cur = a, guard = 0;
+      while (requirements(cur, b, d.type).bridge && guard++ < 3) {
+        const re = uxReuseBridge(cur, b, d.type), nw = uxNewBridge(cur, b, d.type);
+        const pick = re && (!nw || re.score <= nw.score + 0) ? re : nw;
+        if (!pick) { plan = null; break; }
+        if (pick.kind === 'reuse') { plan.items.push(pick); plan.stops.push(...pick.heads); cur = pick.h2; }
+        else { const i = plan.items.push(pick) - 1; plan.price += pick.price; plan.stops.push({ nb: i, end: 0 }, { nb: i, end: 1 }); cur = pick.h2; }
+      }
+      if (!plan) break;
+      if (requirements(cur, b, d.type).bridge) { plan = null; break; }
+      plan.stops.push(id); plan.cur = b;
+    }
+  } catch { plan = null; }
+  if (plan && !plan.items.length) plan = null;
+  uxBridgeMemo = { key, plan }; return plan;
+}
+function uxPlanStops(plan, heads) { return plan.stops.map(s => typeof s === 'object' ? heads[s.nb][s.end] : s); }
+function uxWithPlannedBridges(plan, fn) {
+  const n0 = S.cities.length, b0 = S.bridges.length, nb0 = S.nextBridge, stops0 = draft.stops, heads = [];
+  try {
+    plan.items.forEach((it, i) => {
+      if (it.kind !== 'new') { heads[i] = null; return; }
+      const id = S.nextBridge++, hs = [it.h1, it.h2].map(p => { const c = makeCity(p.x, p.y); Object.assign(c, { kind: 'bridgehead', bridge: id, name: '规划桥', dormant: true, capacity: 0, mission: { step: 6, completed: 0, progress: 0 } }); S.cities.push(c); return c.id; });
+      S.bridges.push({ id, heads: hs, type: it.type, level: 0, status: 'open', price: it.price }); heads[i] = hs;
+    });
+    draft.stops = uxPlanStops(plan, heads);
+    return fn();
+  } finally { S.cities.length = n0; S.bridges.length = b0; S.nextBridge = nb0; draft.stops = stops0; }
+}
+const UX_BRIDGE_REFUSAL = /拖过两岸|手动建桥|先.*建桥/;
+function uxBridgeRoutes() {
+  if (typeof draftCost !== 'function' || draftCost.uxBridges || typeof commitDraft !== 'function') return;
+  const dc = draftCost;
+  draftCost = function (...a) {
+    const q = dc.apply(this, a);
+    if (!draft || bridgeDraft || !q?.invalid || !UX_BRIDGE_REFUSAL.test(q.invalid)) return q;
+    const plan = uxBridgePlan(draft); if (!plan) return q;
+    const r = uxWithPlannedBridges(plan, () => dc.apply(this, a));
+    if (r.invalid) return q;   // something else is wrong too: upstream's message stays
+    r.cash += plan.price; r.bridge = (r.bridge || 0) + plan.items.filter(i => i.kind === 'new').length;
+    r.uxBridges = plan; delete r.resolved;   // resolved ids belonged to the planned heads
+    return r;
+  };
+  draftCost.uxBridges = true;
+  const cm = commitDraft;
+  commitDraft = function (skip = false, ...rest) {
+    if (!draft || !skip || bridgeDraft) return cm.call(this, skip, ...rest);
+    const q = draftCost(), plan = q.uxBridges; if (!plan) return cm.call(this, skip, ...rest);
+    if (q.invalid) return toast(q.invalid);
+    if (q.cash > S.points) return toast('资金不足，需要 ¥' + q.cash);
+    const keep = draft, heads = [], receipts = [];
+    for (const [i, it] of plan.items.entries()) {
+      if (it.kind !== 'new') { heads[i] = null; continue; }
+      const n = S.bridges.length; bridgeDraft = { type: it.type, a: { ...it.h1 }, b: { ...it.h2 } };
+      try { createBridge(); } catch {} draft = keep; bridgeDraft = null;
+      if (S.bridges.length === n) { toast('自动建桥未完成，线路未建设'); return; }
+      heads[i] = S.bridges.at(-1).heads;
+      if (typeof constructionUndo !== 'undefined' && constructionUndo) receipts.push(constructionUndo);
+    }
+    draft.stops = uxPlanStops(plan, heads); uxBridgeMemo = { key: null, plan: null };
+    const dbar = uxEl('drawbar'); if (dbar) dbar.hidden = false;
+    const r = cm.call(this, skip, ...rest);
+    // one build, one undo: the route's receipt and the new bridges' become one ("撤回建线与新桥 · 全退 ¥quote"). The
+    // route goes first (a bridge in use cannot be removed), then the bridges; one that still cannot go is not refunded.
+    const lineR = typeof constructionUndo !== 'undefined' ? constructionUndo : null;
+    if (!draft && lineR && receipts.length && !receipts.includes(lineR) && typeof offerConstructionUndo === 'function')
+      offerConstructionUndo({ ...lineR, label: lineR.label + '与新桥', paid: lineR.paid + receipts.reduce((v, b) => v + b.paid, 0),
+        canUndo: () => lineR.canUndo(),
+        undo() { lineR.undo(); let kept = 0; for (const b of receipts.slice().reverse()) { if (b.canUndo()) b.undo(); else kept += b.paid; } this.paid -= kept; } });
+    return r;
+  };
+  // the route bar says what the quote contains
+  if (typeof draftBar === 'function' && !draftBar.uxBridges) {
+    const db = draftBar;
+    draftBar = function (...a) {
+      const r = db.apply(this, a);
+      try { const q = draft && !bridgeDraft ? draftCost() : null, p = q?.uxBridges, t = uxEl('drawtext');
+        if (p && t && !t.querySelector('.ux-bridge-note')) { const n = p.items.filter(i => i.kind === 'new'), re = p.items.length - n.length, s = document.createElement('span'); s.className = 'ux-bridge-note';
+          s.textContent = (n.length ? ' · 含新桥 ' + n.length + ' 座 ¥' + n.reduce((v, i) => v + i.price, 0) : '') + (re ? ' · 经已有桥 ' + re + ' 座' : ''); t.appendChild(s);
+          // the collapsed quote (Android-style summary button) says it too
+          const qx = uxEl('quote-expand'); if (qx && qx.textContent && !qx.querySelector('.ux-bridge-note')) { const s2 = s.cloneNode(true), tn = qx.firstChild, i = tn?.nodeType === 3 ? tn.data.search(/s*[⌄⌃]/) : -1; if (i > 0) tn.splitText(i).before(s2); else qx.append(s2); } } } catch {}
+      return r;
+    };
+    draftBar.uxBridges = true;
+  }
+}
+// planned bridges are drawn while the route is drafted: a pale deck between the two heads
+function uxDrawPlannedBridges() {
+  if (!draft || bridgeDraft || ctx.canvas !== cv) return;
+  const p = uxBridgeMemo.plan; if (!p || uxBridgeMemo.key?.indexOf(draft.type + ':' + draft.stops.join(',') + ':') !== 0) return;
+  ctx.save(); ctx.lineCap = 'round'; ctx.setLineDash([]);
+  const k = 1 / view.scale;   // screen-constant widths
+  for (const it of p.items) { if (it.kind !== 'new') continue;
+    ctx.beginPath(); ctx.moveTo(it.h1.x, it.h1.y); ctx.lineTo(it.h2.x, it.h2.y);
+    ctx.globalAlpha = .95; ctx.strokeStyle = '#fffef9'; ctx.lineWidth = 13 * k; ctx.stroke();
+    ctx.strokeStyle = '#8a6d3b'; ctx.lineWidth = 8 * k; ctx.stroke();
+    ctx.strokeStyle = '#f3e3bf'; ctx.lineWidth = 2 * k; ctx.setLineDash([4 * k, 4 * k]); ctx.stroke(); ctx.setLineDash([]);
+    for (const h of [it.h1, it.h2]) { ctx.beginPath(); ctx.arc(h.x, h.y, 4.5 * k, 0, Math.PI * 2); ctx.fillStyle = '#fffef9'; ctx.fill(); ctx.lineWidth = 2 * k; ctx.strokeStyle = '#8a6d3b'; ctx.stroke(); } }
+  ctx.restore();
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox(); uxBridgeRoutes();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
@@ -2027,7 +2199,7 @@ function uxDraftGhost() {
     for (let i = 1; i < l.stops.length; i++) { const a = S.cities[l.stops[i - 1]], b = S.cities[l.stops[i]]; if (a && b) { strokeLaneRange(a, b, l); ctx.stroke(); } } } catch {}
   ctx.restore();
 }
-globalThis.LINE_ORDER = lines => (uxDraftGhost(), lines).map((l, i) => [l, i]).sort((x, y) => (UX_MODE_RANK[x[0].type] ?? 0) - (UX_MODE_RANK[y[0].type] ?? 0) || x[1] - y[1]).map(x => x[0]);
+globalThis.LINE_ORDER = lines => (uxDraftGhost(), uxDrawPlannedBridges(), lines).map((l, i) => [l, i]).sort((x, y) => (UX_MODE_RANK[x[0].type] ?? 0) - (UX_MODE_RANK[y[0].type] ?? 0) || x[1] - y[1]).map(x => x[0]);
 function uxModeStyle() {
   if (typeof lineStyle !== 'function' || lineStyle.uxMode) return;
   const ls = lineStyle;
