@@ -309,8 +309,7 @@ function uxLineSheet(rebuild) {
   const seats = vs.reduce((n, v) => n + vehCap(v), 0), load = vs.reduce((n, v) => n + v.people.length, 0);
   const blocked = l.stops.some((id, i) => i && S.blockages[key(S.cities[l.stops[i - 1]], S.cities[id], l.type)]);
   const stops = l.stops.filter(id => S.cities[id] && !S.cities[id].removed && S.cities[id].kind !== 'bridgehead');
-  if (uxStopPick && uxStopPick.line !== l.id) uxStopPick = null;
-  const pick = uxStopPick;
+  const pick = uxStopPickFor(l.id);
   const sig = JSON.stringify([l.id, l.name, l.color, l.stops, l.retiring, inv, S.points >= T.vehicle, blocked, pick ? [...pick.marked] : null,
     vs.map(v => [v.id, v.cars, v.people.length, uxServiceLabel(v), isTrain(v.type) && v.cars < 8 && S.points >= carPrice(v)])]);
   if (!rebuild && sig === uxLineSheet.sig && !el.hidden) return;
@@ -334,12 +333,17 @@ ${vs.length ? `<div class="ux-list">${vs.map(v => `<div class="ux-row"><span><b>
 // - 多站移除: mark several stops in the sheet, then preview the line without them (one quote, one apply);
 // - 整条重画: the line keeps its id, colour, vehicles and number; its route is drawn again from scratch (the old route
 //   stays on the map as a pale band, see uxDraftGhost).
-let uxStopPick = null;   // { line, marked: Set(city id) } while stops are being picked in the line sheet
-function uxStopPickToggle(lineId) { uxStopPick = uxStopPick?.line === lineId ? null : { line: lineId, marked: new Set() }; haptic(); showDetails(true); }
-function uxStopMark(lineId, cityId) { if (uxStopPick?.line !== lineId) return; const m = uxStopPick.marked; m.has(cityId) ? m.delete(cityId) : m.add(cityId); haptic(); showDetails(true); }
+// Note: game-owned selection — .agents/notes/implemented/feature/2026-11-08-design-pass.md
+let uxStopPick = null;   // { game, line, marked: Set(city id) }; IDs are reused after reset/load
+function uxStopPickFor(lineId) {
+  if (uxStopPick && (uxStopPick.game !== S || uxStopPick.line !== lineId)) uxStopPick = null;
+  return uxStopPick;
+}
+function uxStopPickToggle(lineId) { uxStopPick = uxStopPickFor(lineId) ? null : { game: S, line: lineId, marked: new Set() }; haptic(); showDetails(true); }
+function uxStopMark(lineId, cityId) { const pick = uxStopPickFor(lineId); if (!pick) return; const m = pick.marked; m.has(cityId) ? m.delete(cityId) : m.add(cityId); haptic(); showDetails(true); }
 function uxStopPickApply(lineId) {
-  const l = S.lines.find(x => x.id === lineId); if (!l || l.retiring || !uxStopPick?.marked.size) return;
-  const keep = l.stops.filter(id => !uxStopPick.marked.has(id));
+  const l = S.lines.find(x => x.id === lineId), pick = uxStopPickFor(lineId); if (!l || l.retiring || !pick?.marked.size) return;
+  const keep = l.stops.filter(id => !pick.marked.has(id));
   if (keep.filter(id => S.cities[id] && S.cities[id].kind !== 'bridgehead').length < 2) return toast('一条线路至少连接两座城市；整条撤销请用「取消线路」');
   uxStopPick = null; beginDraft(l.type, l.id); draft.stops = keep; draftBar(); updateUI();
 }
