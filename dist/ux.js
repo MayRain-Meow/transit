@@ -1507,11 +1507,53 @@ function uxBatchOffers() {
   };
   generateActivityOffers.uxBatch = true;
 }
+// Late networks: touches land on lines and stations almost everywhere, so a drag used to grab whatever was under the
+// finger (user 2026-11-15, 拉线打架). Now a drag edits a line only when that line is the one selected:
+// - from a station shared by several lines: a new line starts there (it used to pop the line picker, so no new line
+//   could be drawn from a busy station; a tap still opens the picker). A station on one line keeps upstream's drag —
+//   extend from an end, pull a stop off — which the v1.5.9 tutorial teaches;
+// - from a stretch of line: the selected line is pulled (elastic); any other line under the finger is just map → pan.
+// Upstream's edit mode (a line chosen in the picker: draft.tapEdit132) and pinch are untouched.
+function uxGestureRules() {
+  if (typeof movePointer !== 'function' || movePointer.uxRules) return;
+  const mv = movePointer;
+  movePointer = function (e) {
+    const g = gesture;
+    // the tutorial (update123–129, tutorial159) teaches dragging an unselected road and stop: keep that while it runs
+    const tutorial = S?.tutorial123?.stage && S.tutorial123.stage !== 'done';
+    if (g && g.kind === 'tap' && !g.uxRuled && !tutorial && !draft && pointers.size === 1 && Math.hypot(e.clientX - g.start.x, e.clientY - g.start.y) > 14) {
+      g.uxRuled = true;
+      const sel = selected?.type === 'line' ? selected.id : selected?.type === 'stop' ? selected.line : selected?.type === 'junction' ? selected.preferred : null;
+      if (g.c) { if (g.ambiguousLines && !g.cityLine) g.ambiguousLines = null; }   // shared station: a new line (single-line stations keep upstream's extend / remove-stop drag, taught by tutorial159)
+      else if (g.rh && g.rh.l?.id !== sel) g.rh = null;
+    }
+    return mv.call(this, e);
+  };
+  movePointer.uxRules = true;
+}
+// While drawing, a station attaches at once when the finger passes its centre (v1.5.3), so a quick stroke across a
+// late network picked up every town on the way. A fast-moving finger (> ~450 px/s) now has to pause on a town (the
+// 90 ms dwell upstream already uses for the wider halo); slow passes and pauses attach as before.
+let uxStrokeSpeed = 0, uxStrokeLast = null;
+function uxSwipeAttach() {
+  if (typeof addDraftCity !== 'function' || addDraftCity.uxSwipe || typeof cv === 'undefined') return;
+  cv.addEventListener('pointermove', e => { const t = e.timeStamp || performance.now(); if (uxStrokeLast && t > uxStrokeLast.t) { const v = Math.hypot(e.clientX - uxStrokeLast.x, e.clientY - uxStrokeLast.y) / (t - uxStrokeLast.t); uxStrokeSpeed = uxStrokeSpeed * .6 + v * .4; } uxStrokeLast = { x: e.clientX, y: e.clientY, t }; }, { capture: true, passive: true });
+  cv.addEventListener('pointerdown', () => { uxStrokeSpeed = 0; uxStrokeLast = null; }, { capture: true, passive: true });
+  const add = addDraftCity;
+  addDraftCity = function (c, force = false, ...rest) {
+    if (!force && gesture?.kind === 'draft' && draft?.pointer && uxStrokeSpeed > .45 && c?.kind !== 'bridgehead') {
+      const p = draft.pointer; draft.pointer = null;   // hides the centre test of map-revision153 → the dwell guard decides
+      try { return add.call(this, c, force, ...rest); } finally { if (draft) draft.pointer = p; }
+    }
+    return add.call(this, c, force, ...rest);
+  };
+  addDraftCity.uxSwipe = true;
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
