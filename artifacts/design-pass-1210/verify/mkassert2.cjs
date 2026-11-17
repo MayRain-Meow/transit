@@ -98,13 +98,18 @@ return { ok: !!em && em.classList.contains('is-over') && visible, pill: em?.text
   ended: `${W(2800)} S.lives = 0; updateUI(); toast('已回到游戏 · 当前暂停，点 ▶ 继续');
 let opened = false; const go = gameover; gameover = () => { opened = true; }; document.getElementById('pause').click(); gameover = go;
 return { ok: document.getElementById('pause').textContent === '结算' && /本局已结束/.test(document.getElementById('toast').textContent) && opened };`,
-  hubframe: `const tops = [];
+  // hub sheets (2026-11-16): tabs and × on one row in every tab; the sheet fits its content — no blank band under the
+  // last element (a short tab such as 车辆 used to keep 86% of the screen), long tabs capped and scrolling inside
+  hubframe: `const out = [];
 for (const [k, i] of [['money', 0], ['money', 1], ['money', 2], ['money', 3], ['build', 0], ['build', 1], ['build', 2], ['goal', 0]]) {
   uxOpenHub(k, i); ${W(300)} document.getAnimations().forEach(a => a.finish());
-  const t = document.querySelector('.ux-hub-tabs').getBoundingClientRect(), c = document.querySelector('#modal-content .modal-head .close').getBoundingClientRect();
-  tops.push(Math.round(t.top) + '/' + Math.round(c.left));
+  const m = document.getElementById('modal-content'), t = document.querySelector('.ux-hub-tabs').getBoundingClientRect(), c = m.querySelector('.modal-head .close').getBoundingClientRect();
+  const row = Math.abs((t.top + t.bottom) / 2 - (c.top + c.bottom) / 2) < 6, mr = m.getBoundingClientRect();
+  const last = Math.max(...[...m.children].filter(e => e.offsetHeight).map(e => e.getBoundingClientRect().bottom));
+  const gap = m.scrollHeight > m.clientHeight + 2 ? 0 : Math.round(mr.bottom - last);   // scrolling = full by definition
+  out.push({ tab: k + i, row, gap });
 }
-closeModal(); return { ok: new Set(tops).size === 1, tops };`,
+closeModal(); return { ok: out.every(o => o.row && o.gap < 80), out: out.map(o => o.tab + ':' + (o.row ? '' : 'ROW!') + o.gap).join(' ') };`,
   // the edge clamp must never move a city that the play view placed in the free map area under a panel (the reported
   // 078e99c bug), checked both geometrically and by what the city's centre actually hits; edge ground is measured only
   // where it is visible inside the free area
