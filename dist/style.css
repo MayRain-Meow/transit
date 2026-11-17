@@ -1599,3 +1599,25 @@ html body #modal-content .quake-summary.is-idle b small{display:block;margin:2px
 }
 .ux-tempty{font-size:12.5px;color:#6b7a73;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:4px}
 p.ux-tempty{margin:6px 2px;white-space:normal}
+
+/* ---------- v1.6 pages in the hubs ---------- */
+/* vehicle trading: quiet empty line; running vehicles folded */
+.ux-sale-empty{margin:4px 2px 8px;font-size:12px;color:#7a877f}
+html body #modal-content .fleet-sale16 > h3{font-size:13px;margin:16px 2px 4px}
+html body #modal-content .fleet-sale16 > p:not(.ux-sale-empty){font-size:11.5px;color:#7a877f;margin:0 2px 6px}
+/* research: two columns of compact cards; a state that cannot be acted on reads as a note, not a big grey button */
+html body #modal-content .research-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;gap:8px!important}
+html body #modal-content .research-card{padding:10px 11px!important;border-radius:12px!important;gap:4px!important;min-height:0!important}
+html body #modal-content .research-card .eyebrow{font-size:10.5px!important;letter-spacing:1px!important}
+html body #modal-content .research-card h3{font-size:14px!important;margin:2px 0 0!important}
+html body #modal-content .research-card p{font-size:11.5px!important;line-height:1.45!important;margin:0!important;color:#5f6f68}
+html body #modal-content .research-card .research-cost{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 2px!important;font-size:12px}
+html body #modal-content .research-card .research-cost b{font-size:13px}
+html body #modal-content .research-card button{min-height:32px!important;height:auto;padding:6px 8px!important;border-radius:10px!important;font-size:12px!important}
+html body #modal-content .research-card button:disabled{background:transparent!important;color:#7a877f!important;border:1px dashed #d3dace!important;box-shadow:none!important}
+html body #modal-content .research-intro{font-size:11.5px;line-height:1.55;color:#6b7a73}
+html body #modal-content .research-card p{flex:none!important}
+@media (max-width:380px){ .modal .ux-list .ux-product{gap:10px} .modal .ux-list .ux-product .transport-icon{width:40px;height:30px} }
+html body #modal-content .research-grid{align-items:start!important}
+html body #modal-content .research-card button{margin-top:6px!important}
+html body #modal-content .research-card .research-cost{padding:0!important;min-height:0!important;height:auto!important;border:0!important;background:none!important}

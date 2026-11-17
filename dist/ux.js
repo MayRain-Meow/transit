@@ -1941,11 +1941,30 @@ function uxNoticeTiming() {
   showNotice130 = function (...a) { if (!S || (!(S.lines?.length) && S.day < 3)) return; return sn.apply(this, a); };
   showNotice130.ux = true;
 }
+// v1.6 vehicle trading (release16 appends 「车辆买卖」 to the shop): one row per type even with nothing in stock, plus
+// one 回收 row per running vehicle — a long list of grey buttons in a new game and dozens of rows late. Stock rows are
+// kept only for types in stock (or one quiet line); running vehicles fold away under 「运行中车辆 N 辆 · 回收」 (the line
+// sheet's − already recalls one by one). Rows, buttons and handlers are upstream's, only regrouped.
+function uxFleetSale() {
+  if (typeof shop !== 'function' || shop.uxSale) return;
+  const sh = shop;
+  shop = function (...a) {
+    const r = sh.apply(this, a), sec = uxEl('modal-content')?.querySelector('.fleet-sale16'); if (!sec || sec.dataset.ux) return r;
+    sec.dataset.ux = '1';
+    const rows = [...sec.querySelectorAll(':scope > .quote-row')], stock = [], run = [];
+    for (const row of rows) (/#\d+/.test(row.querySelector('span')?.textContent || '') ? run : stock).push(row);
+    for (const row of stock) if (row.querySelector('button')?.disabled) row.remove();
+    if (!stock.some(r => r.isConnected)) { const p = document.createElement('p'); p.className = 'ux-sale-empty'; p.textContent = '库存里没有车辆可出售'; (run[0] || null) ? run[0].before(p) : sec.appendChild(p); }
+    if (run.length) { const d = document.createElement('details'); d.className = 'ux-rules ux-sale-run'; d.innerHTML = '<summary>运行中车辆 ' + run.length + ' 辆 · 回收</summary>'; run[0].before(d); run.forEach(x => d.appendChild(x)); }
+    return r;
+  };
+  shop.uxSale = true;
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox(); uxBridgeRoutes(); uxNoticeTiming();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox(); uxBridgeRoutes(); uxNoticeTiming(); uxFleetSale();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
