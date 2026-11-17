@@ -3,6 +3,7 @@ const {JSDOM,VirtualConsole}=require('jsdom');const vm=require('vm'),fs=require(
 let hidden=false,plays=0,pauses=0,rejected=false;
 Object.defineProperty(w.document,'hidden',{get:()=>hidden});
 Object.defineProperty(w.document,'visibilityState',{get:()=>hidden?'hidden':'visible'});
+for(const [key,value]of Object.entries(options.saves||{}))w.localStorage.setItem(key,value);
 if(options.prefs)w.localStorage.setItem('transit-effects-v1',JSON.stringify(options.prefs));
 if(options.blockStorage){w.Storage.prototype.getItem=function(){throw Error('unavailable')};w.Storage.prototype.setItem=function(){throw Error('unavailable')};}
 w.HTMLMediaElement.prototype.play=function(){plays++;return rejected?Promise.reject(Error('blocked')):Promise.resolve()};

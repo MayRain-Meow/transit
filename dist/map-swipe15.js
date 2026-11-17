@@ -6,7 +6,7 @@
   if(target.closest('button,a,input,select'))return false;
   if(drag)finish(true);
   const card=target.closest('.atlas-card');
-  drag={id,x,y,left:rail.scrollLeft,index:atlasSelected==='west'?1:0,dx:0,axis:null,touch,card,top:card?.scrollTop||0,snap:rail.style.scrollSnapType,behavior:rail.style.scrollBehavior};return true;
+  drag={id,x,y,left:rail.scrollLeft,index:Object.keys(ATLAS_MAPS).indexOf(atlasSelected),dx:0,axis:null,touch,card,top:card?.scrollTop||0,snap:rail.style.scrollSnapType,behavior:rail.style.scrollBehavior};return true;
  }
  function move(x,y,e){
   const d=drag;if(!d)return;const dx=x-d.x,dy=y-d.y;
@@ -21,8 +21,8 @@
   if(d.touch||d.axis)blockClickUntil=performance.now()+450;
   if(d.axis==='x'){
    const threshold=Math.max(32,Math.min(64,rail.clientWidth*.14));
-   const next=cancelled?d.index:Math.abs(d.dx)>=threshold?Math.max(0,Math.min(1,d.index+(d.dx<0?1:-1))):d.index;
-   atlasSelect(['east','west'][next]);
+   const next=cancelled?d.index:Math.abs(d.dx)>=threshold?Math.max(0,Math.min(Object.keys(ATLAS_MAPS).length-1,d.index+(d.dx<0?1:-1))):d.index;
+   atlasSelect(Object.keys(ATLAS_MAPS)[next]);
   }else if(d.touch&&!d.axis&&!cancelled&&d.card)atlasSelect(d.card.dataset.map);
   if(!d.touch)try{rail.releasePointerCapture(d.id);}catch{}
  }
