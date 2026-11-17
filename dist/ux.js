@@ -1500,6 +1500,9 @@ function uxTrayGroups(p, head, shut) {
   const groups = UX_MODES.map(([t, name]) => ({ t, name, lines: live.filter(l => l.type === t).sort((a, b) => (+uxLineLabel(a) || 1e9) - (+uxLineLabel(b) || 1e9) || a.id - b.id) })).filter(x => x.lines.length);
   const key = shut + '|' + sel + '|' + uxTrayFocus + '|' + groups.map(x => x.t + ':' + x.lines.map(l => l.id + l.color + l.name + (l.retiring ? 'r' : '')).join(',')).join(';');
   if (g.dataset.key === key) return; g.dataset.key = key;
+  if (!groups.length) {   // no line yet: say what to do instead of an empty box
+    sum.innerHTML = '<span class="ux-tempty">还没有线路 · 从一座城拖到另一座</span>'; g.innerHTML = '<p class="ux-tempty">还没有线路 · 从一座城拖到另一座，看报价后建设</p>'; return;
+  }
   // one row whatever the network: the more modes, the shorter each pill (full name + 8 dots → 简称 + 4 → 简称 + count)
   const nd = groups.length === 1 ? 8 : groups.length === 2 ? 4 : 0, shortName = groups.length > 1;
   sum.innerHTML = groups.map(x => '<button type="button" class="ux-tpill" data-mode="' + x.t + '" aria-label="' + x.name + ' ' + x.lines.length + ' 条，展开">' + (groups.length < 3 ? '<i class="ux-tmark ' + x.t + '"></i>' : '') + '<b>' + (shortName ? UX_TYPE_CHAR[x.t] || x.name : x.name) + '</b><small>' + x.lines.length + '</small>' + (nd ? '<span class="ux-tdots">'
@@ -1929,11 +1932,20 @@ function uxDrawPlannedBridges() {
     for (const h of [it.h1, it.h2]) { ctx.beginPath(); ctx.arc(h.x, h.y, 4.5 * k, 0, Math.PI * 2); ctx.fillStyle = '#fffef9'; ctx.fill(); ctx.lineWidth = 2 * k; ctx.strokeStyle = '#8a6d3b'; ctx.stroke(); } }
   ctx.restore();
 }
+// Facility notices (revision130 "新设施可以建设了") wait until the player has built a first line (or day 3): the weather
+// station and the hub are available from the start, so they popped up over the map in the first second of every new
+// game — before the player had seen the towns. The hub's unread dot is set as before; only the popup waits.
+function uxNoticeTiming() {
+  if (typeof showNotice130 !== 'function' || showNotice130.ux) return;   // only this popup: activity offers keep their own timing
+  const sn = showNotice130;
+  showNotice130 = function (...a) { if (!S || (!(S.lines?.length) && S.day < 3)) return; return sn.apply(this, a); };
+  showNotice130.ux = true;
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox(); uxBridgeRoutes();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox(); uxBridgeRoutes(); uxNoticeTiming();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
@@ -2388,6 +2400,9 @@ function uxPlayTargetRaw() {
   if (portraitMode) {
     const band = fitBand(); s = PLAY_MIN_SCALE;
     box = { l: band.side + UX_FIT_PAD.l, r: W - band.side - UX_FIT_PAD.r, t: band.top + UX_FIT_PAD.t, b: band.bottom - UX_FIT_PAD.b };
+    // a young network (≤ 6 towns, e.g. the three opening towns of the west) is shown whole: zoom out just enough to fit
+    // it rather than leave a town on the screen edge with its name cut off (never below 0.5)
+    if (active.length <= 6) { const xs = active.map(c => c.x), ys = active.map(c => c.y), need = Math.min((box.r - box.l) / Math.max(1, Math.max(...xs) - Math.min(...xs)), (box.b - box.t) / Math.max(1, Math.max(...ys) - Math.min(...ys))); if (need < s) s = Math.max(.5, need); }
   } else {
     // landscape phone: the free map window is what remains after the route list (left) and the dock (bottom)
     const r = uxVisibleRect(); box = { l: r.l + 20, r: r.r - 70, t: r.t + 26, b: r.b - 34 };
