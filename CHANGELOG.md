@@ -1,12 +1,50 @@
-# v1.5.13 — Sync gameplay updates without background music
+# 1.6.0 — 双洋大陆与港航
 
-Sync the latest western basin terrain and spawn constraints, connected inner/outer mountain ranges, weather particles, western typhoon removal and earthquake rule, grouped facility unlock notices, simplified exit actions, curved-road tutorial paths, card-flip effects and quiet five/six-star reveal chimes. Retain city-snap feedback, sound-effect preferences and background save/pause behavior.
+- 第三图：东南三城、东西海岸、中央平原、西部山地、五大湖，独立存档。8000元开局，第一年6月1日，日期显示年份。
+- 第4/5/6城：第10/20/30天；第7—12城每8天，第13—24城每10天，之后每12天。沿海优先，再中央平原、北方。第10城固定拉斯维加斯，选址随机。
+- 港口1500；小轮船2800/60人，速度20；大轮渡10000/250人，速度12，与飞机实际解锁条件同步。海路建线与航行免费，绕开陆地；五大湖禁港，海洋禁桥。
+- 到港先下后上，逐人核销。小船下8/上20人每秒，大轮渡下20/上50；不等满员。旅程目的地符合港口城市时直接完成，否则正常换乘。
+- 第一年无台风；以后夏季3—4次，范围内轮船速度−10%。12—2月寒潮北向南，空间边缘及时间后期渐弱，持续4.8—7.2天；公交受影响最大，动车高铁较轻，轮船不受寒潮影响。
+- 科研与天气并排，6所大学解锁。现有研究保留，新增两种船的速度研究（＋15%），无船舶容量研究。
+- 拉斯维加斯保留旅游属性与正常客流，使用球体城市外观，顶级免费获得一级枢纽。
+- 赌城造价100，每10天开放1个游戏日，可选参加；自选带入和下注，最多10次，可提前退出。触屏下拉拉杆，有机械感及中奖声音。七种符号独立等概率；恰好一对总返还2倍，三同柠檬/大巴/动车/轮船/飞机/金币/C分别3/4/5/6/8/12/30倍，理论返还率320/343。资金和结果在动画前一起保存，刷新不重抽。
+- 大巴同一线路同一路段双向合计上限8/12/16辆；不同线路独立。车辆页新增回收、库存出售，原价60%，整列包括加装车厢。
+- 新增3项海运成就、3项股票实际累计买入金额成就、8架飞机同时飞行成就；旧成就保留。
+- 普通城拥挤160秒/旅游205秒，低于容量渐恢复，80%以下双倍恢复，活动乘客不计压力。活动罚款按星级上限800/1000/1200/1600/2000/2400，保护活动保留较低处罚，按缺口扣款。
+- 修复城市触控圈被临近线路抢占、理财入口卡在收益记录；图二第4城出现后20天出第5城。地形缓存包含边界、面片边缘补绘，河网绘制改为版本键与路径缓存。
 
-Background music, its playback script and its controls are excluded from this GitHub snapshot. Connection and card WAV effects remain included. The existing hosted game and distributed APK are unchanged by this source update.
+验证：旧地图交通、触摸、生命周期、地形、音效、金融回归；10组第三图300天城市布局；海洋路径、逐人结算、真实建线/读档、道路名额、出售及赌城概率/余额持久化。
+上述布局验证不是新版本完整经营存活率回测。默认船速、装卸速度、科研费用和寒潮参数沿用最近讨论方案，仍需真机试玩检验体感。
 
-Android preparation now stages the current root web release directly, preserving script order and assets rather than regenerating the old v1.4 frontend from the historical test04 directory. Version metadata is 1.5.13. APKs, signing keys and build dependencies remain excluded.
+# v1.5.14 — Four financial return achievements
 
-Validation: gameplay regression suite, card-audio and curved-road tutorial tests; Android asset preparation and local-reference verification. DOM tests do not establish Android device compatibility.
+Add gold stock achievements 幸运儿 (+15% held return) and 险些腰斩 (30% held loss), plus silver wealth achievements 靠谱的经理 (+15% per-lot return) and 打水漂 (30% per-lot loss). Each uses the current position cost or original lot principal, requires an actual holding, unlocks without sale/redemption, and persists across runs under the existing achievement key. Daily settlement and pre-transaction synchronization retain threshold crossings. Existing music and sound behavior remain unchanged.
+
+# v1.5.13 — Felicity background music
+
+Use the uploaded Felicity MP3 in one looping player shared by map selection and gameplay. Start after a user interaction, keep playback position across screens, and pause in background/native interruptions. Add separate remembered music on/off and volume controls alongside existing effects.
+
+# v1.5.12 — Join interior ridges to the basin rim
+
+Extend the outward end of each of the five interior mountain groups until its physical footprint overlaps an outer mountain ridge. Choose junctions away from river valleys, preserve the inner tips, broad intervening valleys and the expanded outer ring. Rendering, city exclusion and tunnel calculation share the same polygons. Terrain revision 3 applies to new western games; earlier saves retain their exact terrain and construction.
+
+# v1.5.11 — Quiet card flip and rarity effects
+
+Play a short paper flip only when an unrevealed activity card is actually revealed. Five- and six-star cards get a quiet delayed chime. Opening or revisiting cards, accepting and failed activities remain silent. Reveal-all softly staggers the flips and plays at most one rarity chime. Card sounds use 30% of the existing effects volume, share its mute switch, and stop/cancel pending chimes on background interruptions. Original generated WAV assets, no external music or audio dependency.
+
+# v1.5.10 — Restore the interior mountain groups
+
+Restore all five interior ridges within the expanded western basin. Four are spaced farther apart, keeping broad intervening plains; the original opening ridge and the expanded outer mountain ring are unchanged. The drawing, city collision and tunnel quote use the same restored footprints. New western games use terrain revision 2; older saves retain their exact terrain and existing construction.
+
+# v1.5.9 — Tutorial circles follow visible roads
+
+Deletion demonstrations follow the rounded lane geometry from the end city through the prior city and slightly along the remaining road. Reconnection circles sit on the actual drawn road outside station hit areas, replacing the midpoint of the invisible straight chord. Both cues share the same road geometry used by rendering and interaction, and follow camera pan/zoom. Tutorial steps and construction behavior are unchanged.
+
+# v1.5.8 — Western basin, regional disasters and clearer controls
+
+New western games use an expanded mountain ring with fewer internal ridges. Existing western saves retain their original terrain, cities and construction. Full-bounds terrain tiles display the expanded footprint, and path caches clear on geometry changes. West has no typhoons (including previously scheduled events); eligible daily earthquake probability is 2%, versus east 0.8%, retaining day 150, rail, six connected cities and the 80-day cooldown.
+
+Simultaneous facility unlocks share one notification with individual destinations. Rain and fog have bounded animated effects clipped to their actual circular influence, using simulation time and no simulation RNG. The exit sheet offers Continue or Save and return to maps; continuing restores the prior pause state and honors background interruption.
 
 # v1.5.7 — Sound on city snap
 

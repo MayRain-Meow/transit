@@ -138,14 +138,14 @@ ${sec('基本操作', [
     '<b>电脑</b>：空格暂停，滚轮缩放，Esc 取消或关闭。'], true)}
 ${sec('乘客与任务', [
     '乘客头上的小方块是目的地：<b>颜色＋形状</b>相同的城市都能接收。点城市候车列表可在地图标出目标。',
-    '候客厅满员累计180秒才扣生命（旅游城市225秒），最后8秒警告；低于容量逐渐恢复，降到80%以下加快恢复。个人等待只影响服务质量。',
+    '候客厅满员累计160秒才扣生命（旅游城市205秒），最后8秒警告；低于容量逐渐恢复，降到80%以下加快恢复。个人等待只影响服务质量。',
     '每座城市有 6 个阶段任务，奖金自动到账；连续类任务中断只重置天数，不扣钱。',
     '新城镇需要拉线接通才会产生乘客，接通后有 45 秒宽限。'])}
 ${sec('资金与车辆', [
     uxTypes().map(t => TYPES[t].name + ' ¥' + TYPES[t].vehicle).join(' · ') + '。新车进库存，在线路详情里点「＋」加车（没有库存会直接购买）。',
     '票款按起终点距离 1 / 2 / 3，乘坐方式加权：动车 ×1.4，高铁 ×1.8，飞机 ×3。',
     '每 10 天固定补助；道路月底收维护费，账本里可看预计支出、拆除闲置道路。',
-    '动车、高铁可加车厢（最多8节），回库存后保留编组。取消线路可保留资产，或回收闲置道路50%、车辆车厢70%。',
+    '动车、高铁可加车厢（最多8节），回库存后保留编组。取消线路可保留资产，或回收闲置道路50%、车辆车厢原价60%。',
     '刚完成建线、改线、建桥或升级后，20秒内可点右上「撤回」全额退款；已载客、被共用或开始后续付费建设时不适用。'])}
 ${sec('工程与天气', [
     '<b>桥梁</b>：建造 → 桥梁与道路 → 拉建公路桥 / 铁路桥，从一岸拖到对岸。',
@@ -358,7 +358,7 @@ function uxWaitList(el, rows) {
 function uxLoadBlock(el) {
   const g = el.querySelector(':scope > .metric-grid'); if (!g || el.querySelector('.ux-load')) return;
   const c = S.cities[selected.id]; if (!c || typeof capacity !== 'function') return;
-  const n = c.q.filter(p => !p.cardId && !p.eventId).length, cap = capacity(c), limit = (typeof CONGESTION_LIMIT === 'number' ? CONGESTION_LIMIT : 180) * (c.shape === 1 ? 1.25 : 1);
+  const n = c.q.filter(p => !p.cardId && !p.eventId).length, cap = capacity(c), limit = c.shape === 1 ? 205 : 160;
   const p = Math.max(0, c.congestionPressure || 0), full = n >= cap, special = c.q.length - n;
   const state = c.shield > 0 ? ['保护中 ' + Math.ceil(c.shield) + 's', 'is-calm'] : full ? ['超出 ' + (n - cap), 'is-over'] : n >= cap * .8 ? ['接近满员', 'is-near'] : ['未满', 'is-calm'];
   const box = document.createElement('section'); box.className = 'ux-load';
@@ -903,11 +903,11 @@ function uxWrapLatePanels() {
 // Per-object actions stay on the object (city facilities in the city sheet, fleet and upgrades in the line sheet).
 const UX_HUBS = {
   goal: { name: '目标', tabs: [['城市任务', 'showTasks'], ['城市活动', 'showActivityCards']] },
-  build: { name: '建造', tabs: [['桥梁与道路', 'showEngineering'], ['车辆', 'shop'], ['天气', 'showWeather']] },
+  build: { name: '建造', tabs: [['桥梁与道路', 'showEngineering'], ['车辆', 'shop'], ['天气', 'showWeather'], ['科研', 'showTransportResearch']] },
   money: { name: '资金', tabs: [['收支', 'showFinance'], ['维护', 'showMaintenance'], ['理财', 'uxMarketWealth'], ['股票', 'uxMarketStocks']] },
 };
 let uxMoneyIntent = null;   // tab index the player tapped (lock pages cannot tell 理财 from 股票 by their text)
-function uxMarketWealth() { uxMoneyIntent = 2; showFinancialMarket(marketTab === 'portfolio' ? 'portfolio' : 'wealth'); }
+function uxMarketWealth() { uxMoneyIntent = 2; showFinancialMarket('wealth'); }
 function uxMarketStocks() { uxMoneyIntent = 3; showFinancialMarket('stocks'); }
 function uxOpenHub(key, i = 0) { haptic(); globalThis[UX_HUBS[key].tabs[i][1]](); }
 function uxHubBar(key, idx, m) {
@@ -1424,7 +1424,7 @@ function uxAchievementsHTML() {
   const tiers = ['bronze', 'silver', 'gold', 'diamond'].map(g => { const all = A.filter(a => a.grade === g); return `<span class="uxa-tier ${g}" title="${tierName[g]}牌" aria-label="${tierName[g]}牌 ${all.filter(a => got(a.id)).length} / ${all.length}">${achBadge14(g)}<b>${all.filter(a => got(a.id)).length}</b><small>/ ${all.length}</small></span>`; }).join('');
   let html = `<div class="modal-head"><div><span class="eyebrow">旅途荣誉</span><h2>成就</h2></div><button class="close" onclick="closeModal()" aria-label="关闭成就">×</button></div>
 <section class="uxa-sum"><div class="uxa-count"><b>${n}</b><span>/ ${A.length} 已解锁</span></div><div class="uxa-bar"><i style="width:${n / A.length * 100}%"></i></div><div class="uxa-tiers">${tiers}</div><p>跨对局保留，重新开始不清空；不提供现金或运力奖励。</p></section>`;
-  const fmt = (a, v) => a.id === 'shareholder' ? (v > 0 && v < .01 ? (Math.floor(v * 1e4) / 1e4).toFixed(4) : (Math.floor(v * 100) / 100).toFixed(2)) + ' / ' + a.target + '%' : Math.floor(v) + ' / ' + a.target;
+  const fmt = (a, v) => achPercent14(a.id) ? (v > 0 && v < .01 ? (Math.floor(v * 1e4) / 1e4).toFixed(4) : (Math.floor(v * 100) / 100).toFixed(2)) + ' / ' + a.target + '%' : Math.floor(v) + ' / ' + a.target;
   for (const cat of new Set(A.map(a => a.category))) {
     const rows = A.filter(a => a.category === cat);
     html += `<h3 class="uxa-cat"><span>${cat}</span><small>${rows.filter(a => got(a.id)).length} / ${rows.length}</small></h3><div class="uxa-list">`;

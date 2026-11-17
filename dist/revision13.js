@@ -115,7 +115,7 @@ save = function() {
 function recordRuntimeFault13(error, source) {
   if (runtimeFault13) return;
   runtimeFault13 = { source, message: String(error?.message || error), stack: String(error?.stack || "").slice(0, 3e3), day: S?.day, at: Date.now() };
-  console.error("Transit runtime stopped safely", runtimeFault13);
+  console.error("Transit runtime stopped safely", JSON.stringify(runtimeFault13));
   try {
     localStorage.setItem("transit-last-error13", JSON.stringify(runtimeFault13));
   } catch {

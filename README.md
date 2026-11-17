@@ -1,3 +1,11 @@
+# 交通线 · v1.6.0
+
+双洋大陆港航更新：第三地图、海港与两种轮船、寒潮、拉斯维加斯赌城、六校科研、车辆买卖和新成就。完整规则与测试范围见 [CHANGELOG.md](CHANGELOG.md)。
+
+网页版：https://transit-basin-playtest-20261109.kkxxwwk321.chatgpt.site/
+
+GitHub 源码按既有要求不包含背景音乐文件、播放代码与设置；连接/翻牌/赌城音效保留。网页版保留原有背景音乐。
+
 # 交通线 · v1.5.13（GitHub 无背景音乐版）
 
 当前入口为 `dist/index.html`。运行 `python3 -m http.server 8000 --directory dist`，访问 `/`。
