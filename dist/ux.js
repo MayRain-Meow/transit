@@ -1989,11 +1989,45 @@ function uxLifeLog() {
     return r;
   };
 }
+// Harbours (v1.6 双洋大陆; user 2026-11-18): the map's own facility was a button added by marine16 at the very end of the
+// city sheet, below everything — on a 360px phone the player had to open the sheet fully and scroll to find it. For a
+// city that can have a harbour it now leads the 设施 strip: 建港口 ¥1500 → 本城港口 · 再建一座可开航 (only one harbour
+// on the map: nothing to sail to yet) → 本城港口 · 开航线 (starts a sea route from here). Building and routing use
+// upstream's buildHarbor16 / beginHarborRoute164; the bottom row it replaces is removed.
+function uxHarborChip() {
+  if (typeof showDetails !== 'function' || showDetails.uxHarbor) return;
+  const sd = showDetails;
+  showDetails = function (...a) {
+    const r = sd.apply(this, a);
+    try {
+      const el = uxEl('details'), row = el?.querySelector(':scope > .harbor16'), c = selected?.type === 'city' ? S.cities[selected.id] : null;
+      if (!row || !c || typeof isOcean16 !== 'function' || !isOcean16()) return r;
+      row.remove();
+      let strip = el.querySelector(':scope > .ux-fac-strip');
+      if (!strip) { strip = document.createElement('div'); strip.className = 'ux-fac-strip'; strip.innerHTML = '<span>设施</span>'; (el.querySelector(':scope > .ux-load') || el.querySelector(':scope > .detail-sub'))?.after(strip); }
+      strip.querySelector('.ux-harbor')?.remove();
+      const ports = S.cities.filter(x => x.harbor && !x.removed).length, b = document.createElement('button'); b.type = 'button'; b.className = 'ux-harbor';
+      if (!c.harbor) { b.innerHTML = '<i>⚓</i>建港口 <small>¥1500</small>'; b.onclick = e => { e.stopPropagation(); buildHarbor16(c.id); showDetails(true); }; if (S.points < 1500) b.classList.add('is-off'); }
+      else if (ports < 2) { b.innerHTML = '<i>⚓</i>本城港口 <small>再建一座可开航</small>'; b.classList.add('is-note'); b.onclick = e => e.stopPropagation(); }
+      else { b.innerHTML = '<i>⚓</i>本城港口 <small>开航线 ↗</small>'; b.onclick = e => { e.stopPropagation(); if (typeof beginHarborRoute164 === 'function') beginHarborRoute164(c.id); }; }
+      strip.querySelector(':scope > span')?.after(b);
+      // the harbour note (harbor-connection164) goes from under the title to the foot of the sheet: it explains, it is not a status
+      const note = el.querySelector(':scope > .harbor-shared163'); if (note) { b.title = note.textContent.replace(/^⚓s*/, ''); note.classList.add('ux-harbor-note'); el.appendChild(note); el.querySelector(':scope > .ux-peekbar') && el.appendChild(el.querySelector(':scope > .ux-peekbar')); }
+    } catch {}
+    return r;
+  };
+  showDetails.uxHarbor = true;
+  // the first harbour has nowhere to sail to yet: its confirmation says what comes next instead of offering a route
+  const tt = toast; toast = function (t, ...a) {
+    if (/港口建成 · 可新建免费海运航线/.test(String(t)) && S && S.cities.filter(x => x.harbor && !x.removed).length < 2) t = String(t).replace('可新建免费海运航线', '再建一座港口即可开航');
+    return tt.call(this, t, ...a);
+  };
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox(); uxBridgeRoutes(); uxNoticeTiming(); uxFleetSale(); uxLifeLog();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox(); uxBridgeRoutes(); uxNoticeTiming(); uxFleetSale(); uxLifeLog(); uxHarborChip();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');

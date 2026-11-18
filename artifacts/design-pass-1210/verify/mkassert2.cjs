@@ -176,6 +176,15 @@ return { ok: out.every(n => n === 0) && full.every(n => n === 0), covered: out, 
   // why the run ended (2026-11-18): close to a life loss the station's pill counts down, and goes back to the count when
   // the hall recovers; the results name the station that actually cost the last life (recorded at the moment), the
   // secondary button opens that station, and notices are gone from the finished map
+  // 双洋大陆 harbours (2026-11-18): on a coastal town the harbour leads the facility strip, visible in the peek sheet;
+  // built alone it says a second one is needed (strip and toast), with two it starts a sea route; inland towns show none
+  harbor: `localStorage.clear(); atlasSelected = 'ocean'; atlasRestart = true; startAtlasBeforeLifecycle12(); ${W(500)} closeModal(); S.tutorial123 = null; S.points = 20000; try { notices130().queue = []; } catch (e) {}
+const coast = realCities().filter(c => harborPoint16(c)), inland = realCities().find(c => !harborPoint16(c));
+const chip = () => { const s = document.querySelector('#details .ux-fac-strip'), b = s?.querySelector('.ux-harbor'), d = document.getElementById('details').getBoundingClientRect(); return b ? { t: b.textContent, first: s.children[1] === b, vis: b.getBoundingClientRect().bottom <= d.bottom - 20 && b.getBoundingClientRect().right <= d.right } : null; };
+openCity(coast[0].id); ${W(700)} const a = chip(); document.querySelector('#details .ux-harbor').click(); ${W(500)} const b = chip(), toastT = document.getElementById('toast').textContent;
+buildHarbor16(coast[1].id); closeModal(); openCity(coast[0].id); ${W(700)} const c = chip(); document.querySelector('#details .ux-harbor').click(); ${W(500)} const sea = draft && /ship|ferry/.test(draft.type);
+if (draft) cancelDraft(false); closeModal(); let none = true; if (inland) { openCity(inland.id); ${W(500)} none = chip() === null; }
+return { ok: !!a && a.first && a.vis && /建港口/.test(a.t) && /再建一座/.test(b?.t) && /再建一座港口即可开航/.test(toastT) && /开航线/.test(c?.t) && sea && none && !document.querySelector('#details > .harbor16'), a: a?.t, b: b?.t, toast: toastT, c: c?.t, sea, none };`,
   lastlife: `try { const st = activityState(); st.offers = []; st.next = S.day + 1e6; } catch (e) {} closeModal(); clearSelection(); S.speed = 1;
 const c = realCities().find(x => x.name.startsWith('海宁')) || realCities()[4], cap = capacity(c), limit = c.shape === 1 ? 205 : 160;
 for (let i = 0; c.q.length < cap * 1.5 && i < 200; i++) try { newPassenger(c); } catch (e) {}
@@ -251,7 +260,7 @@ const box = document.querySelector('#modal-content .card-content128').getBoundin
 return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-risk') && inside('h3'), stats: inside('.card-stats'), reward: inside('.card-reward'), risk: inside('.card-risk') };`
 };
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
-mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice', 'capsules', 'actrun']);
+mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice', 'capsules', 'actrun', 'harbor']);
 mk('scenA_F.json', ['coach']);
 mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines', 'toastsel', 'autobridge', 'lastlife']);
 console.log('built');
