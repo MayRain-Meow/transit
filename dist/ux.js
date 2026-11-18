@@ -22,7 +22,7 @@ function uxFocusCity(id) {
   // Portrait: the sheet framing (uxFrameSelection) places the city and remembers the prior view for close.
   if (!portraitMode) requestAnimationFrame(() => uxAutoMove(() => panTo(c.x, c.y)));
 }
-function uxTypes() { return ['bus', 'emu', 'rail', 'air'].filter(t => TYPES[t]); }
+function uxTypes() { return ['bus', 'emu', 'rail', 'air', ...(typeof isOcean16==='function'&&isOcean16()?['ship','ferry']:[])].filter(t => TYPES[t]); }
 function uxFreeSlots(t) { return S.limits[t] - S.lines.filter(l => l.type === t && !l.retiring).length; }
 function uxServiceLabel(v) {
   return (v.pendingService ? '交接中' : v.service?.mode === 'interval' ? '区间车' : v.service?.mode === 'express' ? '快车' : '全程')
