@@ -90,6 +90,22 @@ async function main() {
     await finishFrames();
     assert.deepEqual(json('view'), before);
   });
+  await test('a new game restores the play control after the previous result', async () => {
+    await fresh();
+    run('S.lives=0; updateUI();'); assert.match(w.document.getElementById('pause').getAttribute('aria-label'), /结算/);
+    run('reset(); updateUI();'); assert.equal(w.document.getElementById('pause').getAttribute('aria-label'), '暂停或继续');
+  });
+  await test('tutorial points past a completed two-stop line, and names the actual confirmation', async () => {
+    await fresh(); run("S.lines[0].stops=[1,0]; S.tutorial123={stage:'build'};");
+    assert.deepEqual(json('firstRouteCue123().map(c=>c.id)'), [0,2]);
+    assert(run('guideCopy129()[1].includes(S.cities[2].name)'));
+    run("S.tutorial123.stage='restore-end'; beginDraft('bus',S.lines[0].id); draft.stops=[1,2,0]; draftBar();");
+    assert(run("guideCopy129()[1].includes($('drawdone').textContent)"));
+  });
+  await test('manual bridge planning clears the previous route quote', async () => {
+    await fresh();run("S.quoteSeen123=true; beginDraft('bus'); draft.stops=[0,1]; draftBar(); cancelDraft(false); beginBridge('bus');");
+    assert(run("!$('drawbar').classList.contains('quote-compact') && $('quote-expand').hidden && !$('quote-expand').textContent"));
+  });
   if (failures) process.exitCode = 1;
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });

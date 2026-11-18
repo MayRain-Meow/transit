@@ -180,22 +180,43 @@ return { ok: out.every(n => n === 0) && full.every(n => n === 0), covered: out, 
   // built alone it says a second one is needed (strip and toast), with two it starts a sea route; inland towns show none
   harbor: `localStorage.clear(); atlasSelected = 'ocean'; atlasRestart = true; startAtlasBeforeLifecycle12(); ${W(500)} closeModal(); S.tutorial123 = null; S.points = 20000; try { notices130().queue = []; } catch (e) {}
 const coast = realCities().filter(c => harborPoint16(c)), inland = realCities().find(c => !harborPoint16(c));
-const chip = () => { const s = document.querySelector('#details .ux-fac-strip'), b = s?.querySelector('.ux-harbor'), d = document.getElementById('details').getBoundingClientRect(); return b ? { t: b.textContent, first: s.children[1] === b, vis: b.getBoundingClientRect().bottom <= d.bottom - 20 && b.getBoundingClientRect().right <= d.right } : null; };
-openCity(coast[0].id); ${W(700)} const a = chip(); document.querySelector('#details .ux-harbor').click(); ${W(500)} const b = chip(), toastT = document.getElementById('toast').textContent;
-buildHarbor16(coast[1].id); closeModal(); openCity(coast[0].id); ${W(700)} const c = chip(); document.querySelector('#details .ux-harbor').click(); ${W(500)} const sea = draft && /ship|ferry/.test(draft.type);
+const chip = () => { const s = document.querySelector('#details .ux-fac-strip'), b = s?.querySelector('.ux-harbor'), d = document.getElementById('details').getBoundingClientRect(); return b ? { t: b.textContent, first: s.children[1] === b, vis: !!b.getClientRects().length && b.getBoundingClientRect().bottom <= d.bottom - 20 && b.getBoundingClientRect().right <= d.right } : null; };
+const live = S.lives, oldCash = S.points; S.lives = 0; openCity(coast[0].id); buildHarbor16(coast[0].id);
+const noEndedCharge = !coast[0].harbor && S.points === oldCash && !chip(); S.lives = live;
+openCity(coast[0].id); ${W(700)} const a = chip(), d = document.getElementById('details');
+if (innerHeight > innerWidth) d.querySelector('.ux-peekbar').click(); ${W(500)}
+const full = innerHeight <= innerWidth || (d.classList.contains('is-full') && !!d.querySelector('.ux-harbor')?.getClientRects().length);
+S.day = 4; notices130().queue = [{id:'weather',title:'气象站可以建设了',copy:'',hub:'build'}]; showNotice130(); const deferred = !modalOpen && notices130().queue.length === 1;
+const cash = S.points; d.querySelector('.ux-harbor').click(); ${W(500)} const b = chip(), toastT = document.getElementById('toast').textContent;
+const single = d.querySelector('.ux-harbor')?.disabled && !d.querySelector('.harbor-connect164') && Math.abs(cash - S.points - 1500) < .01;
+clearSelection(); showNotice130(); const delivered = modalOpen && notices130().queue.length === 0; closeModal(); buildHarbor16(coast[1].id); closeModal(); openCity(coast[0].id); ${W(700)} const c = chip(); document.querySelector('#details .ux-harbor').click(); ${W(500)} const sea = draft && /ship|ferry/.test(draft.type);
 if (draft) cancelDraft(false); closeModal(); let none = true; if (inland) { openCity(inland.id); ${W(500)} none = chip() === null; }
-return { ok: !!a && a.first && a.vis && /建港口/.test(a.t) && /再建一座/.test(b?.t) && /再建一座港口即可开航/.test(toastT) && /开航线/.test(c?.t) && sea && none && !document.querySelector('#details > .harbor16'), a: a?.t, b: b?.t, toast: toastT, c: c?.t, sea, none };`,
+return { ok: noEndedCharge && full && single && deferred && delivered && !!a && a.first && a.vis && /建港口/.test(a.t) && /再建一座/.test(b?.t) && /再建一座港口即可开航/.test(toastT) && /开航线/.test(c?.t) && sea && none && !document.querySelector('#details > .harbor16'), a: a?.t, b: b?.t, toast: toastT, c: c?.t, sea, none, full, single, deferred, delivered, noEndedCharge };`,
+  warningedge: `closeModal();clearSelection();S.paused=true;S.speed=4;
+const c=S.cities[window.__hub], limit=c.shape===1?205:160;c.congestionPressure=limit-8;c.warning=8;
+const paint=ctx.fillText, results=[];
+try { for(const screenX of [40,W-40]){
+  Object.assign(view,uxViewFor(c,screenX,H*.4,.66));const hits=[];let stale=false;
+  ctx.fillText=function(label,x,y,...rest){if(/距扣命约 2 秒/.test(label)){const m=this.getTransform(),k=Math.hypot(m.a,m.b)/dpr,w=this.measureText(label).width*k,center=(m.a*x+m.c*y+m.e)/dpr;const cy=(m.b*x+m.d*y+m.f)/dpr;
+  const covered=realCities().filter(o=>o!==c).some(o=>{const p=toScreen(o),r=radius(o)*k+3;return p.x+r>center-w/2-5 && p.x-r<center+w/2+5 && p.y+r>cy-8 && p.y-r<cy+8;});
+  hits.push([Math.round(center-w/2),Math.round(center+w/2),Math.round(parseFloat(this.font)*k),covered]);} if(label==='拥挤 8s')stale=true;return paint.call(this,label,x,y,...rest);};
+  render();results.push({screenX,hits,stale});
+} } finally {ctx.fillText=paint;}
+return {ok:results.every(r=>!r.stale&&r.hits.length===1&&r.hits[0][0]>=0&&r.hits[0][1]<=W&&r.hits[0][2]>=10&&!r.hits[0][3]),results};`,
   lastlife: `try { const st = activityState(); st.offers = []; st.next = S.day + 1e6; } catch (e) {} closeModal(); clearSelection(); S.speed = 1;
 const c = realCities().find(x => x.name.startsWith('海宁')) || realCities()[4], cap = capacity(c), limit = c.shape === 1 ? 205 : 160;
 for (let i = 0; c.q.length < cap * 1.5 && i < 200; i++) try { newPassenger(c); } catch (e) {}
 c.grace = 0; c.shield = 0; c.congestionPressure = limit - 20; const near = uxLifeLeft(c);
 c.congestionPressure = 10; const far = uxLifeLeft(c);
 const keep = c.q.slice(); c.q.length = Math.floor(cap / 2); c.congestionPressure = limit - 20; const calm = uxLifeLeft(c); c.q.push(...keep.slice(c.q.length));
-const other = realCities().find(x => x !== c && !x.dormant); other.grace = 0; other.shield = 0;
+const other = S.cities[window.__hub]; other.grace = 0; other.shield = 0; other.congestionPressure = (other.shape === 1 ? 205 : 160) - 15;
+const secondAtRisk = uxLifeLeft(other);
 S.lives = 1; c.congestionPressure = limit - .5; S.paused = false; ${W(2500)} document.getAnimations().forEach(a => a.finish());
 const m = document.getElementById('modal-content'), line = m.querySelector('.ux-lastlife')?.textContent || '', btn = [...m.querySelectorAll('button')].find(b => /查看失守车站/.test(b.textContent));
 btn?.click(); ${W(900)} const opened = selected?.type === 'city' && selected.id === c.id;
-return { ok: near >= 18 && near <= 20 && far === null && calm === null && S.lives === 0 && line.includes(c.name.split('·')[0]) && !!btn && opened && !document.getElementById('notice').textContent, near, far, calm, line, opened };`,
+const endedClean = secondAtRisk === 15 && uxLifeLeft(other) === null && dEnded();
+function dEnded() { const load = document.querySelector('#details .ux-load'); return !!load && load.textContent.includes('本局失守') && !/保护中|计满扣一条命/.test(load.textContent); }
+return { ok: endedClean && near >= 18 && near <= 20 && far === null && calm === null && S.lives === 0 && line.includes(c.name.split('·')[0]) && !!btn && opened && !document.getElementById('notice').textContent, near, far, calm, line, opened, secondAtRisk, endedClean };`,
   autobridge: `S.paused = true; closeModal(); clearSelection(); const cz = realCities().filter(c => !c.dormant), out = {};
 let pair = null, pair2 = null, plain = null;
 for (const a of cz) for (const b of cz) if (!pair && a.id < b.id && requirements(a, b, 'bus').bridge === 1 && !requirements(a, b, 'bus').tunnel && Math.hypot(a.x - b.x, a.y - b.y) < 700) pair = [a, b];
@@ -206,6 +227,7 @@ S.points = q.cash - 1; const br0 = S.bridges.length, l0 = S.lines.length; docume
 out.poor = S.bridges.length === br0 && S.lines.length === l0;
 S.points = 1e6; const cash = S.points; q = quote(pair); document.getElementById('drawdone').click(); ${W(400)} if (modalOpen) document.querySelector('#modal .primary')?.click(); ${W(300)}
 const l = S.lines.at(-1); out.built = S.lines.length === l0 + 1 && S.bridges.length === br0 + 1 && Math.abs(cash - S.points - q.cash) < 1 && l.stops.filter(id => S.cities[id].kind === 'bridgehead').length === 2 && !draft;
+out.receipt = document.getElementById('toast').textContent === '线路与新桥已建成 · 合计支出 ' + money(cash - S.points);
 for (const a of cz) for (const b of cz) if (!pair2 && a.id < b.id && !(a === pair[0] && b === pair[1]) && requirements(a, b, 'bus').bridge === 1 && !requirements(a, b, 'bus').tunnel && Math.hypot(a.x - b.x, a.y - b.y) < 900) pair2 = [a, b];
 if (pair2) { clearSelection(); q = quote(pair2); out.reuse = !q.invalid && !!q.uxBridges?.items.length && q.uxBridges.items.every(i => i.kind === 'reuse'); cancelDraft(false); } else out.reuse = true;
 for (const a of cz) for (const b of cz) if (!plain && a.id < b.id && !requirements(a, b, 'bus').bridge && !requirements(a, b, 'bus').tunnel) plain = [a, b];
@@ -213,7 +235,7 @@ if (plain) { q = quote(plain); out.plain = !q.invalid && !q.uxBridges; cancelDra
 // one undo takes back the route and its new bridge, refunding all of it
 const open = () => S.bridges.filter(x => x.status === 'open').length, ob = open(), p1 = S.points; document.getElementById('undo-build').click(); ${W(300)}
 out.undo = S.lines.length === l0 && open() === ob - 1 && Math.abs(S.points - p1 - (cash - p1)) < 1;
-return { ok: out.quoted && out.poor && out.built && out.reuse && out.plain && out.undo, ...out };`,
+return { ok: out.quoted && out.poor && out.built && out.receipt && out.reuse && out.plain && out.undo, ...out };`,
   lines: `// 1) same-direction departures (overlap risk) with planned bends vs. a fixed bend; 2) vehicles on lanes; 3) grab at
 // drawn midpoints; then stage a construction + a break on 栖山—河岸镇 for the screenshot.
 const segs = new Map();
@@ -262,5 +284,5 @@ return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-ri
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
 mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice', 'capsules', 'actrun', 'harbor']);
 mk('scenA_F.json', ['coach']);
-mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines', 'toastsel', 'autobridge', 'lastlife']);
+mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines', 'toastsel', 'autobridge', 'lastlife', 'warningedge']);
 console.log('built');

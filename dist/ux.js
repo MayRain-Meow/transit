@@ -43,7 +43,7 @@ updateUI = function () {
 // Action feedback (money moved, something built) stays readable for a moment: idle information arriving meanwhile
 // ("…可以建设", "…可经营", "…已开放") waits its turn instead of replacing it. Warnings, losses and everything else are
 // never delayed. The lifecycle "paused, press ▶" note is skipped for a brand-new game (nothing
-// to resume yet; the coach is on screen) and, for a finished game, says what the header button now does.
+// to resume yet; the coach is on screen) and, for a finished game, stays valid on both the map and the map picker.
 const UX_FEEDBACK = /已支付|支出|退还|全退|已建设|建成|已应用|已购买|买入|卖出|已出售/;
 const UX_IDLE_INFO = /可以建设|可经营|可以经营|点击城市查看|已开放|开放了|新城市|发现待接入/;
 let uxToastHold = 0, uxToastQueued = null, uxToastTimer = 0;
@@ -51,7 +51,7 @@ const uxToastBase = toast;
 toast = function (t, ...a) {
   t = String(t ?? '');
   if (/^已回到游戏/.test(t)) {
-    if (S && S.lives <= 0) t = '本局已结束 · 点右上「结算」查看成绩，或选图开新局';
+    if (S && S.lives <= 0) t = '本局已结束';
     else if (S && !S.lines.length && S.day < 1) return;
   }
   if (/^从一座城市拖向另一座/.test(t) && uxCoachActive()) return;   // the coach already says this
@@ -424,10 +424,11 @@ function uxLoadBlock(el) {
   const c = S.cities[selected.id]; if (!c || typeof capacity !== 'function') return;
   const n = c.q.filter(p => !p.cardId && !p.eventId).length, cap = capacity(c), limit = c.shape === 1 ? 205 : 160;
   const p = Math.max(0, c.congestionPressure || 0), full = n >= cap, special = c.q.length - n;
-  const state = c.shield > 0 ? ['保护中 ' + Math.ceil(c.shield) + 's', 'is-calm'] : full ? ['超出 ' + (n - cap), 'is-over'] : n >= cap * .8 ? ['接近满员', 'is-near'] : ['未满', 'is-calm'];
+  const ended = S.lives <= 0, lost = ended && S.uxLifeLog?.at(-1)?.id === c.id;
+  const state = ended ? [lost ? '本局失守' : '本局已结束', lost ? 'is-over' : 'is-calm'] : c.shield > 0 ? ['保护中 ' + Math.ceil(c.shield) + 's', 'is-calm'] : full ? ['超出 ' + (n - cap), 'is-over'] : n >= cap * .8 ? ['接近满员', 'is-near'] : ['未满', 'is-calm'];
   const box = document.createElement('section'); box.className = 'ux-load';
   box.innerHTML = '<div class="ux-load-main"><b>' + n + '</b><span>人候车 · 容量 ' + cap + (special ? ' · 另有活动乘客 ' + special : '') + '</span><em class="' + state[1] + '">' + state[0] + '</em></div>'
-    + '<div class="ux-load-press"><span class="ux-bar' + (full ? ' is-over' : '') + '"><i style="width:' + Math.min(100, p / limit * 100) + '%"></i></span><small>' + (!full && p > 0 ? '满员计时回落中 ' : '满员计时 ') + Math.floor(p) + '/' + Math.round(limit) + ' 秒 · 计满扣一条命</small></div>';
+    + (ended ? '' : '<div class="ux-load-press"><span class="ux-bar' + (full ? ' is-over' : '') + '"><i style="width:' + Math.min(100, p / limit * 100) + '%"></i></span><small>' + (!full && p > 0 ? '满员计时回落中 ' : '满员计时 ') + Math.floor(p) + '/' + Math.round(limit) + ' 秒 · 计满扣一条命</small></div>');
   g.replaceWith(box);
   const bar = box.nextElementSibling; if (bar?.classList?.contains('bar')) bar.remove();
 }
@@ -768,7 +769,7 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
   function update() {
     try {
       const keep = new Set();
-      if (S && !modalOpen && !draft && !bridgeDraft) {
+      if (S && S.lives > 0 && !modalOpen && !draft && !bridgeDraft) {
         const band = fitBand();
         // portrait: the line picker is a bottom sheet too (fitBand already stops at the tray and the details sheet)
         const pk = uxEl('junction-picker'); if (portraitMode && pk && !pk.hidden) { const r = pk.getBoundingClientRect(); if (r.height) band.bottom = Math.min(band.bottom, r.top - 10); }
@@ -776,7 +777,7 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
         for (const sel of ['.top-stack']) { const e = document.querySelector(sel); if (!e || e.hidden) continue; const r = e.getBoundingClientRect(); if (r.height) band.top = Math.max(band.top, r.bottom + 4); }
         const cx = W / 2, cy = (band.top + band.bottom) / 2;
         for (const c of realCities()) {
-          const urgent = !c.dormant && c.warning > 0, fresh = c.dormant;
+          const left = uxLifeLeft(c), urgent = !c.dormant && (left !== null || c.warning > 0), fresh = c.dormant;
           if (!urgent && !fresh) continue;
           const p = toScreen(c);
           // A city the player can see (below the header, above the dock — and in portrait above an open sheet) needs no pointer.
@@ -785,7 +786,7 @@ for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, e => {
           const dx = p.x - cx, dy = p.y - cy, sx = (W / 2 - 64) / Math.abs(dx || 1e-6), sy = ((band.bottom - band.top) / 2 - 22) / Math.abs(dy || 1e-6), k = Math.min(sx, sy, 1);
           let el = pills.get(c.id);
           if (!el) { el = document.createElement('button'); el.dataset.city = c.id; layer.appendChild(el); pills.set(c.id, el); }
-          const secs = urgent ? Math.ceil(c.warning) : typeof cityOpeningRemaining === 'function' ? cityOpeningRemaining(c) : null;
+          const secs = urgent ? (left ?? Math.ceil(c.warning / Math.max(1, S.speed || 1))) : typeof cityOpeningRemaining === 'function' ? cityOpeningRemaining(c) : null;
           el.className = 'ux-edge-pill' + (urgent ? ' is-urgent' : '');
           el.innerHTML = `<i style="transform:rotate(${Math.atan2(dy, dx)}rad)">➜</i><span>${urgent ? '告急 ' : '新城 '}${escapeHTML(c.name)}</span>${secs !== null ? `<small>${secs}s</small>` : ''}`;
           // Never cover a city that is on screen (a tap meant for it would fly the camera away): slide the pill along
@@ -1586,12 +1587,13 @@ function uxNoticeDismiss() {
 }
 function uxEndedState() {
   const b = uxEl('pause'); if (!b) return;
-  const tap = b.onclick;
+  const tap = b.onclick, playLabel = b.getAttribute?.('aria-label') || '暂停或继续';
   b.onclick = function (e) { if (S && S.lives <= 0) { if (typeof gameover === 'function') gameover(); return; } return tap?.call(this, e); };
   const ui = updateUI; updateUI = function (...a) {
     const r = ui.apply(this, a), ended = !!S && S.lives <= 0;
     if (b.classList?.contains('is-ended') !== ended) b.classList?.toggle('is-ended', ended);
     if (ended) { if (b.textContent !== '结算') b.textContent = '结算'; b.setAttribute?.('aria-label', '本局已结束，查看结算'); }
+    else if (b.getAttribute?.('aria-label') === '本局已结束，查看结算') b.setAttribute('aria-label', playLabel);
     return r;
   };
 }
@@ -1902,10 +1904,13 @@ function uxBridgeRoutes() {
     // one build, one undo: the route's receipt and the new bridges' become one ("撤回建线与新桥 · 全退 ¥quote"). The
     // route goes first (a bridge in use cannot be removed), then the bridges; one that still cannot go is not refunded.
     const lineR = typeof constructionUndo !== 'undefined' ? constructionUndo : null;
-    if (!draft && lineR && receipts.length && !receipts.includes(lineR) && typeof offerConstructionUndo === 'function')
-      offerConstructionUndo({ ...lineR, label: lineR.label + '与新桥', paid: lineR.paid + receipts.reduce((v, b) => v + b.paid, 0),
+    if (!draft && lineR && receipts.length && !receipts.includes(lineR) && typeof offerConstructionUndo === 'function') {
+      const paid = lineR.paid + receipts.reduce((v, b) => v + b.paid, 0);
+      offerConstructionUndo({ ...lineR, label: lineR.label + '与新桥', paid,
         canUndo: () => lineR.canUndo(),
         undo() { lineR.undo(); let kept = 0; for (const b of receipts.slice().reverse()) { if (b.canUndo()) b.undo(); else kept += b.paid; } this.paid -= kept; } });
+      toast('线路与新桥已建成 · 合计支出 ' + money(paid));
+    }
     return r;
   };
   // the route bar says what the quote contains
@@ -1949,7 +1954,7 @@ function uxDrawPlannedBridges() {
 function uxNoticeTiming() {
   if (typeof showNotice130 !== 'function' || showNotice130.ux) return;   // only this popup: activity offers keep their own timing
   const sn = showNotice130;
-  showNotice130 = function (...a) { if (!S || (!(S.lines?.length) && S.day < 3)) return; return sn.apply(this, a); };
+  showNotice130 = function (...a) { if (!S || (selected && !uxEl('details')?.hidden) || (!S.lines?.length && S.day < 3)) return; return sn.apply(this, a); };
   showNotice130.ux = true;
 }
 // v1.6 vehicle trading (release16 appends 「车辆买卖」 to the shop): one row per type even with nothing in stock, plus
@@ -2002,26 +2007,23 @@ function uxHarborChip() {
     try {
       const el = uxEl('details'), row = el?.querySelector(':scope > .harbor16'), c = selected?.type === 'city' ? S.cities[selected.id] : null;
       if (!row || !c || typeof isOcean16 !== 'function' || !isOcean16()) return r;
-      row.remove();
+      row.remove(); el.querySelector(':scope > .harbor-connect164')?.remove();
+      if (S.lives <= 0 && !c.harbor) { el.querySelector('.ux-harbor')?.remove(); return r; }
       let strip = el.querySelector(':scope > .ux-fac-strip');
       if (!strip) { strip = document.createElement('div'); strip.className = 'ux-fac-strip'; strip.innerHTML = '<span>设施</span>'; (el.querySelector(':scope > .ux-load') || el.querySelector(':scope > .detail-sub'))?.after(strip); }
       strip.querySelector('.ux-harbor')?.remove();
-      const ports = S.cities.filter(x => x.harbor && !x.removed).length, b = document.createElement('button'); b.type = 'button'; b.className = 'ux-harbor';
-      if (!c.harbor) { b.innerHTML = '<i>⚓</i>建港口 <small>¥1500</small>'; b.onclick = e => { e.stopPropagation(); buildHarbor16(c.id); showDetails(true); }; if (S.points < 1500) b.classList.add('is-off'); }
-      else if (ports < 2) { b.innerHTML = '<i>⚓</i>本城港口 <small>再建一座可开航</small>'; b.classList.add('is-note'); b.onclick = e => e.stopPropagation(); }
+      const ports = realCities().filter(x => x.harbor && !x.dormant).length, b = document.createElement('button'); b.type = 'button'; b.className = 'ux-harbor';
+      if (S.lives <= 0) { b.textContent = '⚓ 本城港口 · 已建成'; b.classList.add('is-note'); b.disabled = true; }
+      else if (!c.harbor) { b.innerHTML = '<i>⚓</i>建港口 <small>¥1500</small>'; b.onclick = e => { e.stopPropagation(); buildHarbor16(c.id); showDetails(true); }; if (S.points < 1500) b.classList.add('is-off'); }
+      else if (ports < 2) { b.innerHTML = '<i>⚓</i>本城港口 <small>再建一座可开航</small>'; b.classList.add('is-note'); b.disabled = true; }
       else { b.innerHTML = '<i>⚓</i>本城港口 <small>开航线 ↗</small>'; b.onclick = e => { e.stopPropagation(); if (typeof beginHarborRoute164 === 'function') beginHarborRoute164(c.id); }; }
       strip.querySelector(':scope > span')?.after(b);
       // the harbour note (harbor-connection164) goes from under the title to the foot of the sheet: it explains, it is not a status
-      const note = el.querySelector(':scope > .harbor-shared163'); if (note) { b.title = note.textContent.replace(/^⚓s*/, ''); note.classList.add('ux-harbor-note'); el.appendChild(note); el.querySelector(':scope > .ux-peekbar') && el.appendChild(el.querySelector(':scope > .ux-peekbar')); }
+      const note = el.querySelector(':scope > .harbor-shared163'); if (note) { b.title = note.textContent.replace(/^⚓\s*/, ''); note.classList.add('ux-harbor-note'); el.appendChild(note); el.querySelector(':scope > .ux-peekbar') && el.appendChild(el.querySelector(':scope > .ux-peekbar')); }
     } catch {}
     return r;
   };
   showDetails.uxHarbor = true;
-  // the first harbour has nowhere to sail to yet: its confirmation says what comes next instead of offering a route
-  const tt = toast; toast = function (t, ...a) {
-    if (/港口建成 · 可新建免费海运航线/.test(String(t)) && S && S.cities.filter(x => x.harbor && !x.removed).length < 2) t = String(t).replace('可新建免费海运航线', '再建一座港口即可开航');
-    return tt.call(this, t, ...a);
-  };
 }
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
@@ -2194,7 +2196,7 @@ globalThis.QUEUE_SHOWN_FOR = c => { const n = c.q?.length || 0, dense = view.sca
 // seconds of real time before this station costs a life, or null when it is not about to (the rule of release16.js
 // updateCongestion: pressure grows while the hall is full and costs a life at 160 s, 205 s for a tourist town)
 function uxLifeLeft(c) {
-  if (!c || c.dormant || c.grace > 0 || c.shield > 0 || typeof capacity !== 'function') return null;
+  if (S.lives <= 0 || !c || c.dormant || c.grace > 0 || c.shield > 0 || typeof capacity !== 'function') return null;
   const cap = capacity(c), n = c.q.filter(p => !p.cardId && !p.eventId).length; if (!cap || n < cap) return null;
   const limit = c.shape === 1 ? 205 : 160, rest = Math.max(0, limit - (c.congestionPressure || 0)), real = rest / Math.max(1, S.speed || 1);
   return real <= 30 ? Math.max(1, Math.ceil(real)) : null;
@@ -2203,12 +2205,38 @@ globalThis.QUEUE_TAIL = function (c, px, py) {
   const n = c.q.length, cap = typeof capacity === 'function' ? capacity(c) : 0, ratio = cap ? n / cap : 0;
   // close to losing a life (≤ 30 s of real time at the current speed): "44/24 · 距扣命约 12 秒"; back to the count on recovery
   const left = uxLifeLeft(c), label = (cap ? n + '/' + cap : String(n)) + (left !== null ? ' · 距扣命约 ' + left + ' 秒' : '');
-  const w = 7 + label.length * 5.6 - (left !== null ? 9 : 0), x = px + 6 * 11 + 2, y = py - 1;
+  let w = 7 + label.length * 5.6, h = 11, font = 8.5, x = px + 6 * 11 + 2, y = py - 1;
   const [bg, fg] = ratio >= 1 ? ['#b5573f', '#fff'] : ratio >= .7 ? ['#e9c27a', '#4a3a1c'] : ['#eef1ea', '#4f5f58'];
-  ctx.save(); ctx.globalAlpha *= .96; ctx.fillStyle = bg; ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(x, y, w, 11, 5.5); else ctx.rect(x, y, w, 11);
-  ctx.fill(); ctx.restore();
-  text(label, x + w / 2, y + 8.3, 8.5, fg);
+  ctx.save();
+  if (left !== null) {
+    // The queue normally grows to the right. Keep a visible station's actionable warning on screen
+    // even when its passenger squares run off the edge. No camera move or additional overlay.
+    const k = view.scale * (globalThis.CITY_GLYPH?.() ?? 1), {x:sx, y:sy} = toScreen(c);
+    font = 11 / k; h = 16 / k; y = py + 4.5 - h / 2;
+    ctx.font = font + 'px system-ui,sans-serif'; w = ctx.measureText(label).width + 10 / k;
+    if (sx >= 0 && sx <= W && sy >= 0 && sy <= H) {
+      const width = w * k, height = h * k, row = sy + (y - c.y) * k, gap = radius(c) * k + 9;
+      const center = Math.max(4, Math.min(W - width - 4, sx - width / 2));
+      const spots = [[sx + (x - c.x) * k, row], [sx - gap - width, row],
+        [center, sy - gap - height], [center, sy + gap]].filter(([x,y]) => x >= 4 && x + width <= W - 4 && y >= 4 && y + height <= H - 4);
+      // A side switch must not put this station's warning over a neighbouring station.
+      const free = ([x,y]) => !S.cities.some(o => {
+        if (o === c || o.removed) return false;
+        const p = toScreen(o), r = radius(o) * k + 4;
+        return p.x + r > x && p.x - r < x + width && p.y + r > y && p.y - r < y + height;
+      });
+      const at = spots.find(free) || spots[0];
+      if (at) { x = c.x + (at[0] - sx) / k; y = c.y + (at[1] - sy) / k; }
+    }
+  }
+  ctx.globalAlpha *= .96; ctx.fillStyle = bg; ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, h / 2); else ctx.rect(x, y, w, h);
+  ctx.fill();
+  if (left !== null) {
+    ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x + w / 2, y + h / 2);
+  }
+  ctx.restore();
+  if (left === null) text(label, x + w / 2, y + 8.3, font, fg);
   return true;
 };
 // "临江·起始城市圈": the region half is shown for the selected city or when zoomed in, not on every label.
@@ -2226,7 +2254,7 @@ globalThis.SUBTITLE_MIN_SCALE = .8;    // "旅游 · 小镇" only when zoomed in
 // Mission badges: show progress that means something; a row of "0/20" at overview zoom is noise.
 drawMissionBadges = function () {
   for (const c of realCities()) {
-    if (c.dormant) { if (typeof drawCityOpening === 'function') drawCityOpening(c); continue; }
+    if (c.dormant) { if (S.lives > 0 && typeof drawCityOpening === 'function') drawCityOpening(c); continue; }
     const spec = missionSpec(c), rewarded = c.rewardUntil > S.day, label = rewarded ? '奖金已到账' : spec ? c.mission.progress + '/' + spec.goal : '繁荣';
     const focus = selected && ['city', 'stop', 'junction'].includes(selected.type) && selected.id === c.id;
     // the selected city, a just-paid reward, or a mission at least half done; everything else is in 目标 → 城市任务
