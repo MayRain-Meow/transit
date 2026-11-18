@@ -331,7 +331,7 @@ function uxLineSheet(rebuild) {
 <button class="ux-icon" onclick="renameLine(${l.id})" title="名称 / 颜色" aria-label="修改名称或颜色">✎</button><button class="close" onclick="clearSelection()" aria-label="关闭">×</button></div>
 ${blocked ? '<p class="ux-alert">部分路段停止接入，两侧车辆分段运行。拉线时可支付维修费，或重新接桥改线。</p>' : ''}
 ${!vs.length && !l.retiring ? '<p class="ux-alert">还没有车辆，乘客不会使用这条线路。点「＋」加一辆。</p>' : ''}
-<div class="ux-fleet ux-fleet-row" style="--lc:${l.color}"><div class="ux-fleet-txt"><span><b>${vs.length}</b> 辆</span><span>载客 <b>${load}</b>/${seats}${seats ? ' · ' + Math.round(load / seats * 100) + '%' : ''}</span><span class="ux-bar"><i style="width:${seats ? Math.min(100, load / seats * 100) : 0}%"></i></span></div>
+<div class="ux-fleet ux-fleet-row" style="--lc:${l.color}"><div class="ux-fleet-txt"><small class="ux-fleet-kind">车辆</small><b class="ux-fleet-n">${vs.length}<span> 辆</span></b><span>载客 <b>${load}</b>/${seats}${seats ? ' · ' + Math.round(load / seats * 100) + '%' : ''}</span><span class="ux-bar"><i style="width:${seats ? Math.min(100, load / seats * 100) : 0}%"></i></span></div>
 <div class="ux-stepper"><button onclick="uxFleetMinus(${l.id})" ${!vs.some(v => !v.recall) ? 'disabled' : ''} aria-label="回收一辆">−</button><button class="primary" onclick="uxFleetPlus(${l.id})" ${canAdd ? '' : 'disabled'}>＋ ${inv > 0 ? '库存 ' + inv : '¥' + T.vehicle}</button></div></div>
 <div class="ux-route${pick ? ' is-picking' : ''}" style="--lc:${l.color}">${stops.map((id, k) => `<span class="ux-hop">${k ? '<i></i>' : ''}${pick ? `<button class="ux-stop${pick.marked.has(id) ? ' is-off' : ''}" onclick="uxStopMark(${l.id},${id})" aria-pressed="${pick.marked.has(id)}">${escapeHTML(S.cities[id].name)}</button>` : `<span class="ux-stop">${escapeHTML(S.cities[id].name)}${stops.length > 2 && !l.retiring ? `<button onclick="prepareRemoveStop(${l.id},${id})" aria-label="移除${escapeHTML(S.cities[id].name)}这一站">×</button>` : ''}</span>`}</span>`).join('')}${l.retiring || pick ? '' : `<span class="ux-route-tools"><button onclick="uxStopPickToggle(${l.id})" ${stops.length > 2 ? '' : 'disabled'}>多站移除</button><button onclick="uxRedraw(${l.id})">重画</button></span>`}</div>
 ${!l.retiring && pick ? `<div class="ux-route-tools is-picking"><span>点选要去掉的站 · 已选 ${pick.marked.size}</span><button onclick="uxStopPickToggle(${l.id})">取消</button><button class="primary" onclick="uxStopPickApply(${l.id})" ${pick.marked.size ? '' : 'disabled'}>预览移除 ${pick.marked.size || ''} 站</button></div>` : ''}
@@ -629,7 +629,7 @@ function uxHandleAt(sx, sy) {
 // Line identity: a short code from the line's name — its number ("3"), with the vehicle type ("巴1", "动1") once a
 // network mixes types and numbers repeat; otherwise the first characters. The same code labels the line's ends on
 // the map (as on a metro map) and its entry in the collapsed tray, so a colour always comes with a name.
-const UX_TYPE_CHAR = { bus: '巴', emu: '动', rail: '铁', air: '航' };
+const UX_TYPE_CHAR = { bus: '巴', emu: '动', rail: '铁', air: '航', ship: '船', ferry: '渡' };
 function uxLineCode(l) {
   const num = l => (String(l.name).match(/\d+/) || [])[0];
   const n = num(l);
@@ -1486,9 +1486,10 @@ function uxTray() {
 // its lines as compact chips by number in their colour (a renamed line keeps its own name). Collapsed: one row, a pill
 // per mode with its count and colour dots; tapping a pill opens the tray at that mode. Upstream's list stays in the
 // page (hidden) — the chips select lines with the same call it uses.
-const UX_MODES = [['bus', '大巴'], ['emu', '动车'], ['rail', '高铁'], ['air', '航空']];
+// v1.6 sea modes (third map): 小轮船 / 大轮渡 lines are grouped like the land modes
+const UX_MODES = [['bus', '大巴'], ['emu', '动车'], ['rail', '高铁'], ['ship', '轮船'], ['ferry', '轮渡'], ['air', '航空']];
 function uxLineLabel(l) {
-  const m = String(l.name).match(/^(?:大巴|公交|动车|高铁|飞机|航空|航线)?\s*(\d+)\s*(?:号)?线?$/);
+  const m = String(l.name).match(/^(?:大巴|公交|动车|高铁|飞机|航空|航线|小轮船|大轮渡|轮船|轮渡|海运)?\s*(\d+)\s*(?:号)?线?$/);
   return m ? m[1] : String(l.name).replace(/线$/, '').slice(0, 4);
 }
 let uxTrayFocus = null;   // mode the collapsed pill asked for
@@ -2319,7 +2320,7 @@ function uxOctInfra(draw) {
   };
 }
 // ---------- transport modes ----------
-const UX_MODE_RANK = { bus: 0, emu: 1, rail: 2, air: 3 };
+const UX_MODE_RANK = { bus: 0, emu: 1, rail: 2, ship: 2.5, ferry: 2.6, air: 3 };
 // widths relative to upstream's (bus 3.7, 动车 4.5, 高铁 7, air 2.8), so the zoom scaling applied by earlier layers stays
 const UX_MODE_WIDTH = { bus: 3.4 / 3.7, emu: 5.2 / 4.5, rail: 7 / 7, air: 2.2 / 2.8 };
 // Re-routing a line (user 2026-11-15: 改线时看不清当前走向): the line as it is now stays on the map as a wide, pale band

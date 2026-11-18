@@ -1621,3 +1621,12 @@ html body #modal-content .research-card p{flex:none!important}
 html body #modal-content .research-grid{align-items:start!important}
 html body #modal-content .research-card button{margin-top:6px!important}
 html body #modal-content .research-card .research-cost{padding:0!important;min-height:0!important;height:auto!important;border:0!important;background:none!important}
+/* sea modes (v1.6): a dotted mark, like a shipping lane on a chart */
+.ux-tmark.ship,.ux-tmark.ferry{height:3px;border-radius:0;background:radial-gradient(circle,#4f5f58 1.3px,transparent 1.5px) 0 50%/5px 3px repeat-x}
+.ux-tmark.ferry{height:4px;background:radial-gradient(circle,#4f5f58 1.8px,transparent 2px) 0 50%/6px 4px repeat-x}
+.ux-tg[data-mode="ship"] .ux-tline i,.ux-jg[data-mode="ship"] .junction-line i{height:4px!important;border-radius:0!important;background:radial-gradient(circle,var(--c) 1.5px,transparent 1.8px) 0 50%/5px 4px repeat-x!important}
+.ux-tg[data-mode="ferry"] .ux-tline i,.ux-jg[data-mode="ferry"] .junction-line i{height:5px!important;border-radius:0!important;background:radial-gradient(circle,var(--c) 2px,transparent 2.3px) 0 50%/6px 5px repeat-x!important}
+/* fleet row: the kind label stays in the markup (v1.6.5 harbour layer renames 车辆/辆 to 船舶/艘 through it) but the row
+   reads "1 辆" on its own */
+html body #details .ux-fleet-row .ux-fleet-kind{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+html body #details .ux-fleet-row .ux-fleet-n span{font-size:12.5px;font-weight:400;color:#5f6f68}
