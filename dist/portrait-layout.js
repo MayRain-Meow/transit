@@ -46,7 +46,7 @@ startAtlasMap=function(){portraitStartMapBefore();if(!atlasMenuOpen){S.portraitS
 function portraitResumeMap(){atlasRestart=false;startAtlasMap();}
 function portraitAskRestart(){let id=atlasSelected;if(!portraitCanResume(id))return;hideAtlasMaps(false);openModal('<div class="modal-head"><h2>重新开始'+escapeHTML(ATLAS_MAPS[id].name)+'？</h2></div><p>确认后将清除这张地图的本局进度，最高存活记录会保留。另一张地图的存档不受影响。</p><div class="ux-actions"><button class="primary" onclick="portraitConfirmRestart(\''+id+'\')">确认重新开始</button><button onclick="portraitCancelRestart()">取消，保留存档</button></div>');}
 function portraitCancelRestart(){closeModal();showAtlasMaps(false);}
-function portraitConfirmRestart(id){if(!['east','west'].includes(id))return;atlasSelected=id;atlasRestart=true;startAtlasMap();atlasRestart=false;}
+function portraitConfirmRestart(id){if(!Object.prototype.hasOwnProperty.call(ATLAS_MAPS,id))return;atlasSelected=id;atlasRestart=true;try{startAtlasMap();}finally{atlasRestart=false;}}
 const restartMapButton=document.createElement('button');restartMapButton.id='atlas-restart';restartMapButton.textContent='重新开始';restartMapButton.hidden=true;restartMapButton.onclick=portraitAskRestart;$('atlas-start').parentElement?.appendChild(restartMapButton);
 $('atlas-start').onclick=portraitResumeMap;
 atlasRefreshCards();
