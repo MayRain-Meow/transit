@@ -1196,6 +1196,16 @@ function uxGameOver(m) {
   const tiles = document.createElement('div'); tiles.className = 'ux-resume';
   tiles.innerHTML = `<div><small>坚持</small><b>${days} 天</b></div><div><small>送达</small><b>${got ?? 0} 人</b></div><div><small>线路</small><b>${S.lines.length}</b></div><div><small>城市</small><b>${realCities().filter(c => !c.dormant).length}</b></div>`;
   const h = m.querySelector('h1, h2'); (h || m.firstChild).after(tiles);
+  // what ended the run (user 2026-11-18): the last life actually lost, as recorded when it happened (uxLifeLog) — not a
+  // guess from the stations that are crowded now. The secondary button goes to that station.
+  const last = (S.uxLifeLog || []).at(-1), lc = last && S.cities[last.id];
+  if (last) {
+    const why = document.createElement('p'); why.className = 'ux-lastlife';
+    why.innerHTML = '<b>最后一条命</b>' + escapeHTML(last.name.split('·')[0]) + ' 持续满员<small>第 ' + (last.day + 1) + ' 天 · 当时候车 ' + last.n + ' / 容量 ' + last.cap + '</small>';
+    tiles.before(why);
+    const look = [...m.querySelectorAll('button')].find(b => /查看交通网络/.test(b.textContent));
+    if (look && lc && !lc.removed) { look.textContent = '查看失守车站'; look.setAttribute('onclick', 'closeModal();uxFocusCity(' + last.id + ')'); }
+  }
   for (const p of m.querySelectorAll('p')) if (/(维持|坚持)了/.test(p.textContent)) p.remove();
 }
 /* ---------- active city activity: status, progress, stakes ---------- */
@@ -1961,11 +1971,29 @@ function uxFleetSale() {
   };
   shop.uxSale = true;
 }
+// Life-loss record: which station cost each life, with its queue at that moment (kept with the game, last 5)
+function uxLifeLog() {
+  if (typeof updateCongestion !== 'function' || updateCongestion.uxLog) return;
+  const uc = updateCongestion;
+  updateCongestion = function (c, ...a) {
+    const before = S.lives, n = c?.q ? c.q.filter(p => !p.cardId && !p.eventId).length : 0, cap = typeof capacity === 'function' && c ? capacity(c) : 0;
+    const r = uc.call(this, c, ...a);
+    if (S.lives < before && c) { (S.uxLifeLog ||= []).push({ id: c.id, name: c.name, day: Math.floor(S.day), n, cap }); if (S.uxLifeLog.length > 5) S.uxLifeLog.shift(); }
+    return r;
+  };
+  updateCongestion.uxLog = true;
+  // a finished run is looked back at: invitations and other notices no longer ask for anything
+  const ui = updateUI; updateUI = function (...a) {
+    const r = ui.apply(this, a);
+    if (S && S.lives <= 0) { const n = uxEl('notice'); if (n && n.textContent) n.textContent = ''; }
+    return r;
+  };
+}
 function uxLate() {
   if (uxLate.done) return;   // wrapping twice would stack every layer; done only once the last layer (events.js) is loaded
   if (typeof activityState === 'function') uxLate.done = true;
   uxWrapLateDrawers(); uxWrapLatePanels(); uxWrapHubs(); uxWrapWelcome();
-  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox(); uxBridgeRoutes(); uxNoticeTiming(); uxFleetSale();
+  uxEndedState(); uxTrayInit(); uxModeStyle(); uxAchievements(); uxExitIcon(); uxBatchOffers(); uxGestureRules(); uxSwipeAttach(); uxDraftInfra(); uxHeaderMenu(); uxFeedbackBox(); uxBridgeRoutes(); uxNoticeTiming(); uxFleetSale(); uxLifeLog();
   if (typeof startAtlasMap === 'function') { const sa = startAtlasMap; startAtlasMap = function (...a) { const r = sa.apply(this, a); if (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen) uxApplyPlayView(false); return r; }; }
   if (!modalOpen && (typeof atlasMenuOpen === 'undefined' || !atlasMenuOpen)) uxApplyPlayView(false);
   uxEl('hub-build')?.classList?.remove('is-primary');
@@ -2129,9 +2157,19 @@ globalThis.QUEUE_SHOWN = 12;           // two rows of waiting squares, then "+n"
 // that decides what to do (181/128) is on the map instead of "+169" and a wall of squares.
 // In a dense or zoomed-out view every city with more than one row waiting gets the one-row + pill form.
 globalThis.QUEUE_SHOWN_FOR = c => { const n = c.q?.length || 0, dense = view.scale < 1 || realCities().filter(x => !x.dormant).length >= 8; return n > 12 || dense && n > 6 ? 6 : 12; };
+// seconds of real time before this station costs a life, or null when it is not about to (the rule of release16.js
+// updateCongestion: pressure grows while the hall is full and costs a life at 160 s, 205 s for a tourist town)
+function uxLifeLeft(c) {
+  if (!c || c.dormant || c.grace > 0 || c.shield > 0 || typeof capacity !== 'function') return null;
+  const cap = capacity(c), n = c.q.filter(p => !p.cardId && !p.eventId).length; if (!cap || n < cap) return null;
+  const limit = c.shape === 1 ? 205 : 160, rest = Math.max(0, limit - (c.congestionPressure || 0)), real = rest / Math.max(1, S.speed || 1);
+  return real <= 30 ? Math.max(1, Math.ceil(real)) : null;
+}
 globalThis.QUEUE_TAIL = function (c, px, py) {
   const n = c.q.length, cap = typeof capacity === 'function' ? capacity(c) : 0, ratio = cap ? n / cap : 0;
-  const label = cap ? n + '/' + cap : String(n), w = 7 + label.length * 5.6, x = px + 6 * 11 + 2, y = py - 1;
+  // close to losing a life (≤ 30 s of real time at the current speed): "44/24 · 距扣命约 12 秒"; back to the count on recovery
+  const left = uxLifeLeft(c), label = (cap ? n + '/' + cap : String(n)) + (left !== null ? ' · 距扣命约 ' + left + ' 秒' : '');
+  const w = 7 + label.length * 5.6 - (left !== null ? 9 : 0), x = px + 6 * 11 + 2, y = py - 1;
   const [bg, fg] = ratio >= 1 ? ['#b5573f', '#fff'] : ratio >= .7 ? ['#e9c27a', '#4a3a1c'] : ['#eef1ea', '#4f5f58'];
   ctx.save(); ctx.globalAlpha *= .96; ctx.fillStyle = bg; ctx.beginPath();
   if (ctx.roundRect) ctx.roundRect(x, y, w, 11, 5.5); else ctx.rect(x, y, w, 11);

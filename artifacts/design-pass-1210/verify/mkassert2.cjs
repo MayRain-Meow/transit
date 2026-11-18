@@ -173,6 +173,20 @@ return { ok: out.every(n => n === 0) && full.every(n => n === 0), covered: out, 
   // a route across a river with no bridge (2026-11-16): quoted with the best new bridge instead of refused; short of
   // funds nothing is built (no lone bridge); with funds it charges exactly the quote, builds one bridge, runs over its
   // heads; a second route over the same river reuses it; a route with no river is left alone
+  // why the run ended (2026-11-18): close to a life loss the station's pill counts down, and goes back to the count when
+  // the hall recovers; the results name the station that actually cost the last life (recorded at the moment), the
+  // secondary button opens that station, and notices are gone from the finished map
+  lastlife: `try { const st = activityState(); st.offers = []; st.next = S.day + 1e6; } catch (e) {} closeModal(); clearSelection(); S.speed = 1;
+const c = realCities().find(x => x.name.startsWith('海宁')) || realCities()[4], cap = capacity(c), limit = c.shape === 1 ? 205 : 160;
+for (let i = 0; c.q.length < cap * 1.5 && i < 200; i++) try { newPassenger(c); } catch (e) {}
+c.grace = 0; c.shield = 0; c.congestionPressure = limit - 20; const near = uxLifeLeft(c);
+c.congestionPressure = 10; const far = uxLifeLeft(c);
+const keep = c.q.slice(); c.q.length = Math.floor(cap / 2); c.congestionPressure = limit - 20; const calm = uxLifeLeft(c); c.q.push(...keep.slice(c.q.length));
+const other = realCities().find(x => x !== c && !x.dormant); other.grace = 0; other.shield = 0;
+S.lives = 1; c.congestionPressure = limit - .5; S.paused = false; ${W(2500)} document.getAnimations().forEach(a => a.finish());
+const m = document.getElementById('modal-content'), line = m.querySelector('.ux-lastlife')?.textContent || '', btn = [...m.querySelectorAll('button')].find(b => /查看失守车站/.test(b.textContent));
+btn?.click(); ${W(900)} const opened = selected?.type === 'city' && selected.id === c.id;
+return { ok: near >= 18 && near <= 20 && far === null && calm === null && S.lives === 0 && line.includes(c.name.split('·')[0]) && !!btn && opened && !document.getElementById('notice').textContent, near, far, calm, line, opened };`,
   autobridge: `S.paused = true; closeModal(); clearSelection(); const cz = realCities().filter(c => !c.dormant), out = {};
 let pair = null, pair2 = null, plain = null;
 for (const a of cz) for (const b of cz) if (!pair && a.id < b.id && requirements(a, b, 'bus').bridge === 1 && !requirements(a, b, 'bus').tunnel && Math.hypot(a.x - b.x, a.y - b.y) < 700) pair = [a, b];
@@ -239,5 +253,5 @@ return { ok: inside('.card-stats') && inside('.card-reward') && inside('.card-ri
 const mk = (file, names) => fs.writeFileSync(file, JSON.stringify(names.map(n => ({ name: 'a_' + n, js: P[n], wait: 300 }))));
 mk('scenA_E.json', ['stock_tab', 'trade', 'research', 'rename', 'quake', 'peek', 'facstrip', 'cards', 'hubframe', 'edge', 'cardfacts', 'notice', 'capsules', 'actrun']);
 mk('scenA_F.json', ['coach']);
-mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines', 'toastsel', 'autobridge']);
+mk('scenA_L.json', ['tray', 'wait', 'junction', 'ended', 'edge', 'restore', 'lines', 'toastsel', 'autobridge', 'lastlife']);
 console.log('built');
